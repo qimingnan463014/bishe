@@ -5,6 +5,8 @@
 ### Git / GitHub
 - 根目录下的演示/录屏类视频（`*.mp4` 等）不再纳入版本控制，并在 `.gitignore` 中按根路径忽略，避免误提交与超过 GitHub 单文件约 100MB 限制。
 - 本地仓库 `user.email` 已与 GitHub 主邮箱对齐为 `614377781@qq.com`（便于提交记录与账户关联）。
+- 为避免首笔提交历史中仍含超大 MP4 导致远程拒绝，已用 **orphan 单根提交**（`aed3140`）重写本地 `main`，并 **`git push --force` 同步至** `https://github.com/qimingnan463014/bishe`（覆盖原仅有 README 的远程初始提交）。
+- 远程提示：根目录 **`uv.exe` 约 64MB**，低于 GitHub 单文件硬上限，但超过 50MB 建议值；若需减轻告警，可改为本机安装工具链或改用 Git LFS，不建议继续扩大二进制体积。
 
 ---
 
