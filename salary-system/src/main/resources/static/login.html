@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>基于Java的员工薪资管理系统设计与实现 - 登录</title>
+    <!-- 引入 Vue 3, Element Plus 和 Axios -->
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css"/>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/element-plus/dist/index.full.min.js"></script>
+    <script src="https://unpkg.com/@element-plus/icons-vue"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+    <!-- 原版套皮核心 CSS 库 -->
+    <link href="/api/login_assets/font_4097802_w9071sf3dx.css" rel="stylesheet">
+    <link href="/api/login_assets/chunk-vendors.baab0025.css" rel="stylesheet">
+    <link href="/api/login_assets/app.aaf399a6.css" rel="stylesheet">
+
+    <style>
+        /* ================= 专属 3D 玻璃拟态主题 ================= */
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: "Helvetica Neue", Helvetica, "PingFang SC", "Microsoft YaHei", Arial, sans-serif; }
+        .el-message { z-index: 9999 !important; }
+
+        /* 全屏背景包裹 */
+        .login-container {
+            width: 100vw;
+            height: 100vh;
+            background: url('/api/admin/img/login_bg.png') center/cover no-repeat;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end; /* 靠右布局 */
+            padding-right: 12%; /* 距离右边距 */
+        }
+
+        /* 磨砂玻璃表单 */
+        .login_form {
+            width: 440px;
+            background: rgba(255, 255, 255, 0.45); /* 半透明白底 */
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            padding: 45px 40px;
+            box-sizing: border-box;
+        }
+
+        /* 标题 */
+        .title-container {
+            font-size: 22px;
+            font-weight: bold;
+            color: #0c5b9e;
+            text-align: center;
+            margin-bottom: 35px;
+            text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+            letter-spacing: 1px;
+        }
+
+        /* 普通输入框 */
+        .list-item, .list-code { margin-bottom: 22px; width: 100%; }
+        
+        .list-item input, .list-code input {
+            width: 100%; height: 48px;
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            border-radius: 8px;
+            padding: 0 18px;
+            font-size: 15px;
+            background: rgba(255, 255, 255, 0.7);
+            color: #333; outline: none;
+            transition: all 0.3s;
+            box-sizing: border-box;
+        }
+        
+        .list-item input:focus, .list-code input:focus {
+            border-color: #409eff; background: #fff;
+            box-shadow: 0 0 8px rgba(64,158,255,0.3);
+        }
+
+        /* 密码输入框小眼睛 */
+        .password-box { position: relative; }
+        .password-box .icon {
+            position: absolute; right: 15px; top: 15px;
+            color: #888; font-size: 18px; cursor: pointer; transition: color 0.3s;
+        }
+        .password-box .icon:hover { color: #409eff; }
+
+        /* 验证码同行排列 */
+        .list-code { display: flex; gap: 12px; }
+        .list-code input { flex: 1; }
+        .getCodeBt {
+            width: 130px; height: 48px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 8px; overflow: hidden; flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: center; cursor: pointer;
+        }
+        
+        /* 角色下拉选择框微调 */
+        .select .el-input__inner {
+            height: 48px !important; 
+            line-height: 48px !important;
+            border: 1px solid rgba(255, 255, 255, 0.8) !important;
+            border-radius: 8px !important;
+            background: rgba(255, 255, 255, 0.7) !important;
+            font-size: 15px !important;
+        }
+        .select .el-input.is-focus .el-input__inner { background: #fff !important; border-color: #409eff !important; }
+
+        /* 登录大按钮 */
+        .login-btn { text-align: center; margin-top: 36px; }
+        .loginInBt {
+            width: 100%; height: 50px; border-radius: 25px;
+            font-size: 18px; letter-spacing: 6px;
+            background: linear-gradient(90deg, #1aa3ff, #0055ff);
+            border: none; color: white; font-weight: bold; cursor: pointer;
+            box-shadow: 0 6px 16px rgba(0, 102, 255, 0.3);
+            transition: all 0.3s ease;
+        }
+        .loginInBt:hover {
+            transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0, 102, 255, 0.45);
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+    <!-- 原封不动保留的原版 DOM 结构 (带 Vue 注入) -->
+    <div class="login-container">
+        <form class="el-form login_form animate__animated animate__">
+            <div class="login_form2">
+                <div class="title-container">基于Java的员工薪资管理系统设计与实现登录</div>
+                
+                <div class="list-item">
+                    <input placeholder="请输入账号：" name="username" type="text" v-model="loginForm.username">
+                </div>
+                
+                <div class="list-item">
+                    <div class="password-box">
+                        <input placeholder="请输入密码：" name="password" :type="showPassword ? 'text' : 'password'" v-model="loginForm.password" @keyup.enter="handleLogin">
+                        <el-icon class="icon" @click="showPassword = !showPassword" style="cursor: pointer;">
+                            <component :is="showPassword ? 'Hide' : 'View'"></component>
+                        </el-icon>
+                    </div>
+                </div>
+                
+                <!-- 验证码 Canvas 自绘 -->
+                <div class="list-code">
+                    <input placeholder="请输入验证码" name="code" type="text" v-model="loginForm.captcha" @keyup.enter="handleLogin" maxlength="4" autocomplete="off">
+                    <div class="getCodeBt" @click="getCaptcha" style="cursor:pointer;padding:0;background:transparent;border:none;" title="点击刷新">
+                        <img :src="captchaImg" style="width:130px;height:48px;border-radius:8px;display:block;" v-if="captchaImg">
+                    </div>
+                </div>
+
+                <div class="list-item select">
+                    <div class="el-select el-select--medium" style="width: 100%;">
+                        <el-select v-model="loginForm.role" placeholder="请选择角色：" style="width: 100%;">
+                            <el-option label="普通员工" value="3"></el-option>
+                            <el-option label="部门经理" value="2"></el-option>
+                            <el-option label="管理员" value="1"></el-option>
+                        </el-select>
+                    </div>
+                </div>
+                
+                <!-- 登录按钮区块 -->
+                <div class="login-btn">
+                    <div class="login-btn1">
+                        <button type="button" class="el-button loginInBt el-button--primary el-button--medium" @click="handleLogin" :disabled="loading">
+                            <span>{{ loading ? '登录中...' : '登录' }}</span>
+                        </button>
+                    </div>
+                    <div class="login-btn2"></div>
+                    <div class="login-btn3"></div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    const { createApp, ref, reactive, onMounted, nextTick } = Vue;
+    const { ElMessage } = ElementPlus;
+
+    // 创建 axios 实例
+    const request = axios.create({
+        baseURL: '/api', // 后端配置了 context-path /api
+        timeout: 5000
+    });
+
+    const app = createApp({
+        setup() {
+            const loginForm = reactive({
+                username: '',
+                password: '',
+                captcha: '',
+                captchaKey: '',
+                role: '1'
+            });
+            const captchaImg = ref('');
+            const loading = ref(false);
+            const showPassword = ref(false);
+
+            // 从后端获取验证码
+            const getCaptcha = async () => {
+                try {
+                    const res = await request.get('/auth/captcha');
+                    if (res.data.code === 200) {
+                        captchaImg.value = res.data.data.captchaImg;
+                        loginForm.captchaKey = res.data.data.captchaKey;
+                    }
+                } catch (error) {
+                    ElMessage.error('验证码加载失败');
+                }
+            };
+
+
+            // 处理登录
+            const handleLogin = async () => {
+                if (!loginForm.username) return ElMessage.warning('请输入账号');
+                if (!loginForm.password) return ElMessage.warning('请输入密码');
+                if (!loginForm.captcha) return ElMessage.warning('请输入验证码');
+
+                loading.value = true;
+                try {
+                    const res = await request.post('/auth/login', null, {
+                        params: {
+                            username: loginForm.username,
+                            password: loginForm.password,
+                            captcha: loginForm.captcha,
+                            captchaKey: loginForm.captchaKey
+                        }
+                    });
+
+                    if (res.data.code === 200) {
+                        ElMessage.success('登录成功！');
+                        const token = res.data.data.token;
+                        const role = res.data.data.role;
+                        const resInfo = res.data.data;
+                        
+                        localStorage.setItem('token', token);
+                        localStorage.setItem('userInfo', JSON.stringify({
+                            username: loginForm.username,
+                            realName: resInfo.realName || resInfo.name || loginForm.username,
+                            role: role
+                        }));
+                        
+                        // 路由分发
+                        setTimeout(() => {
+                            if (role === 1 || role === 2) {
+                                window.location.href = 'admin/index.html';
+                            } else {
+                                window.location.href = 'home.html';
+                            }
+                        }, 500);
+                    } else {
+                        ElMessage.error(res.data.message || '登录失败');
+                        getCaptcha();
+                    }
+                } catch (error) {
+                    console.log('登录失败:', error);
+                    ElMessage.error(error.response?.data?.message || '登录异常');
+                    getCaptcha();
+                } finally {
+                    loading.value = false;
+                }
+            };
+
+            onMounted(() => {
+                getCaptcha();
+            });
+
+            return {
+                loginForm,
+                captchaImg,
+                loading,
+                showPassword,
+                getCaptcha,
+                handleLogin
+            };
+        }
+    });
+    
+    // 注入全部 ElementPlus SVG 图标
+    for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
+        app.component(key, component);
+    }
+    app.use(ElementPlus).mount('#app');
+</script>
+</body>
+</html>

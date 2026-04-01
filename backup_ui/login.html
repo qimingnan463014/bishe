@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>员工薪资管理系统 - 登录</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css"/>
+    <script src="https://unpkg.com/element-plus"></script>
+    <script src="https://unpkg.com/@element-plus/icons-vue"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body, html {
+            height: 100%;
+            font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+            overflow: hidden;
+            background: linear-gradient(135deg, #c8e6ff 0%, #e8f4ff 40%, #d0eaff 70%, #b8d8ff 100%);
+        }
+
+        /* 动态浮动几何体背景 */
+        .bg-shapes {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 0;
+        }
+        .shape {
+            position: absolute;
+            border-radius: 4px;
+            opacity: 0.3;
+            animation: float 8s ease-in-out infinite;
+        }
+        .shape:nth-child(1) { width: 40px; height: 40px; background: #409eff; top: 15%; left: 8%; animation-delay: 0s; }
+        .shape:nth-child(2) { width: 25px; height: 25px; background: #79bbff; top: 30%; left: 20%; animation-delay: 1s; border-radius: 50%; }
+        .shape:nth-child(3) { width: 55px; height: 55px; background: #409eff; top: 55%; left: 5%; animation-delay: 2s; opacity: 0.2; }
+        .shape:nth-child(4) { width: 30px; height: 30px; background: #66b1ff; top: 70%; left: 25%; animation-delay: 0.5s; }
+        .shape:nth-child(5) { width: 20px; height: 20px; background: #a0cfff; top: 85%; left: 12%; animation-delay: 3s; border-radius: 50%; }
+        .shape:nth-child(6) { width: 45px; height: 45px; background: #409eff; top: 10%; left: 40%; animation-delay: 1.5s; opacity: 0.15; }
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(15deg); }
+        }
+
+        /* 整体容器：左右分割 */
+        .login-container {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            width: 100%;
+            height: 100vh;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+        }
+
+        /* 左侧：3D图形区域 */
+        .left-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            position: relative;
+        }
+        .system-title-big {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1a6ab1;
+            text-align: center;
+            margin-bottom: 40px;
+            line-height: 1.5;
+            text-shadow: 0 2px 4px rgba(64,158,255,0.2);
+        }
+        /* SVG 3D 风格图形 */
+        .cube-graphic {
+            width: 320px;
+            height: 320px;
+            position: relative;
+        }
+        .cube-graphic svg {
+            width: 100%;
+            height: 100%;
+            filter: drop-shadow(0 20px 40px rgba(64,158,255,0.3));
+        }
+        .floating-orb {
+            position: absolute;
+            border-radius: 50%;
+            animation: orb-float 3s ease-in-out infinite;
+        }
+        .orb1 { width: 18px; height: 18px; background: radial-gradient(circle, #79bbff, #409eff); top: 5%; right: 15%; animation-delay: 0s; }
+        .orb2 { width: 12px; height: 12px; background: radial-gradient(circle, #a0cfff, #66b1ff); bottom: 20%; left: 8%; animation-delay: 1s; }
+        .orb3 { width: 22px; height: 22px; background: radial-gradient(circle, #ecf5ff, #b3d8ff); top: 45%; right: 5%; animation-delay: 0.5s; }
+        @keyframes orb-float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-12px); }
+        }
+
+        /* 右侧：登录卡片 */
+        .right-panel {
+            width: 440px;
+            margin-right: 80px;
+        }
+        .login-card {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 16px;
+            padding: 44px 40px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15), inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+            animation: card-in 0.7s cubic-bezier(0.23, 1, 0.32, 1) both;
+        }
+        @keyframes card-in {
+            from { opacity: 0; transform: translateX(30px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .card-title {
+            text-align: center;
+            font-size: 17px;
+            font-weight: 600;
+            color: #1a6ab1;
+            margin-bottom: 30px;
+            letter-spacing: 1px;
+        }
+
+        /* 输入框样式覆盖 */
+        .login-form .el-input__wrapper {
+            background: rgba(255,255,255,0.85) !important;
+            border: 1px solid #c8e0f8 !important;
+            border-radius: 8px !important;
+            box-shadow: none !important;
+        }
+        .login-form .el-input__wrapper:hover,
+        .login-form .el-input__wrapper.is-focus {
+            border-color: #409eff !important;
+            box-shadow: 0 0 0 2px rgba(64,158,255,0.15) !important;
+        }
+
+        /* 验证码行 */
+        .captcha-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .captcha-row .el-input { flex: 1; }
+        .captcha-img {
+            height: 40px;
+            width: 110px;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 1px solid #c8e0f8;
+            background: #ecf5ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+        .captcha-img img { width: 100%; height: 100%; object-fit: cover; }
+
+        /* 角色选择标签 */
+        .role-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 22px;
+        }
+        .role-tab {
+            flex: 1;
+            padding: 8px 0;
+            text-align: center;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            border: 1px solid #c8e0f8;
+            color: #606266;
+            background: rgba(255,255,255,0.6);
+            transition: all 0.2s;
+        }
+        .role-tab.active {
+            background: #409eff;
+            color: #fff;
+            border-color: #409eff;
+            box-shadow: 0 4px 12px rgba(64,158,255,0.35);
+        }
+
+        /* 登录按钮 */
+        .login-btn-wrap {
+            margin-top: 8px;
+        }
+        .login-btn {
+            width: 100%;
+            height: 42px;
+            font-size: 16px;
+            letter-spacing: 6px;
+            background: linear-gradient(90deg, #409eff 0%, #3a8ee6 100%);
+            border: none;
+            border-radius: 10px;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 500;
+        }
+        .login-btn:hover {
+            box-shadow: 0 6px 18px rgba(64,158,255,0.45);
+            transform: translateY(-1px);
+        }
+        .login-btn:active {
+            transform: translateY(0);
+        }
+        .login-btn.loading {
+            opacity: 0.8;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <!-- 背景浮动几何体 -->
+    <div class="bg-shapes">
+        <div class="shape"></div>
+        <div class="shape"></div>
+        <div class="shape"></div>
+        <div class="shape"></div>
+        <div class="shape"></div>
+        <div class="shape"></div>
+    </div>
+
+    <div id="app">
+        <div class="login-container">
+            <!-- 左侧 3D 图形区 -->
+            <div class="left-panel">
+                <div class="system-title-big">基于Java的员工薪资管理系统<br>设计与实现</div>
+                <div class="cube-graphic" style="position:relative;">
+                    <!-- SVG 仿3D立方体组合 -->
+                    <svg viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+                                <stop offset="0%" stop-color="#ecf5ff"/>
+                                <stop offset="100%" stop-color="#79bbff"/>
+                            </linearGradient>
+                            <linearGradient id="g2" x1="0" y1="0" x2="1" y2="1">
+                                <stop offset="0%" stop-color="#409eff"/>
+                                <stop offset="100%" stop-color="#1a6ab1"/>
+                            </linearGradient>
+                            <linearGradient id="g3" x1="0" y1="0" x2="1" y2="0">
+                                <stop offset="0%" stop-color="#66b1ff"/>
+                                <stop offset="100%" stop-color="#409eff"/>
+                            </linearGradient>
+                            <linearGradient id="g4" x1="0" y1="0" x2="1" y2="1">
+                                <stop offset="0%" stop-color="#b3d8ff" stop-opacity="0.8"/>
+                                <stop offset="100%" stop-color="#40c4ff" stop-opacity="0.8"/>
+                            </linearGradient>
+                            <filter id="shadow">
+                                <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#409eff" flood-opacity="0.25"/>
+                            </filter>
+                        </defs>
+                        <!-- 底座平台 -->
+                        <ellipse cx="160" cy="280" rx="100" ry="20" fill="#409eff" opacity="0.15"/>
+                        <!-- 中央大立方体 -->
+                        <polygon points="160,80 220,115 220,185 160,220 100,185 100,115" fill="url(#g1)" filter="url(#shadow)"/>
+                        <polygon points="160,80 220,115 160,150 100,115" fill="url(#g3)"/>
+                        <polygon points="100,115 160,150 160,220 100,185" fill="url(#g2)"/>
+                        <polygon points="220,115 160,150 160,220 220,185" fill="url(#g4)"/>
+                        <!-- 小立方体1（右上） -->
+                        <polygon points="245,60 275,77 275,111 245,128 215,111 215,77" fill="url(#g1)" opacity="0.9" filter="url(#shadow)"/>
+                        <polygon points="245,60 275,77 245,94 215,77" fill="url(#g3)"/>
+                        <polygon points="215,77 245,94 245,128 215,111" fill="url(#g2)"/>
+                        <!-- 小立方体2（左上） -->
+                        <polygon points="75,90 105,107 105,141 75,158 45,141 45,107" fill="url(#g4)" opacity="0.85" filter="url(#shadow)"/>
+                        <polygon points="75,90 105,107 75,124 45,107" fill="#79bbff" opacity="0.9"/>
+                        <polygon points="45,107 75,124 75,158 45,141" fill="url(#g2)" opacity="0.8"/>
+                        <!-- 悬浮小方块 -->
+                        <rect x="240" y="175" width="30" height="30" rx="4" fill="url(#g4)" opacity="0.7" transform="rotate(-20 255 190)"/>
+                        <rect x="50" y="195" width="22" height="22" rx="3" fill="url(#g3)" opacity="0.7" transform="rotate(15 61 206)"/>
+                        <rect x="140" y="30" width="18" height="18" rx="3" fill="#409eff" opacity="0.5" transform="rotate(30 149 39)"/>
+                        <!-- 悬浮球体 -->
+                        <circle cx="275" cy="165" r="14" fill="radial-gradient(#79bbff, #409eff)" opacity="0.5"/>
+                        <circle cx="50" cy="165" r="10" fill="#409eff" opacity="0.4"/>
+                        <!-- 连接线 -->
+                        <line x1="160" y1="80" x2="245" y2="60" stroke="#66b1ff" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5"/>
+                        <line x1="100" y1="115" x2="75" y2="90" stroke="#66b1ff" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5"/>
+                    </svg>
+                    <div class="floating-orb orb1"></div>
+                    <div class="floating-orb orb2"></div>
+                    <div class="floating-orb orb3"></div>
+                </div>
+            </div>
+
+            <!-- 右侧登录卡片 -->
+            <div class="right-panel">
+                <div class="login-card">
+                    <div class="card-title">员工薪资管理系统登录</div>
+
+                    <!-- 角色切换 -->
+                    <div class="role-tabs">
+                        <div class="role-tab" :class="{active: form.role === 'admin'}" @click="form.role='admin'">管理员</div>
+                        <div class="role-tab" :class="{active: form.role === 'manager'}" @click="form.role='manager'">部门经理</div>
+                        <div class="role-tab" :class="{active: form.role === 'employee'}" @click="form.role='employee'">员工</div>
+                    </div>
+
+                    <el-form :model="form" :rules="rules" ref="loginFormRef" class="login-form" size="large">
+                        <el-form-item prop="username">
+                            <el-input v-model="form.username" placeholder="请输入账号：" clearable>
+                                <template #prefix>
+                                    <el-icon><User/></el-icon>
+                                </template>
+                            </el-input>
+                        </el-form-item>
+
+                        <el-form-item prop="password">
+                            <el-input v-model="form.password" type="password" placeholder="请输入密码：" show-password @keyup.enter="handleLogin">
+                                <template #prefix>
+                                    <el-icon><Lock/></el-icon>
+                                </template>
+                            </el-input>
+                        </el-form-item>
+
+                        <el-form-item prop="captcha">
+                            <div class="captcha-row">
+                                <el-input v-model="form.captcha" placeholder="请输入验证码：" @keyup.enter="handleLogin">
+                                    <template #prefix>
+                                        <el-icon><Picture/></el-icon>
+                                    </template>
+                                </el-input>
+                                <div class="captcha-img" @click="getCaptcha" title="点击刷新验证码">
+                                    <img v-if="captchaImg" :src="captchaImg" alt="验证码">
+                                    <span v-else style="color:#409eff;font-size:12px">加载中...</span>
+                                </div>
+                            </div>
+                        </el-form-item>
+
+                        <div class="login-btn-wrap">
+                            <button class="login-btn" :class="{loading}" @click.prevent="handleLogin" :disabled="loading">
+                                <span v-if="!loading">登 录</span>
+                                <span v-else>登录中...</span>
+                            </button>
+                        </div>
+                    </el-form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, reactive, onMounted } = Vue;
+
+        createApp({
+            components: {
+                User: ElementPlusIconsVue.User,
+                Lock: ElementPlusIconsVue.Lock,
+                Picture: ElementPlusIconsVue.Picture,
+            },
+            setup() {
+                const loginFormRef = ref(null);
+                const loading = ref(false);
+                const captchaImg = ref('');
+                const captchaKey = ref('');
+
+                const form = reactive({
+                    username: '',
+                    password: '',
+                    captcha: '',
+                    role: 'admin'
+                });
+
+                const rules = {
+                    username: [{ required: true, message: '请输入账号', trigger: 'blur' }],
+                    password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
+                    captcha: [{ required: true, message: '请输入验证码', trigger: 'blur' }]
+                };
+
+                const getCaptcha = () => {
+                    axios.get('/api/auth/captcha').then(res => {
+                        if (res.data.code === 200 && res.data.data) {
+                            captchaImg.value = res.data.data.captchaImg;
+                            captchaKey.value = res.data.data.captchaKey;
+                            form.captcha = '';
+                        }
+                    }).catch(() => {
+                        captchaImg.value = '';
+                    });
+                };
+
+                const handleLogin = () => {
+                    if (!loginFormRef.value) return;
+                    loginFormRef.value.validate(valid => {
+                        if (!valid) return;
+                        loading.value = true;
+
+                        const params = new URLSearchParams();
+                        params.append('username', form.username);
+                        params.append('password', form.password);
+                        params.append('captcha', form.captcha);
+                        params.append('captchaKey', captchaKey.value);
+
+                        axios.post('/api/auth/login', params)
+                            .then(res => {
+                                const { code, message, data } = res.data;
+                                if (code === 200) {
+                                    localStorage.setItem('token', data.token);
+                                    localStorage.setItem('userInfo', JSON.stringify({
+                                        userId: data.userId,
+                                        username: data.username,
+                                        realName: data.realName,
+                                        role: data.role,
+                                        avatar: data.avatar
+                                    }));
+                                    ElementPlus.ElMessage.success('登录成功，欢迎使用！');
+                                    setTimeout(() => {
+                                        // role: 1=admin 2=manager → admin/index.html; 3=employee → home.html
+                                        if (data.role === 1 || data.role === 2) {
+                                            window.location.href = 'admin/index.html';
+                                        } else {
+                                            window.location.href = 'home.html';
+                                        }
+                                    }, 800);
+                                } else {
+                                    ElementPlus.ElMessage.error(message || '登录失败');
+                                    getCaptcha();
+                                }
+                            })
+                            .catch(err => {
+                                const msg = err.response?.data?.message || err.response?.data?.msg || '服务器连接异常';
+                                ElementPlus.ElMessage.error(msg);
+                                getCaptcha(); // 任何错误都自动刷新验证码
+                            })
+                            .finally(() => {
+                                loading.value = false;
+                            });
+                    });
+                };
+
+                onMounted(() => {
+                    // 已登录直接跳走
+                    const token = localStorage.getItem('token');
+                    if (token) {
+                        const user = JSON.parse(localStorage.getItem('userInfo') || '{}');
+                        if (user.role === 1 || user.role === 2) {
+                            window.location.href = 'admin/index.html';
+                        } else if(user.role === 3) {
+                            window.location.href = 'home.html';
+                        }
+                    }
+                    getCaptcha();
+                });
+
+                return { form, rules, loginFormRef, loading, captchaImg, handleLogin, getCaptcha };
+            }
+        }).use(ElementPlus).mount('#app');
+    </script>
+</body>
+</html>

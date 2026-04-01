@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.salary.mapper.SalaryRecordMapper">
+
+    <!--
+        多条件分页查询薪资核算记录
+        管理员：managerId = null（查全部）
+        经理：managerId 有值（只查本部门）
+    -->
+    <select id="selectPageWithCondition" resultType="com.salary.entity.SalaryRecord">
+        SELECT * FROM t_salary_record
+        <where>
+            <if test="yearMonth != null and yearMonth != ''">
+                AND `year_month` = #{yearMonth}
+            </if>
+            <if test="empNo != null and empNo != ''">
+                AND emp_no = #{empNo}
+            </if>
+            <if test="realName != null and realName != ''">
+                AND emp_name LIKE CONCAT('%', #{realName}, '%')
+            </if>
+            <if test="deptId != null and deptId != ''">
+                AND dept_id = #{deptId}
+            </if>
+            <if test="calcStatus != null">
+                AND calc_status = #{calcStatus}
+            </if>
+            <if test="managerId != null">
+                AND manager_id = #{managerId}
+            </if>
+        </where>
+        ORDER BY `year_month` DESC, create_time DESC
+    </select>
+
+    <!-- 根据员工ID和年月查询单条记录（薪资计算前查重用） -->
+    <select id="selectByEmpAndMonth" resultType="com.salary.entity.SalaryRecord">
+        SELECT * FROM t_salary_record
+        WHERE emp_id    = #{empId}
+          AND `year_month` = #{yearMonth}
+        LIMIT 1
+    </select>
+
+    <!-- 员工查询自己的历史薪资（分页，按年月降序） -->
+    <select id="selectByEmpId" resultType="com.salary.entity.SalaryRecord">
+        SELECT * FROM t_salary_record
+        WHERE emp_id = #{empId}
+        ORDER BY `year_month` DESC
+    </select>
+    <!-- 统计月度实发工资总额趋势（近12个月） -->
+    <select id="countMonthlyTrend" resultType="map">
+        SELECT `year_month` as month, SUM(net_salary) as total
+        FROM t_salary_record
+        GROUP BY `year_month`
+        ORDER BY `year_month` ASC
+        LIMIT 12
+    </select>
+
+    <!-- 统计当月薪资构成 -->
+    <select id="sumCurrentMonthStructure" resultType="map">
+        SELECT
+            SUM(base_salary) as baseSalary,
+            SUM(perf_bonus) as perfBonus,
+            SUM(overtime_pay) as overtimePay,
+            SUM(allowance) as allowance
+        FROM t_salary_record
+        WHERE `year_month` = #{yearMonth}
+    </select>
+
+    <!-- 各部门人均薪资对比 -->
+    <select id="avgSalaryByDepartment" resultType="map">
+        SELECT dept_name as dept_name, AVG(net_salary) as avg_salary
+        FROM t_salary_record
+        GROUP BY dept_name
+    </select>
+
+</mapper>

@@ -1,0 +1,1573 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>管理端 - 员工薪资管理系统</title>
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css"/>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/element-plus"></script>
+    <script src="https://unpkg.com/@element-plus/icons-vue"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "\5FAE\8F6F\96C5\9ED1", Arial, sans-serif; background: #f0f2f5; min-height: 100vh; }
+
+        /* ==================== 顶部导航栏 ==================== */
+        .top-header {
+            height: 60px;
+            background: linear-gradient(90deg, #c8e6ff, #e8f4ff, #c8e6ff);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            box-shadow: 0 2px 8px rgba(64,158,255,0.15);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        .header-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1a6ab1;
+            letter-spacing: 1px;
+            white-space: nowrap;
+        }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .user-avatar {
+            width: 36px; height: 36px;
+            background: #409eff;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-size: 14px; font-weight: bold;
+            cursor: pointer;
+        }
+        .user-name { font-size: 14px; color: #1a6ab1; cursor: pointer; }
+        .logout-btn {
+            font-size: 13px;
+            color: #409eff;
+            cursor: pointer;
+            padding: 4px 10px;
+            border: 1px solid #409eff;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        .logout-btn:hover { background: #409eff; color: #fff; }
+
+        /* ==================== 水平菜单区 ==================== */
+        .nav-bar {
+            background: rgb(220, 234, 247);
+            padding: 0 20px;
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            overflow-x: auto;
+            border-bottom: 1px solid #c8dff5;
+        }
+        .nav-bar::-webkit-scrollbar { display: none; }
+        .nav-item {
+            padding: 12px 16px;
+            font-size: 14px;
+            color: #333;
+            cursor: pointer;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            border-radius: 4px 4px 0 0;
+            transition: all 0.2s;
+            position: relative;
+        }
+        .nav-item:hover { color: #409eff; background: rgba(64,158,255,0.08); }
+        .nav-item.active {
+            color: #409eff;
+            font-weight: 600;
+            background: #f0f7ff;
+        }
+        .nav-item.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 2px;
+            background: #409eff;
+            border-radius: 2px 2px 0 0;
+        }
+
+        /* ==================== 面包屑 ==================== */
+        .breadcrumb-bar {
+            background: rgb(240, 247, 253);
+            padding: 10px 24px;
+            font-size: 14px;
+            color: #606266;
+            border-bottom: 1px solid #dce9f7;
+        }
+        .breadcrumb-bar span { color: #409eff; }
+
+        /* ==================== 主内容区 ==================== */
+        .main-content {
+            padding: 20px 24px;
+            min-height: calc(100vh - 130px);
+        }
+        .page-section { display: none; padding-bottom: 20px; }
+        .page-section.active { display: block; }
+        .mb-20 { margin-bottom: 20px; }
+        .el-table th.el-table__cell { background-color: #f8f8f9 !important; color: #333; font-weight: bold; }
+        .el-card { border-radius: 8px; border: none; box-shadow: 0 2px 12px 0 rgba(0,0,0,0.05) !important; }
+
+        /* ==================== 首页 Dashboard ==================== */
+        .stat-cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            margin-bottom: 16px;
+        }
+        .stat-card {
+            background: #fff;
+            border-radius: 8px;
+            padding: 20px 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: 0 2px 8px rgba(64,158,255,0.08);
+            border: 1px solid #e8f0fb;
+        }
+        .stat-icon {
+            width: 56px; height: 56px;
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px;
+        }
+        .stat-icon.blue { background: #ecf5ff; color: #409eff; }
+        .stat-icon.green { background: #f0f9eb; color: #67c23a; }
+        .stat-icon.orange { background: #fdf6ec; color: #e6a23c; }
+        .stat-num { font-size: 28px; font-weight: 700; color: #409eff; }
+        .stat-label { font-size: 13px; color: #909399; margin-top: 2px; }
+
+        /* 通知公告 */
+        .notice-section {
+            background: #fff;
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(64,158,255,0.06);
+            border: 1px solid #e8f0fb;
+        }
+        .section-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #1a6ab1;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e8f0fb;
+            margin-bottom: 12px;
+        }
+        .notice-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px dashed #e8f0fb;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .notice-item:last-child { border-bottom: none; }
+        .notice-item:hover .notice-title { color: #409eff; }
+        .notice-title { color: #303133; }
+        .notice-time { color: #c0c4cc; font-size: 12px; }
+
+        /* ECharts 图表区 */
+        .chart-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+        .chart-card {
+            background: #fff;
+            border-radius: 8px;
+            padding: 16px;
+            box-shadow: 0 2px 8px rgba(64,158,255,0.06);
+            border: 1px solid #e8f0fb;
+        }
+        .chart-box { width: 100%; height: 240px; }
+        .chart-title { font-size: 13px; color: #606266; margin-bottom: 8px; }
+
+        /* ==================== 通用表格页面 ==================== */
+        .search-bar {
+            background: #fff;
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-bottom: 14px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            box-shadow: 0 2px 8px rgba(64,158,255,0.06);
+            border: 1px solid #e8f0fb;
+        }
+        .action-bar {
+            background: #fff;
+            border-radius: 8px;
+            padding: 12px 20px;
+            margin-bottom: 14px;
+            display: flex;
+            gap: 8px;
+            box-shadow: 0 2px 8px rgba(64,158,255,0.06);
+            border: 1px solid #e8f0fb;
+        }
+        .table-card {
+            background: #fff;
+            border-radius: 8px;
+            padding: 16px;
+            box-shadow: 0 2px 8px rgba(64,158,255,0.06);
+            border: 1px solid #e8f0fb;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+    <!-- 顶部标题栏 -->
+    <div class="top-header">
+        <div class="header-title">基于Java的员工薪资管理系统设计与实现</div>
+        <div class="header-right">
+            <div class="user-avatar">{{ userInfo.realName ? userInfo.realName[0] : 'A' }}</div>
+            <span class="user-name">欢迎，{{ userInfo.realName || 'admin' }}</span>
+            <div class="logout-btn" @click="logout">退出登录</div>
+        </div>
+    </div>
+
+    <!-- 水平导航菜单 -->
+    <div class="nav-bar">
+        <div v-for="menu in menus" :key="menu.key"
+             class="nav-item"
+             :class="{active: currentMenu === menu.key}"
+             @click="switchMenu(menu)">
+            <span>{{ menu.icon }}</span>
+            {{ menu.label }}
+        </div>
+    </div>
+
+    <!-- 面包屑 -->
+    <div class="breadcrumb-bar">
+        首页 | <span>{{ currentMenuLabel }}</span>
+    </div>
+
+    <!-- 主内容 -->
+    <div class="main-content">
+
+        <!-- ===== 系统首页 ===== -->
+        <div class="page-section" :class="{active: currentMenu === 'home'}">
+            <div style="text-align:center;font-size:20px;font-weight:600;color:#1a6ab1;margin-bottom:16px;">
+                欢迎使用 基于Java的员工薪资管理系统设计与实现
+            </div>
+
+            <div class="stat-cards">
+                <div class="stat-card">
+                    <div class="stat-icon blue">👥</div>
+                    <div>
+                        <div class="stat-num">{{ stats.employeeCount }}</div>
+                        <div class="stat-label">员工总数</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon green">📋</div>
+                    <div>
+                        <div class="stat-num">{{ stats.salaryCount }}</div>
+                        <div class="stat-label">薪资核算总数</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon orange">💰</div>
+                    <div>
+                        <div class="stat-num">{{ stats.paymentCount }}</div>
+                        <div class="stat-label">薪资发放总数</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="notice-section">
+                <div class="section-title">通知公告</div>
+                <div class="notice-item" v-for="n in notices" :key="n.id">
+                    <span class="notice-title">{{ n.title }}</span>
+                    <span class="notice-time">{{ n.pubTime }}</span>
+                </div>
+                <div v-if="!notices.length" style="color:#c0c4cc;text-align:center;padding:20px 0;">暂无公告</div>
+            </div>
+
+            <div class="chart-grid">
+                <div class="chart-card">
+                    <div class="chart-title">部门人数分布</div>
+                    <div id="deptChart" class="chart-box"></div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-title">月实发工资走势（元）</div>
+                    <div id="salaryChart" class="chart-box"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== 新增：个人中心 ===== -->
+        <div class="page-section" :class="{active: currentMenu === 'personal'}">
+            <el-card shadow="hover" style="max-width: 600px; margin: 0 auto;">
+                <template #header>
+                    <div style="font-weight: bold; font-size: 16px;">个人基本信息</div>
+                </template>
+                <el-descriptions :column="1" border style="margin-bottom: 30px;">
+                    <el-descriptions-item label="登录账号">{{ userInfo.username }}</el-descriptions-item>
+                    <el-descriptions-item label="姓名">{{ userInfo.realName }}</el-descriptions-item>
+                    <el-descriptions-item label="系统角色">
+                        <el-tag :type="userInfo.role === 1 ? 'danger' : (userInfo.role === 2 ? 'warning' : '')">
+                            {{ userInfo.role === 1 ? '管理员' : (userInfo.role === 2 ? '部门经理' : '普通员工') }}
+                        </el-tag>
+                    </el-descriptions-item>
+                </el-descriptions>
+
+                <div style="font-weight: bold; font-size: 16px; margin-bottom: 20px; border-bottom: 1px solid #ebeef5; padding-bottom: 10px;">修改登录密码</div>
+                <el-form :model="pwdForm" :rules="pwdRules" ref="pwdFormRef" label-width="100px">
+                    <el-form-item label="原密码" prop="oldPassword">
+                        <el-input v-model="pwdForm.oldPassword" type="password" show-password placeholder="请输入当前密码"></el-input>
+                    </el-form-item>
+                    <el-form-item label="新密码" prop="newPassword">
+                        <el-input v-model="pwdForm.newPassword" type="password" show-password placeholder="请输入新密码(不少于6位)"></el-input>
+                    </el-form-item>
+                    <el-form-item label="确认密码" prop="confirmPassword">
+                        <el-input v-model="pwdForm.confirmPassword" type="password" show-password placeholder="请再次输入新密码"></el-input>
+                    </el-form-item>
+                    <el-form-item>
+                        <el-button type="primary" @click="updatePassword">确认修改</el-button>
+                    </el-form-item>
+                </el-form>
+            </el-card>
+        </div>
+
+        <!-- ===== 新增：部门信息 ===== -->
+        <div class="page-section" :class="{active: currentMenu === 'department'}">
+            <div class="action-bar">
+                <el-button type="primary" size="small" @click="openDeptForm()">新增部门</el-button>
+            </div>
+            <div class="table-card">
+                <el-table :data="departments" stripe border size="small" style="width:100%" v-loading="deptLoading">
+                    <el-table-column type="index" label="序号" width="80"/>
+                    <el-table-column prop="id" label="部门ID" width="100"/>
+                    <el-table-column prop="deptName" label="部门名称" width="200"/>
+                    <el-table-column prop="description" label="部门描述"/>
+                    <el-table-column prop="createTime" label="创建时间" width="160"/>
+                    <el-table-column label="操作" width="160" fixed="right">
+                        <template #default="{row}">
+                            <el-button link type="primary" size="small" @click="openDeptForm(row)">修改</el-button>
+                            <el-button link type="danger" size="small" @click="deleteDept(row.id)">解散</el-button>
+                        </template>
+                    </el-table-column>
+                </el-table>
+            </div>
+        </div>
+
+        <!-- ===== 员工管理 ===== -->
+        <div class="page-section" :class="{active: currentMenu === 'employee'}">
+            <el-card shadow="hover" class="mb-20">
+                <el-form :inline="true" :model="empSearch" style="margin-bottom: -18px;">
+                    <el-form-item label="工号">
+                        <el-input v-model="empSearch.empNo" placeholder="请输入工号" clearable></el-input>
+                    </el-form-item>
+                    <el-form-item label="姓名">
+                        <el-input v-model="empSearch.realName" placeholder="请输入姓名" clearable></el-input>
+                    </el-form-item>
+                    <el-form-item label="部门">
+                        <el-select v-model="empSearch.deptId" placeholder="选择部门" clearable>
+                            <el-option v-for="d in departments" :key="d.id" :label="d.deptName" :value="d.id"></el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item>
+                        <el-button type="primary" icon="Search" @click="loadEmployees(1)">查询</el-button>
+                        <el-button icon="Refresh" @click="resetEmpSearch">重置</el-button>
+                    </el-form-item>
+                </el-form>
+            </el-card>
+
+            <el-card shadow="hover">
+                <div class="mb-20" style="display:flex; justify-content: space-between;">
+                    <div>
+                        <el-button type="primary" icon="Plus" @click="openEmpForm()">添加员工</el-button>
+                    </div>
+                    <div>
+                        <el-button type="success" icon="UploadFilled" plain @click="triggerImport">导入Excel</el-button>
+                        <el-button type="warning" icon="Download" plain @click="exportExcel">导出Excel</el-button>
+                    </div>
+                </div>
+
+                <el-table :data="employees" stripe border style="width:100%" v-loading="empLoading">
+                    <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                    <el-table-column prop="empNo" label="工号" width="100" align="center"></el-table-column>
+                    <el-table-column prop="realName" label="姓名" width="100" align="center"></el-table-column>
+                    <el-table-column prop="gender" label="性别" width="80" align="center">
+                        <template #default="{row}">
+                            <el-tag :type="row.gender === 1 ? '' : 'danger'" size="small">{{ row.gender === 1 ? '男' : '女' }}</el-tag>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="phone" label="手机" width="130" align="center"></el-table-column>
+                    <el-table-column prop="idCard" label="身份证号" width="180" show-overflow-tooltip align="center"></el-table-column>
+                    <el-table-column prop="deptName" label="部门" width="120" align="center"></el-table-column>
+                    <el-table-column prop="baseSalary" label="基本工资(元)" width="120" align="center"></el-table-column>
+                    <el-table-column prop="hireDate" label="入职日期" width="120" align="center"></el-table-column>
+                    <el-table-column prop="status" label="状态" width="90" align="center">
+                        <template #default="{row}">
+                            <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">{{ row.status === 1 ? '在职' : '离职' }}</el-tag>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="操作" fixed="right" min-width="180" align="center">
+                        <template #default="{row}">
+                            <el-button link type="primary" icon="Edit" @click="openEmpForm(row)">修改</el-button>
+                            <el-button v-if="row.status === 1" link type="danger" icon="Delete" @click="deleteEmp(row.id)">标记离职</el-button>
+                        </template>
+                    </el-table-column>
+                </el-table>
+                <div style="margin-top:20px;display:flex;justify-content:flex-end;">
+                    <el-pagination 
+                        v-model:current-page="empCurrent" 
+                        v-model:page-size="empSize" 
+                        :page-sizes="[10, 20, 50, 100]" 
+                        :total="empTotal" 
+                        layout="total, sizes, prev, pager, next, jumper" 
+                        @current-change="loadEmployees" 
+                        @size-change="() => loadEmployees(1)">
+                    </el-pagination>
+                </div>
+            </el-card>
+        </div>
+
+        <!-- ===== 通知公告 ===== -->
+        <div class="page-section" :class="{active: currentMenu === 'notice'}">
+            <div class="search-bar">
+                <el-input v-model="noticeSearch.title" placeholder="公告标题" style="width:200px;" clearable/>
+                <el-button type="primary" @click="loadNotices(1)">查询</el-button>
+            </div>
+            <div class="action-bar" v-if="userInfo.role === 1">
+                <el-button type="primary" size="small" @click="openNoticeForm()">发布新公告</el-button>
+            </div>
+            <div class="table-card">
+                <el-table :data="noticeList" stripe border size="small" style="width:100%" v-loading="noticeLoading">
+                    <el-table-column type="index" label="序号" width="60"/>
+                    <el-table-column prop="title" label="标题"/>
+                    <el-table-column prop="content" label="内容概览" show-overflow-tooltip/>
+                    <el-table-column prop="pubTime" label="发布时间" width="160"/>
+                    <el-table-column label="操作" width="140" fixed="right" v-if="userInfo.role === 1">
+                        <template #default="{row}">
+                            <el-button link type="primary" size="small" @click="openNoticeForm(row)">修改</el-button>
+                            <el-button link type="danger" size="small" @click="deleteNotice(row.id)">撤回</el-button>
+                        </template>
+                    </el-table-column>
+                </el-table>
+                <div style="margin-top:12px;display:flex;justify-content:flex-end;">
+                    <el-pagination :total="noticeTotal" :page-size="10" :current-page="noticeCurrent" layout="total, prev, pager, next" @current-change="loadNotices"/>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== 考勤数据 ===== -->
+        <div class="page-section" :class="{active: currentMenu === 'attendance'}">
+            <div class="search-bar">
+                <el-date-picker v-model="attendSearch.yearMonth" type="month" value-format="YYYY-MM" placeholder="考勤月份" style="width:150px;" clearable/>
+                <el-input v-model="attendSearch.empNo" placeholder="工号" style="width:120px;" clearable/>
+                <el-select v-model="attendSearch.deptId" placeholder="选择部门" style="width:150px;" clearable>
+                    <el-option v-for="d in departments" :key="d.id" :label="d.deptName" :value="d.id"/>
+                </el-select>
+                <el-button type="primary" @click="loadAttendances(1)">查询</el-button>
+            </div>
+            <div class="action-bar" v-if="userInfo.role === 1 || userInfo.role === 2">
+                <el-button type="success" size="small" @click="triggerAttendImport">导入打卡机数据(Excel)</el-button>
+                <el-button type="primary" size="small" @click="openAttendForm()">手动添加记录</el-button>
+            </div>
+            <div class="table-card">
+                <el-table :data="attendances" stripe border size="small" style="width:100%" v-loading="attendLoading">
+                    <el-table-column type="index" label="序号" width="50"/>
+                    <el-table-column prop="recordNo" label="登记编号" width="110"/>
+                    <el-table-column prop="yearMonth" label="月份" width="80"/>
+                    <el-table-column prop="empNo" label="工号" width="80"/>
+                    <el-table-column prop="empName" label="姓名" width="80"/>
+                    <el-table-column prop="deptName" label="部门" width="100"/>
+                    <el-table-column prop="attendDays" label="出勤天" width="60"/>
+                    <el-table-column prop="absentDays" label="旷工" width="60"/>
+                    <el-table-column prop="lateTimes" label="迟到(次)" width="70"/>
+                    <el-table-column prop="leaveDays" label="请假天" width="60"/>
+                    <el-table-column prop="overtimeHours" label="加班(h)" width="70"/>
+                    <el-table-column prop="status" label="状态" width="80">
+                        <template #default="{row}">
+                            <el-tag :type="row.status === 1 ? 'success' : (row.status === 2 ? 'warning' : 'info')" size="small">
+                                {{ row.status === 1 ? '正常' : (row.status === 2 ? '已被申诉' : '已归档') }}
+                            </el-tag>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="操作" fixed="right" width="120" v-if="userInfo.role === 1 || userInfo.role === 2">
+                        <template #default="{row}">
+                            <el-button link type="primary" size="small" @click="openAttendForm(row)" :disabled="row.status === 3">准校</el-button>
+                            <el-button link type="danger" size="small" @click="deleteAttend(row.id)" :disabled="row.status === 3">删除</el-button>
+                        </template>
+                    </el-table-column>
+                </el-table>
+                <div style="margin-top:12px;display:flex;justify-content:flex-end;">
+                    <el-pagination :total="attendTotal" :page-size="10" :current-page="attendCurrent" layout="total, prev, pager, next" @current-change="loadAttendances"/>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== 考勤申请审批 ===== -->
+        <div class="page-section" :class="{active: currentMenu === 'attendance-apply'}">
+            <div class="search-bar">
+                <el-select v-model="applySearch.status" placeholder="审批状态" style="width:150px;" clearable>
+                    <el-option label="待审批" :value="0"/><el-option label="已通过" :value="1"/><el-option label="已驳回" :value="2"/>
+                </el-select>
+                <el-button type="primary" @click="loadApplies(1)">查询</el-button>
+            </div>
+            <div class="table-card">
+                <el-table :data="applies" stripe border size="small" style="width:100%" v-loading="applyLoading">
+                    <el-table-column type="index" label="序号" width="60"/>
+                    <el-table-column prop="empId" label="员工ID" width="80"/>
+                    <el-table-column prop="applyType" label="类型" width="80">
+                        <template #default="{row}">
+                            <el-tag size="small">{{ ['','补签','销假','加班','异常异议'][row.applyType] }}</el-tag>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="applyDate" label="涉及日期" width="110"/>
+                    <el-table-column prop="reason" label="申请事由" show-overflow-tooltip/>
+                    <el-table-column prop="createTime" label="提交时间" width="160"/>
+                    <el-table-column prop="status" label="状态" width="80">
+                        <template #default="{row}">
+                            <el-tag :type="row.status === 0 ? 'warning' : (row.status === 1 ? 'success' : 'danger')" size="small">
+                                {{ ['待审批','已通过','已驳回'][row.status] }}
+                            </el-tag>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="操作" fixed="right" width="140" v-if="userInfo.role === 1 || userInfo.role === 2">
+                        <template #default="{row}">
+                            <el-button v-if="row.status === 0" link type="success" size="small" @click="reviewApply(row, 1)">同意</el-button>
+                            <el-button v-if="row.status === 0" link type="danger" size="small" @click="reviewApply(row, 2)">驳回</el-button>
+                            <span v-if="row.status !== 0">{{ row.reviewComment || '-' }}</span>
+                        </template>
+                    </el-table-column>
+                </el-table>
+                <div style="margin-top:12px;display:flex;justify-content:flex-end;">
+                    <el-pagination :total="applyTotal" :page-size="10" :current-page="applyCurrent" layout="total, prev, pager, next" @current-change="loadApplies"/>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== 异常上报处理 ===== -->
+        <div class="page-section" :class="{active: currentMenu === 'anomaly'}">
+            <div class="search-bar">
+                <el-select v-model="anomalySearch.status" placeholder="处理状态" style="width:150px;" clearable>
+                    <el-option label="待处理" :value="0"/><el-option label="处理中" :value="1"/><el-option label="已解决" :value="2"/>
+                </el-select>
+                <el-button type="primary" @click="loadAnomalies(1)">查询</el-button>
+            </div>
+            <div class="table-card">
+                <el-table :data="anomalies" stripe border size="small" style="width:100%" v-loading="anomalyLoading">
+                    <el-table-column type="index" label="序号" width="50"/>
+                    <el-table-column prop="yearMonth" label="涉及年月" width="90"/>
+                    <el-table-column prop="reportType" label="类型" width="100">
+                        <template #default="{row}">
+                            <el-tag size="small" type="danger">{{ ['','考勤异常','薪资异常','系统异常'][row.reportType] }}</el-tag>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="title" label="异常简述" width="150" show-overflow-tooltip/>
+                    <el-table-column prop="description" label="详细描述" show-overflow-tooltip/>
+                    <el-table-column prop="status" label="状态" width="80">
+                        <template #default="{row}">
+                            <el-tag :type="row.status === 0 ? 'danger' : (row.status === 1 ? 'warning' : 'success')" size="small">
+                                {{ ['待处理','处理中','已解决'][row.status] }}
+                            </el-tag>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="操作" fixed="right" width="100" v-if="userInfo.role === 1 || userInfo.role === 2">
+                        <template #default="{row}">
+                            <el-button v-if="row.status !== 2" link type="primary" size="small" @click="openProcessAnomaly(row)">去处理</el-button>
+                            <span v-else>已解决</span>
+                        </template>
+                    </el-table-column>
+                </el-table>
+                <div style="margin-top:12px;display:flex;justify-content:flex-end;">
+                    <el-pagination :total="anomalyTotal" :page-size="10" :current-page="anomalyCurrent" layout="total, prev, pager, next" @current-change="loadAnomalies"/>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== 投诉反馈回复 ===== -->
+        <div class="page-section" :class="{active: currentMenu === 'complaint'}">
+            <div class="search-bar">
+                <el-select v-model="feedbackSearch.status" placeholder="回复状态" style="width:150px;" clearable>
+                    <el-option label="待处理" :value="0"/><el-option label="处理中" :value="1"/><el-option label="已解决" :value="2"/><el-option label="已驳回" :value="3"/>
+                </el-select>
+                <el-button type="primary" @click="loadFeedbacks(1)">查询</el-button>
+            </div>
+            <div class="table-card">
+                <el-table :data="feedbacks" stripe border size="small" style="width:100%" v-loading="feedbackLoading">
+                    <el-table-column type="index" label="序号" width="50"/>
+                    <el-table-column prop="empId" label="投诉人ID" width="90"/>
+                    <el-table-column prop="feedbackType" label="类型" width="100">
+                        <template #default="{row}">
+                            <el-tag size="small" type="warning">{{ ['','薪资异议','计算错误','其他行为'][row.feedbackType] }}</el-tag>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="title" label="标题" width="150" show-overflow-tooltip/>
+                    <el-table-column prop="content" label="投诉内容" show-overflow-tooltip/>
+                    <el-table-column prop="status" label="状态" width="80">
+                        <template #default="{row}">
+                            <el-tag :type="row.status === 0 ? 'danger' : (row.status === 2 ? 'success' : 'info')" size="small">
+                                {{ ['待处理','处理中','已解决','已驳回'][row.status] }}
+                            </el-tag>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="操作" fixed="right" width="100" v-if="userInfo.role === 1 || userInfo.role === 2">
+                        <template #default="{row}">
+                            <el-button v-if="row.status === 0 || row.status === 1" link type="primary" size="small" @click="openReplyFeedback(row)">回复结算</el-button>
+                            <span v-else>已结束</span>
+                        </template>
+                    </el-table-column>
+                </el-table>
+                <div style="margin-top:12px;display:flex;justify-content:flex-end;">
+                    <el-pagination :total="feedbackTotal" :page-size="10" :current-page="feedbackCurrent" layout="total, prev, pager, next" @current-change="loadFeedbacks"/>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== 工资个税与社保配置 (Admin) ===== -->
+        <div class="page-section" :class="{active: currentMenu === 'tax'}">
+            <div class="search-bar">
+                <el-input v-model="socSearch.configName" placeholder="配置名称" style="width:200px;" clearable/>
+                <el-button type="primary" @click="loadSocConfigs(1)">查询</el-button>
+                <el-button type="success" @click="openSocForm()">新增规则</el-button>
+            </div>
+            <div class="table-card">
+                <el-table :data="socConfigs" stripe border size="small" style="width:100%" v-loading="socLoading">
+                    <el-table-column type="index" label="序号" width="50"/>
+                    <el-table-column prop="configName" label="配置方案名称" width="150" show-overflow-tooltip/>
+                    <el-table-column label="基数与比例设定" show-overflow-tooltip>
+                        <template #default="{row}">
+                            基数:[{{row.minBase}}~{{row.maxBase}}] | 养老:{{row.pensionRatio}}% | 医疗:{{row.medicalRatio}}% | 失业:{{row.unemploymentRatio}}% | 公积金:{{row.housingFundRatio}}%
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="effectiveDate" label="生效日期" width="110"/>
+                    <el-table-column prop="isActive" label="状态" width="80">
+                        <template #default="{row}">
+                            <el-tag :type="row.isActive === 1 ? 'success' : 'info'" size="small">
+                                {{ row.isActive === 1 ? '使用中' : '未启用' }}
+                            </el-tag>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="操作" fixed="right" width="100">
+                        <template #default="{row}">
+                            <el-button link type="primary" size="small" @click="openSocForm(row)">编辑方案</el-button>
+                        </template>
+                    </el-table-column>
+                </el-table>
+                <div style="margin-top:12px;display:flex;justify-content:flex-end;">
+                    <el-pagination :total="socTotal" :page-size="10" :current-page="socCurrent" layout="total, prev, pager, next" @current-change="loadSocConfigs"/>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== 绩效评分管理 (Manager/Admin) ===== -->
+        <div class="page-section" :class="{active: currentMenu === 'performance'}">
+            <div class="search-bar">
+                <el-date-picker v-model="perfSearch.yearMonth" value-format="YYYY-MM" type="month" placeholder="考核月份" style="width:150px;"/>
+                <el-input v-model="perfSearch.empNo" placeholder="员工工号" style="width:150px;" clearable/>
+                <el-button type="primary" @click="loadPerformances(1)">查询评分记录</el-button>
+                <el-button type="success" @click="openPerfForm()">登入新绩效考核</el-button>
+            </div>
+            <div class="table-card">
+                <el-table :data="performances" stripe border size="small" style="width:100%" v-loading="perfLoading">
+                    <el-table-column type="index" label="序号" width="50"/>
+                    <el-table-column prop="yearMonth" label="核定年月" width="90"/>
+                    <el-table-column prop="empNo" label="员工工号" width="100"/>
+                    <el-table-column prop="score" label="综合评分(百分制)" width="130"/>
+                    <el-table-column prop="level" label="评定等级" width="90">
+                        <template #default="{row}">
+                            <el-tag :type="row.level === 'A' ? 'success' : (row.level === 'B' ? 'primary' : 'warning')" size="small">{{row.level}}</el-tag>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="bonusAmount" label="预估奖金" width="100"/>
+                    <el-table-column prop="remark" label="评审评语" show-overflow-tooltip/>
+                    <el-table-column label="操作" fixed="right" width="100">
+                        <template #default="{row}">
+                            <el-button link type="primary" size="small" @click="openPerfForm(row)">修改</el-button>
+                        </template>
+                    </el-table-column>
+                </el-table>
+                <div style="margin-top:12px;display:flex;justify-content:flex-end;">
+                    <el-pagination :total="perfTotal" :page-size="10" :current-page="perfCurrent" layout="total, prev, pager, next" @current-change="loadPerformances"/>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== 薪资核算平台 (Admin/Manager) ===== -->
+        <div class="page-section" :class="{active: currentMenu === 'salary'}">
+            <div class="search-bar">
+                <el-date-picker v-model="salarySearch.yearMonth" type="month" value-format="YYYY-MM" placeholder="薪水账期" style="width:150px;"/>
+                <el-input v-model="salarySearch.empNo" placeholder="员工工号" style="width:130px;" clearable/>
+                <el-select v-model="salarySearch.calcStatus" placeholder="发薪状态" style="width:120px;" clearable>
+                    <el-option label="草稿待核" :value="1"/><el-option label="已发布" :value="2"/><el-option label="审核通过" :value="3"/><el-option label="已打款" :value="4"/>
+                </el-select>
+                <el-button type="primary" @click="loadSalaries(1)">查询账单</el-button>
+                <el-button type="warning" @click="batchCalcSalary" v-if="userInfo.role===1">💸 批量核查算薪</el-button>
+                <el-button type="success" @click="batchPublishSalary" v-if="userInfo.role===1">📢 一键发布账单</el-button>
+            </div>
+            <div class="table-card">
+                <el-table :data="salaries" stripe border size="small" style="width:100%" v-loading="salaryLoading" @selection-change="handleSalarySelection">
+                    <el-table-column type="selection" width="45"/>
+                    <el-table-column prop="yearMonth" label="账期" width="80"/>
+                    <el-table-column prop="empName" label="姓名" width="90"/>
+                    <el-table-column prop="deptName" label="部门" width="100" show-overflow-tooltip/>
+                    <el-table-column label="应发/基础" width="160">
+                        <template #default="{row}">应发:{{row.grossSalary}}<br>底薪:{{row.baseSalary}} | 绩效:{{row.perfBonus}}</template>
+                    </el-table-column>
+                    <el-table-column label="社保/个税/考勤扣款" width="180">
+                        <template #default="{row}">社保:-{{row.socialSecurityEmp}}<br>个税:-{{row.incomeTax}} | 考勤:-{{row.attendDeduct}}</template>
+                    </el-table-column>
+                    <el-table-column prop="netSalary" label="实发薪水" width="100">
+                        <template #default="{row}"><span style="color:#f56c6c;font-weight:bold;">¥{{row.netSalary}}</span></template>
+                    </el-table-column>
+                    <el-table-column prop="calcStatus" label="状态" width="80">
+                        <template #default="{row}">
+                            <el-tag :type="row.calcStatus===1?'info':(row.calcStatus===2?'primary':(row.calcStatus===3?'warning':'success'))" size="small">
+                                {{ ['','草稿核单','已发布公开','审核完毕','已打款发薪'][row.calcStatus] }}
+                            </el-tag>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="操作" fixed="right" width="120">
+                        <template #default="{row}">
+                            <el-button link type="primary" size="small" @click="openSalaryDetail(row)">扣款明细</el-button>
+                        </template>
+                    </el-table-column>
+                </el-table>
+                <div style="margin-top:12px;display:flex;justify-content:flex-end;">
+                    <el-pagination :total="salaryTotal" :page-size="10" :current-page="salaryCurrent" layout="total, prev, pager, next" @current-change="loadSalaries"/>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== 薪资发放 (Admin) ===== -->
+        <div class="page-section" :class="{active: currentMenu === 'salary-payment'}">
+            <div class="search-bar">
+                <el-date-picker v-model="paymentSearch.yearMonth" type="month" value-format="YYYY-MM" placeholder="打款账期" style="width:150px;"/>
+                <el-select v-model="paymentSearch.calcStatus" placeholder="发薪状态" style="width:120px;" clearable>
+                    <el-option label="待核" :value="1"/><el-option label="待打款" :value="2"/><el-option label="已打款" :value="4"/>
+                </el-select>
+                <el-button type="primary" @click="loadPayments(1)">查询打款单</el-button>
+            </div>
+            <div class="table-card" style="position:relative">
+                <el-alert title="薪金发放属于敏感操作，务必确保账单已全部经过二审确认发布！" type="warning" show-icon style="margin-bottom:15px;"/>
+                <el-table :data="payments" stripe border size="small" style="width:100%" v-loading="paymentLoading">
+                    <el-table-column type="index" label="序号" width="50"/>
+                    <el-table-column prop="yearMonth" label="打款账单期" width="100"/>
+                    <el-table-column prop="empName" label="员工姓名" width="80"/>
+                    <el-table-column prop="bankAccount" label="收款账户" width="180"/>
+                    <el-table-column prop="netSalary" label="应打款金额" width="120">
+                        <template #default="{row}"><span style="color:#f56c6c;font-weight:bold;font-size:16px;">¥{{row.netSalary}}</span></template>
+                    </el-table-column>
+                    <el-table-column prop="calcStatus" label="状态" width="90">
+                        <template #default="{row}">
+                            <el-tag :type="row.calcStatus === 4 ? 'success' : (row.calcStatus>=2?'warning':'info')" size="small">
+                                {{ row.calcStatus === 4 ? '已发放到账' : (row.calcStatus>=2?'待打款':'拦截拦单') }}
+                            </el-tag>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="recordDate" label="账单生成时间" width="120"/>
+                    <el-table-column label="操作" fixed="right" width="120" v-if="userInfo.role === 1">
+                        <template #default="{row}">
+                            <el-button v-if="row.calcStatus !== 4" type="danger" size="small" @click="executePayment(row)">模拟网银支付</el-button>
+                            <span v-else style="color:#67c23a;font-weight:bold"><el-icon><Select /></el-icon> 支付成功</span>
+                        </template>
+                    </el-table-column>
+                </el-table>
+                <div style="margin-top:12px;display:flex;justify-content:flex-end;">
+                    <el-pagination :total="paymentTotal" :page-size="10" :current-page="paymentCurrent" layout="total, prev, pager, next" @current-change="loadPayments"/>
+                </div>
+            </div>
+        </div>
+
+        <!-- 其他菜单占位 -->
+        <div class="page-section" :class="{active: !['home','employee','department','personal','notice','attendance','attendance-apply','anomaly','complaint','salary-feedback','tax','performance','salary','salary-payment'].includes(currentMenu)}">
+            <div style="background:#fff;border-radius:8px;padding:60px;text-align:center;color:#c0c4cc;font-size:16px;">
+                <div style="font-size:40px;margin-bottom:16px;">🚧</div>
+                <div>【{{ currentMenuLabel }}】功能页面开发中...</div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 弹窗：部门表单 -->
+    <el-dialog :title="deptForm.id ? '修改部门' : '新增部门'" v-model="deptDialogVisible" width="460px">
+        <el-form :model="deptForm" label-width="90px">
+            <el-form-item label="部门名称" required><el-input v-model="deptForm.deptName" placeholder="例如：技术部"/></el-form-item>
+            <el-form-item label="部门编码">
+                <el-input v-model="deptForm.deptCode" placeholder="例如：TECH，不填自动生成"/>
+                <div style="font-size:12px;color:#aaa;margin-top:4px;">*您可不填，系统将自动分配唯一编码</div>
+            </el-form-item>
+            <el-form-item label="基础工资" required>
+                <el-input-number v-model="deptForm.baseSalary" :min="0" :precision="2" style="width:100%;" placeholder="空白表示该部门无经济模型"/>
+                <div style="font-size:12px;color:#aaa;margin-top:4px;">*用于该部门员工薄资核算基数（首要）</div>
+            </el-form-item>
+            <el-form-item label="描述"><el-input type="textarea" v-model="deptForm.description" placeholder="部门权责说明"/></el-form-item>
+        </el-form>
+        <template #footer>
+            <el-button @click="deptDialogVisible = false">取消</el-button>
+            <el-button type="primary" @click="saveDept">保存</el-button>
+        </template>
+    </el-dialog>
+
+    <!-- 弹窗：员工表单 -->
+    <el-dialog :title="empForm.id ? '修改员工' : '新增员工'" v-model="empDialogVisible" width="600px">
+        <el-form :model="empForm" label-width="100px" style="max-height: 50vh; overflow-y: auto; padding-right:15px">
+            <el-form-item label="工号(账号)">
+                <el-input v-model="empForm.empNo" :disabled="!!empForm.id" placeholder="唯一工号，将作为登录账号"/>
+            </el-form-item>
+            <el-form-item label="初始密码" v-if="!empForm.id">
+                <el-input v-model="empForm.initialPassword" placeholder="不填则默认为手机后6位或123456"/>
+                <div style="font-size: 12px; color: #999;">仅新增员工时可设置，后续由员工自行修改</div>
+            </el-form-item>
+            <el-form-item label="姓名"><el-input v-model="empForm.realName"/></el-form-item>
+            <el-form-item label="性别">
+                <el-radio-group v-model="empForm.gender">
+                    <el-radio :label="1">男</el-radio>
+                    <el-radio :label="2">女</el-radio>
+                </el-radio-group>
+            </el-form-item>
+            <el-form-item label="手机号"><el-input v-model="empForm.phone"/></el-form-item>
+            <el-form-item label="身份证号"><el-input v-model="empForm.idCard"/></el-form-item>
+            <el-form-item label="所属部门">
+                <el-select v-model="empForm.deptId" style="width:100%" placeholder="选择部门">
+                    <el-option v-for="d in departments" :key="d.id" :label="d.deptName" :value="d.id"/>
+                </el-select>
+            </el-form-item>
+            <el-form-item label="基本工资">
+                <el-input-number v-model="empForm.baseSalary" :min="0" :precision="2" :step="100" style="width: 200px"/>
+            </el-form-item>
+            <el-form-item label="入职时间">
+                <el-date-picker v-model="empForm.hireDate" type="date" value-format="YYYY-MM-DD" style="width:200px"/>
+            </el-form-item>
+        </el-form>
+        <template #footer>
+            <el-button @click="empDialogVisible = false">取消</el-button>
+            <el-button type="primary" @click="saveEmployee">保存录单</el-button>
+        </template>
+    </el-dialog>
+
+    <!-- 隐藏的导入上传组件 -->
+    <input type="file" ref="importInput" style="display:none;" accept=".xlsx,.xls" @change="handleImportFile">
+    <input type="file" ref="attendImportInput" style="display:none;" accept=".xlsx,.xls" @change="handleAttendImport">
+    
+    <!-- 弹窗：公告表单 -->
+    <el-dialog :title="noticeForm.id ? '修改公告' : '发布新公告'" v-model="noticeDialogVisible" width="500px">
+        <el-form :model="noticeForm" label-width="80px">
+            <el-form-item label="标题"><el-input v-model="noticeForm.title" placeholder="公告标题"/></el-form-item>
+            <el-form-item label="正文"><el-input type="textarea" :rows="5" v-model="noticeForm.content" placeholder="输入公告内容..."/></el-form-item>
+        </el-form>
+        <template #footer>
+            <el-button @click="noticeDialogVisible = false">取消</el-button>
+            <el-button type="primary" @click="saveNotice">发布</el-button>
+        </template>
+    </el-dialog>
+
+    <!-- 弹窗：考勤校准/手动录入 -->
+    <el-dialog :title="attendForm.id ? '校准考勤数据' : '手工录入考勤'" v-model="attendDialogVisible" width="600px">
+        <el-form :model="attendForm" label-width="110px" style="max-height: 50vh; overflow-y: auto; padding-right:15px">
+            <el-form-item label="所属年月">
+                <el-date-picker v-model="attendForm.yearMonth" type="month" value-format="YYYY-MM" style="width:100%" :disabled="!!attendForm.id"/>
+            </el-form-item>
+            <el-form-item label="员工">
+                <el-select v-model="attendForm.empId" style="width:100%" filterable :disabled="!!attendForm.id">
+                    <el-option v-for="e in allEmployees" :key="e.id" :label="e.empNo + ' - ' + e.realName" :value="e.id"/>
+                </el-select>
+            </el-form-item>
+            <el-form-item label="实际出勤天数"><el-input-number v-model="attendForm.attendDays" :min="0" :max="31"/></el-form-item>
+            <el-form-item label="出勤总时长(h)"><el-input-number v-model="attendForm.attendHours" :min="0" :precision="1"/></el-form-item>
+            <el-form-item label="旷工天数"><el-input-number v-model="attendForm.absentDays" :min="0" :step="0.5"/></el-form-item>
+            <el-form-item label="请假天数"><el-input-number v-model="attendForm.leaveDays" :min="0" :step="0.5"/></el-form-item>
+            <el-form-item label="其中病假天数"><el-input-number v-model="attendForm.sickLeaveDays" :min="0" :step="0.5"/></el-form-item>
+            <el-form-item label="迟到次数"><el-input-number v-model="attendForm.lateTimes" :min="0" :step="1"/></el-form-item>
+            <el-form-item label="加班时长(h)"><el-input-number v-model="attendForm.overtimeHours" :min="0" :precision="1"/></el-form-item>
+            <el-form-item label="备注说明"><el-input type="textarea" v-model="attendForm.remark"/></el-form-item>
+        </el-form>
+        <template #footer>
+            <el-button @click="attendDialogVisible = false">取消</el-button>
+            <el-button type="primary" @click="saveAttend">保存记录</el-button>
+        </template>
+    </el-dialog>
+
+    <!-- 弹窗：处理异常情况 -->
+    <el-dialog title="处理异常情况" v-model="anomalyDialogVisible" width="400px">
+        <el-form :model="anomalyForm" label-width="80px">
+            <el-form-item label="处理进展">
+                <el-radio-group v-model="anomalyForm.status">
+                    <el-radio :label="1">处理中</el-radio>
+                    <el-radio :label="2">已解决结束</el-radio>
+                </el-radio-group>
+            </el-form-item>
+            <el-form-item label="处理回执">
+                <el-input type="textarea" v-model="anomalyForm.processResult" placeholder="告知提交者处理结果..."/>
+            </el-form-item>
+        </el-form>
+        <template #footer><el-button @click="anomalyDialogVisible=false">取消</el-button><el-button type="primary" @click="saveAnomaly">提交处理</el-button></template>
+    </el-dialog>
+
+    <!-- 弹窗：跟进投诉/反馈 -->
+    <el-dialog title="跟进投诉与反馈" v-model="feedbackDialogVisible" width="400px">
+        <el-form :model="feedbackForm" label-width="80px">
+            <el-form-item label="结案状态">
+                <el-radio-group v-model="feedbackForm.status">
+                    <el-radio :label="1">调查中</el-radio>
+                    <el-radio :label="2">已解决</el-radio>
+                    <el-radio :label="3">驳回无理投诉</el-radio>
+                </el-radio-group>
+            </el-form-item>
+            <el-form-item label="官方回复">
+                <el-input type="textarea" v-model="feedbackForm.replyContent" placeholder="回复该投诉内容..."/>
+            </el-form-item>
+        </el-form>
+        <template #footer><el-button @click="feedbackDialogVisible=false">取消</el-button><el-button type="primary" @click="saveFeedback">回复留言</el-button></template>
+    </el-dialog>
+
+    <!-- 弹窗：配置社保方案 -->
+    <el-dialog title="社保个税方案设定" v-model="socDialogVisible" width="600px">
+        <el-form :model="socForm" label-width="120px" size="small">
+            <el-form-item label="启用方案名称"><el-input v-model="socForm.configName" placeholder="如：2023成都市统一社保"/></el-form-item>
+            <el-row :gutter="20">
+                <el-col :span="12"><el-form-item label="缴纳下限"><el-input-number v-model="socForm.minBase" :min="0" style="width:100%"/></el-form-item></el-col>
+                <el-col :span="12"><el-form-item label="缴纳上限"><el-input-number v-model="socForm.maxBase" :min="0" style="width:100%"/></el-form-item></el-col>
+            </el-row>
+            <el-row :gutter="20" style="margin-top:10px; border-top:1px solid #eee; padding-top:15px;">
+                <el-col :span="12"><el-form-item label="养老保险比例(%)"><el-input-number v-model="socForm.pensionRatio" :min="0" :max="100" style="width:100%"/></el-form-item></el-col>
+                <el-col :span="12"><el-form-item label="医疗保险比例(%)"><el-input-number v-model="socForm.medicalRatio" :min="0" :max="100" style="width:100%"/></el-form-item></el-col>
+            </el-row>
+            <el-row :gutter="20">
+                <el-col :span="12"><el-form-item label="失业保险比例(%)"><el-input-number v-model="socForm.unemploymentRatio" :min="0" :max="100" style="width:100%"/></el-form-item></el-col>
+                <el-col :span="12"><el-form-item label="公积金比例(%)"><el-input-number v-model="socForm.housingFundRatio" :min="0" :max="100" style="width:100%"/></el-form-item></el-col>
+            </el-row>
+            <el-form-item label="是否激活此方案" style="margin-top:15px;">
+                <el-switch v-model="socForm.isActive" :active-value="1" :inactive-value="0"/>
+                <span style="margin-left:10px;color:#909399;font-size:12px;">注：激活后将自动停用老方案</span>
+            </el-form-item>
+        </el-form>
+        <template #footer><el-button @click="socDialogVisible=false">取消</el-button><el-button type="primary" @click="saveSocConfig">保存新规</el-button></template>
+    </el-dialog>
+
+    <!-- 弹窗：录入绩效得分 -->
+    <el-dialog title="员工月度效能评估" v-model="perfDialogVisible" width="500px">
+        <el-form :model="perfForm" label-width="100px">
+            <el-form-item label="选择评估人">
+                <el-select v-model="perfForm.empId" filterable placeholder="请选择员工" style="width:100%;" @click="loadAllEmployeesForSelect">
+                    <el-option v-for="e in allEmployees" :key="e.id" :label="e.realName + ' ('+e.empNo+')'" :value="e.id"/>
+                </el-select>
+            </el-form-item>
+            <el-row :gutter="20">
+                <el-col :span="12">
+                    <el-form-item label="考核年月">
+                        <el-date-picker v-model="perfForm.yearMonth" type="month" value-format="YYYY-MM" placeholder="考核年月" style="width:100%"/>
+                    </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                    <el-form-item label="综合打分">
+                        <el-input-number v-model="perfForm.score" :min="0" :max="100" style="width:100%"/>
+                    </el-form-item>
+                </el-col>
+            </el-row>
+            <el-form-item label="导师评语">
+                <el-input type="textarea" v-model="perfForm.remark" placeholder="该员工本月表现..."/>
+            </el-form-item>
+        </el-form>
+        <template #footer><el-button @click="perfDialogVisible=false">取消</el-button><el-button type="primary" @click="savePerformance">提交归档</el-button></template>
+    </el-dialog>
+</div>
+
+<script>
+const { createApp, ref, reactive, onMounted, computed } = Vue;
+
+// Axios 拦截器添加 token
+axios.interceptors.request.use(cfg => {
+    const token = localStorage.getItem('token');
+    if (token) cfg.headers['Authorization'] = token;
+    return cfg;
+});
+axios.interceptors.response.use(res => res, err => {
+    if (err.response?.status === 401) {
+        localStorage.clear();
+        window.location.href = '../login.html';
+    }
+    return Promise.reject(err);
+});
+
+createApp({
+    setup() {
+        const userInfo = ref(JSON.parse(localStorage.getItem('userInfo') || '{}'));
+        const currentMenu = ref('home');
+        const currentMenuLabel = computed(() => menus.value.find(m => m.key === currentMenu.value)?.label || '系统首页');
+
+        const menus = ref([
+            { key: 'home', label: '系统首页', icon: '🏠' },
+            { key: 'personal', label: '个人中心', icon: '👤' },
+            { key: 'employee', label: '员工', icon: '👔' },
+            { key: 'department', label: '部门信息', icon: '🏢' },
+            { key: 'attendance-apply', label: '考勤申请', icon: '📝' },
+            { key: 'attendance', label: '考勤数据', icon: '📅' },
+            { key: 'salary', label: '薪资核算', icon: '💰' },
+            { key: 'salary-feedback', label: '薪资反馈', icon: '💬' },
+            { key: 'salary-payment', label: '薪资发放', icon: '🏦' },
+            { key: 'tax', label: '工资个税与社保', icon: '🧾' },
+            { key: 'performance', label: '绩效评分', icon: '⭐' },
+            { key: 'complaint', label: '投诉反馈', icon: '📣' },
+            { key: 'anomaly', label: '异常上报', icon: '⚠️' },
+            { key: 'notice', label: '通知公告', icon: '📢' },
+            { key: 'system', label: '系统管理', icon: '⚙️' },
+        ]);
+
+        if (userInfo.value.role === 2) {
+            menus.value = menus.value.filter(m => ['home','personal','employee','attendance','performance','salary','anomaly','notice'].includes(m.key));
+        }
+
+        const switchMenu = (menu) => {
+            currentMenu.value = menu.key;
+            if (menu.key === 'employee' || menu.key === 'department') loadDepartments();
+            if (menu.key === 'employee') loadEmployees(1);
+            if (menu.key === 'notice') loadNotices(1);
+            if (menu.key === 'attendance') {
+                loadDepartments();
+                loadAttendances(1);
+                loadAllEmployeesForSelect();
+            }
+            if (menu.key === 'attendance-apply') loadApplies(1);
+            if (menu.key === 'anomaly') loadAnomalies(1);
+            if (menu.key === 'complaint' || menu.key === 'salary-feedback') loadFeedbacks(1);
+            if (menu.key === 'tax') loadSocConfigs(1);
+            if (menu.key === 'salary') loadSalaries(1);
+            if (menu.key === 'salary-payment') loadPayments(1);
+            if (menu.key === 'performance') {
+                loadAllEmployeesForSelect();
+                loadPerformances(1);
+            }
+        };
+
+        // --- 首页数据 ---
+        const stats = reactive({ employeeCount: 0, salaryCount: 0, paymentCount: 0 });
+        const notices = ref([]);
+        const loadDashboard = () => {
+            axios.get('/api/employee/count').then(r => { if (r.data.code === 200) stats.employeeCount = r.data.data; }).catch(()=>{});
+            axios.get('/api/salary/count').then(r => { if (r.data.code === 200) stats.salaryCount = r.data.data; }).catch(()=>{});
+            axios.get('/api/salary/payment/count').then(r => { if (r.data.code === 200) stats.paymentCount = r.data.data; }).catch(()=>{});
+            setTimeout(initCharts, 200);
+        };
+        const initCharts = () => {
+            const chartDiv = document.getElementById('deptChart');
+            if(!chartDiv) return;
+            const deptChart = echarts.init(chartDiv);
+            deptChart.setOption({
+                tooltip: {}, xAxis: { type: 'category', data: ['销售部','技术部','财务部'] }, yAxis: { type: 'value' },
+                series: [{ type: 'bar', data: [5, 8, 3], itemStyle: { color: '#409eff', borderRadius: [4,4,0,0] } }], grid: { left: 40, right: 20, top: 20, bottom: 30 }
+            });
+            const salaryChart = echarts.init(document.getElementById('salaryChart'));
+            salaryChart.setOption({
+                tooltip: { trigger: 'axis' }, xAxis: { type: 'category', data: ['1月','2月','3月','4月','5月'] }, yAxis: { type: 'value' },
+                series: [{ type: 'line', data: [81453, 79000, 83000, 86500, 80000], smooth: true, itemStyle: { color: '#409eff' }, areaStyle: { color: 'rgba(64,158,255,0.2)' } }], grid: { left: 50, right: 20, top: 20, bottom: 30 }
+            });
+            window.addEventListener('resize', () => { deptChart.resize(); salaryChart.resize(); });
+        };
+
+        // --- 个人中心 ---
+        const pwdFormRef = ref(null);
+        const pwdForm = reactive({ oldPassword: '', newPassword: '', confirmPassword: '' });
+        const validatePass2 = (rule, value, callback) => {
+            if (value === '') callback(new Error('请再次输入密码'));
+            else if (value !== pwdForm.newPassword) callback(new Error('两次输入密码不一致!'));
+            else callback();
+        };
+        const pwdRules = reactive({
+            oldPassword: [{ required: true, message: '请输入当前密码', trigger: 'blur' }],
+            newPassword: [
+                { required: true, message: '请输入新密码', trigger: 'blur' },
+                { min: 6, message: '密码长度至少6位', trigger: 'blur' }
+            ],
+            confirmPassword: [
+                { required: true, message: '请确认新密码', trigger: 'blur' },
+                { validator: validatePass2, trigger: 'blur' }
+            ]
+        });
+        const updatePassword = () => {
+            if(!pwdFormRef.value) return;
+            pwdFormRef.value.validate((valid) => {
+                if(valid) {
+                    axios.put('/api/auth/password', null, { params: { oldPassword: pwdForm.oldPassword, newPassword: pwdForm.newPassword } }).then(r => {
+                        if(r.data.code === 200) {
+                            ElementPlus.ElMessage.success('密码修改成功，请重新登录');
+                            setTimeout(logout, 1500);
+                        } else {
+                            ElementPlus.ElMessage.error(r.data.message || '修改失败');
+                        }
+                    });
+                }
+            });
+        };
+
+        // --- 部门管理 ---
+        const departments = ref([]);
+        const deptLoading = ref(false);
+        const deptDialogVisible = ref(false);
+        const deptForm = reactive({ id: '', deptName: '', description: '' });
+
+        const loadDepartments = () => {
+            deptLoading.value = true;
+            axios.get('/api/department/list').then(r => {
+                if (r.data.code === 200) departments.value = r.data.data || [];
+            }).finally(() => { deptLoading.value = false; });
+        };
+        const openDeptForm = (row) => {
+            deptForm.id = row?.id || '';
+            deptForm.deptName = row?.deptName || '';
+            deptForm.deptCode = row?.deptCode || '';
+            deptForm.baseSalary = row?.baseSalary ?? null;
+            deptForm.description = row?.description || '';
+            deptDialogVisible.value = true;
+        };
+        const saveDept = () => {
+            if(!deptForm.deptName) return ElementPlus.ElMessage.warning('部门名称必填');
+            const req = deptForm.id ? axios.put('/api/department', deptForm) : axios.post('/api/department', deptForm);
+            req.then(r => {
+                if(r.data.code === 200) {
+                    ElementPlus.ElMessage.success('保存成功');
+                    deptDialogVisible.value = false;
+                    loadDepartments();
+                } else ElementPlus.ElMessage.error(r.data.message || '失败');
+            });
+        };
+        const deleteDept = (id) => {
+            ElementPlus.ElMessageBox.confirm('确认解散该部门？', '警告', { type: 'warning' }).then(() => {
+                axios.delete(`/api/department/${id}`).then(r => {
+                    if(r.data.code === 200) { ElementPlus.ElMessage.success('已删除'); loadDepartments(); }
+                    else ElementPlus.ElMessage.error(r.data.message || '失败');
+                });
+            }).catch(()=>{});
+        };
+
+        // --- 通知公告管理 ---
+        const noticeList = ref([]);
+        const noticeTotal = ref(0);
+        const noticeCurrent = ref(1);
+        const noticeLoading = ref(false);
+        const noticeSearch = reactive({ title: '' });
+        const noticeDialogVisible = ref(false);
+        const noticeForm = reactive({ id: '', title: '', content: '' });
+
+        const loadNotices = (page = noticeCurrent.value) => {
+            noticeCurrent.value = page;
+            noticeLoading.value = true;
+            axios.get('/api/announcement/list', { params: { page, size: 10, title: noticeSearch.title } }).then(r => {
+                if(r.data.code === 200) {
+                    noticeList.value = r.data.data?.records || r.data.data || [];
+                    noticeTotal.value = r.data.data?.total || 0;
+                }
+            }).finally(()=> noticeLoading.value = false);
+        };
+        const openNoticeForm = (row) => {
+            noticeDialogVisible.value = true;
+            if(row) Object.assign(noticeForm, row);
+            else Object.assign(noticeForm, { id:'', title:'', content:'' });
+        };
+        const saveNotice = () => {
+            if(!noticeForm.title || !noticeForm.content) return ElementPlus.ElMessage.warning('内容不能为空');
+            const req = noticeForm.id ? axios.put('/api/announcement', noticeForm) : axios.post('/api/announcement', noticeForm);
+            req.then(r => {
+                if(r.data.code === 200) { ElementPlus.ElMessage.success('发布成功'); noticeDialogVisible.value=false; loadNotices(); loadDashboard(); }
+                else ElementPlus.ElMessage.error(r.data.message||'失败');
+            });
+        };
+        const deleteNotice = (id) => {
+            ElementPlus.ElMessageBox.confirm('确认撤回删除该公告？', '提示').then(()=>{
+                axios.delete('/api/announcement/'+id).then(r=>{ if(r.data.code===200){ ElementPlus.ElMessage.success('已删除'); loadNotices(); loadDashboard(); } });
+            }).catch(()=>{});
+        };
+
+        // --- 考勤数据管理 ---
+        const attendances = ref([]);
+        const attendTotal = ref(0);
+        const attendCurrent = ref(1);
+        const attendLoading = ref(false);
+        const attendSearch = reactive({ yearMonth: '', empNo: '', deptId: '' });
+        const attendDialogVisible = ref(false);
+        const attendForm = reactive({ id:'', yearMonth:'', empId:'', attendDays:0, absentDays:0, lateTimes:0, leaveDays:0, sickLeaveDays:0, overtimeHours:0, attendHours:0, remark:'' });
+        const attendImportInput = ref(null);
+        const allEmployees = ref([]);
+
+        const loadAllEmployeesForSelect = () => {
+            if(allEmployees.value.length > 0) return;
+            axios.get('/api/employee/page?size=1000').then(r => {
+                if(r.data.code===200) allEmployees.value = r.data.data?.records || [];
+            });
+        };
+        const loadAttendances = (page = attendCurrent.value) => {
+            attendCurrent.value = page;
+            attendLoading.value = true;
+            axios.get('/api/attendance/page', { params: { current: page, size: 10, ...attendSearch } }).then(r => {
+                if(r.data.code === 200) {
+                    attendances.value = r.data.data?.records || r.data.data || [];
+                    attendTotal.value = r.data.data?.total || 0;
+                }
+            }).finally(()=> attendLoading.value = false);
+        };
+        const openAttendForm = (row) => {
+            attendDialogVisible.value = true;
+            if(row) Object.assign(attendForm, row);
+            else {
+                const now = new Date();
+                const ym = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+                Object.assign(attendForm, { id:'', yearMonth:ym, empId:'', attendDays:22, absentDays:0, lateTimes:0, leaveDays:0, sickLeaveDays:0, overtimeHours:0, attendHours:176, remark:'' });
+            }
+        };
+        const saveAttend = () => {
+            if(!attendForm.empId || !attendForm.yearMonth) return ElementPlus.ElMessage.warning('月份和员工必选');
+            const req = attendForm.id ? axios.put('/api/attendance', attendForm) : axios.post('/api/attendance', attendForm);
+            req.then(r => {
+                if(r.data.code === 200) { ElementPlus.ElMessage.success('保存成功'); attendDialogVisible.value=false; loadAttendances(); }
+                else ElementPlus.ElMessage.error(r.data.message||'失败');
+            });
+        };
+        const deleteAttend = (id) => {
+            ElementPlus.ElMessageBox.confirm('确认删除该条考勤记录？', '提示', {type:'warning'}).then(()=>{
+                axios.delete('/api/attendance/'+id).then(r=>{ 
+                    if(r.data.code===200) { ElementPlus.ElMessage.success('已删除'); loadAttendances(); }
+                    else ElementPlus.ElMessage.error(r.data.message);
+                });
+            }).catch(()=>{});
+        };
+        const triggerAttendImport = () => {
+            if(!attendSearch.yearMonth) return ElementPlus.ElMessage.warning('导入考勤前，请先在左侧选择【考勤月份】！');
+            attendImportInput.value.click();
+        };
+        const handleAttendImport = (e) => {
+            const file = e.target.files[0];
+            if(!file) return;
+            const fd = new FormData();
+            fd.append('file', file);
+            fd.append('yearMonth', attendSearch.yearMonth);
+            const loadInstance = ElementPlus.ElLoading.service({ text: '正在解析考勤机数据并计算考勤...' });
+            axios.post('/api/attendance/import/clock', fd, {headers: {'Content-Type': 'multipart/form-data'}}).then(r => {
+                if(r.data.code === 200) { ElementPlus.ElMessage.success('导入结算完成！'); loadAttendances(1); }
+                else ElementPlus.ElMessage.error(r.data.message || '导入失败');
+            }).catch(err => ElementPlus.ElMessage.error(err.response?.data?.message || '网络错误'))
+              .finally(() => { loadInstance.close(); e.target.value = ''; });
+        };
+
+        // --- 考勤审批 ---
+        const applies = ref([]);
+        const applyTotal = ref(0);
+        const applyCurrent = ref(1);
+        const applyLoading = ref(false);
+        const applySearch = reactive({ status: '' });
+        const loadApplies = (page = applyCurrent.value) => {
+            applyCurrent.value = page;
+            applyLoading.value = true;
+            axios.get('/api/attendance-apply/page', { params: { current: page, size: 10, status: applySearch.status } }).then(r => {
+                if(r.data.code===200) { applies.value = r.data.data?.records||[]; applyTotal.value = r.data.data?.total||0; }
+            }).finally(()=> applyLoading.value=false);
+        };
+        const reviewApply = (row, status) => {
+            ElementPlus.ElMessageBox.prompt('请输入审批意见(选填)', status===1?'审批同意':'驳回申请').then(({value}) => {
+                axios.put(`/api/attendance-apply/${row.id}/review?status=${status}&comment=${value||''}`).then(r=>{
+                    if(r.data.code===200) { ElementPlus.ElMessage.success('审批完成'); loadApplies(); }
+                });
+            }).catch(()=>{});
+        };
+
+        // --- 异常处理 ---
+        const anomalies = ref([]);
+        const anomalyTotal = ref(0);
+        const anomalyCurrent = ref(1);
+        const anomalyLoading = ref(false);
+        const anomalySearch = reactive({ status: '' });
+        const anomalyDialogVisible = ref(false);
+        const anomalyForm = reactive({ id:'', status:1, processResult:'' });
+        const loadAnomalies = (page = anomalyCurrent.value) => {
+            anomalyCurrent.value = page;
+            anomalyLoading.value = true;
+            axios.get('/api/anomaly/page', { params: { current: page, size: 10, status: anomalySearch.status } }).then(r => {
+                if(r.data.code===200) { anomalies.value = r.data.data?.records||[]; anomalyTotal.value = r.data.data?.total||0; }
+            }).finally(()=> anomalyLoading.value=false);
+        };
+        const openProcessAnomaly = (row) => {
+            anomalyDialogVisible.value = true;
+            anomalyForm.id = row.id;
+            anomalyForm.status = row.status === 0 ? 1 : row.status;
+            anomalyForm.processResult = row.processResult || '';
+        };
+        const saveAnomaly = () => {
+            if(!anomalyForm.processResult) return ElementPlus.ElMessage.warning('请填写处理进展');
+            axios.put(`/api/anomaly/${anomalyForm.id}/process?status=${anomalyForm.status}&processResult=${anomalyForm.processResult}`).then(r=>{
+                if(r.data.code===200) { ElementPlus.ElMessage.success('记录完毕'); anomalyDialogVisible.value=false; loadAnomalies(); }
+            });
+        };
+
+        // --- 投诉反馈处理 ---
+        const feedbacks = ref([]);
+        const feedbackTotal = ref(0);
+        const feedbackCurrent = ref(1);
+        const feedbackLoading = ref(false);
+        const feedbackSearch = reactive({ status: '' });
+        const feedbackDialogVisible = ref(false);
+        const feedbackForm = reactive({ id:'', status:1, replyContent:'' });
+        const loadFeedbacks = (page = feedbackCurrent.value) => {
+            feedbackCurrent.value = page;
+            feedbackLoading.value = true;
+            axios.get('/api/feedback/page', { params: { current: page, size: 10, status: feedbackSearch.status } }).then(r => {
+                if(r.data.code===200) { feedbacks.value = r.data.data?.records||[]; feedbackTotal.value = r.data.data?.total||0; }
+            }).finally(()=> feedbackLoading.value=false);
+        };
+        const openReplyFeedback = (row) => {
+            feedbackDialogVisible.value = true;
+            feedbackForm.id = row.id;
+            feedbackForm.status = row.status === 0 ? 1 : row.status;
+            feedbackForm.replyContent = row.replyContent || '';
+        };
+        const saveFeedback = () => {
+            if(!feedbackForm.replyContent) return ElementPlus.ElMessage.warning('请填写回复说明');
+            axios.put(`/api/feedback/${feedbackForm.id}/reply?status=${feedbackForm.status}&replyContent=${feedbackForm.replyContent}`).then(r=>{
+                if(r.data.code===200) { ElementPlus.ElMessage.success('回复完毕'); feedbackDialogVisible.value=false; loadFeedbacks(); }
+            });
+        };
+
+        // --- 社保配置 ---
+        const socConfigs = ref([]);
+        const socTotal = ref(0);
+        const socCurrent = ref(1);
+        const socLoading = ref(false);
+        const socSearch = reactive({ configName: '' });
+        const socDialogVisible = ref(false);
+        const socForm = reactive({ id:'', configName:'', minBase:0, maxBase:0, pensionRatio:8, medicalRatio:2, unemploymentRatio:0.5, housingFundRatio:7, isActive:0 });
+        const loadSocConfigs = (page = socCurrent.value) => {
+            socCurrent.value = page;
+            socLoading.value = true;
+            axios.get('/api/social-config/page', { params: { current: page, size: 10, configName: socSearch.configName } }).then(r => {
+                if(r.data.code===200) { socConfigs.value = r.data.data?.records||[]; socTotal.value = r.data.data?.total||0; }
+            }).finally(()=>socLoading.value=false);
+        };
+        const openSocForm = (row) => {
+            socDialogVisible.value = true;
+            if(row) Object.assign(socForm, row);
+            else Object.assign(socForm, { id:'', configName:'', minBase:3000, maxBase:30000, pensionRatio:8, medicalRatio:2, unemploymentRatio:0.5, housingFundRatio:7, isActive:0 });
+        };
+        const saveSocConfig = () => {
+            const req = socForm.id ? axios.put('/api/social-config', socForm) : axios.post('/api/social-config', socForm);
+            req.then(r=>{
+                if(r.data.code===200) { ElementPlus.ElMessage.success('保存成功'); socDialogVisible.value=false; loadSocConfigs(); }
+            });
+        };
+
+        // --- 绩效考核 ---
+        const performances = ref([]);
+        const perfTotal = ref(0);
+        const perfCurrent = ref(1);
+        const perfLoading = ref(false);
+        const perfSearch = reactive({ yearMonth: '', empNo: '' });
+        const perfDialogVisible = ref(false);
+        const perfForm = reactive({ id:'', yearMonth:'', empId:'', score:80, remark:'' });
+        const loadPerformances = (page = perfCurrent.value) => {
+            perfCurrent.value = page;
+            perfLoading.value = true;
+            axios.get('/api/performance/page', { params: { current: page, size: 10, ...perfSearch } }).then(r => {
+                if(r.data.code===200) { performances.value = r.data.data?.records||[]; perfTotal.value = r.data.data?.total||0; }
+            }).finally(()=>perfLoading.value=false);
+        };
+        const openPerfForm = (row) => {
+            perfDialogVisible.value = true;
+            if(row) Object.assign(perfForm, row);
+            else {
+                const now = new Date();
+                Object.assign(perfForm, { id:'', yearMonth: now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0'), empId:'', score:80, remark:'' });
+            }
+        };
+        const savePerformance = () => {
+            if(!perfForm.empId || !perfForm.yearMonth) return ElementPlus.ElMessage.warning('员工与月份必填');
+            const params = { ...perfForm };
+            if(!params.id) {
+                // Determine level and roughly estimate bonus as mock (backend does it anyway usually, we just save)
+                axios.post('/api/performance', [params]).then(r=>{
+                    if(r.data.code===200) { ElementPlus.ElMessage.success('录入成功'); perfDialogVisible.value=false; loadPerformances(); }
+                });
+            } else {
+                axios.put('/api/performance', params).then(r=>{
+                    if(r.data.code===200) { ElementPlus.ElMessage.success('修改成功'); perfDialogVisible.value=false; loadPerformances(); }
+                });
+            }
+        };
+
+        // --- 薪资计算 ---
+        const salaries = ref([]);
+        const salaryTotal = ref(0);
+        const salaryCurrent = ref(1);
+        const salaryLoading = ref(false);
+        const salarySearch = reactive({ yearMonth: '', empNo: '', calcStatus: '' });
+        const salarySelections = ref([]);
+        
+        const loadSalaries = (page = salaryCurrent.value) => {
+            salaryCurrent.value = page;
+            salaryLoading.value = true;
+            axios.get('/api/salary/page', { params: { current: page, size: 10, ...salarySearch } }).then(r => {
+                if(r.data.code===200) { salaries.value = r.data.data?.records||[]; salaryTotal.value = r.data.data?.total||0; }
+            }).finally(()=>salaryLoading.value=false);
+        };
+        const handleSalarySelection = (val) => { salarySelections.value = val; };
+        const batchCalcSalary = () => {
+            if(!salarySearch.yearMonth) return ElementPlus.ElMessage.warning('请先在搜索栏选择需要算薪的账期(月份)！');
+            const loadInstance = ElementPlus.ElLoading.service({ text: '引擎拼命计算中...' });
+            axios.post('/api/salary/batch-calculate?yearMonth=' + salarySearch.yearMonth).then(r=>{
+                if(r.data.code===200) { ElementPlus.ElMessage.success('批量算薪结束，共生成本月账单记录'); loadSalaries(); }
+                else ElementPlus.ElMessage.error(r.data.message||'算薪失败');
+            }).finally(()=>loadInstance.close());
+        };
+        const batchPublishSalary = () => {
+            if(salarySelections.value.length === 0) return ElementPlus.ElMessage.warning('请勾选要发布的薪资单');
+            const ids = salarySelections.value.map(s => s.id);
+            axios.put('/api/salary/batch-publish', ids).then(r=>{
+                if(r.data.code===200) { ElementPlus.ElMessage.success('批量公开完成，员工已能收到账单'); loadSalaries(); }
+            });
+        };
+        const openSalaryDetail = (row) => { ElementPlus.ElMessageBox.alert(`社保扣除: ${row.socialSecurityEmp} <br>个税扣除: ${row.incomeTax} <br>迟到早退扣款: ${row.attendDeduct} <br>应发项发薪账户: ${row.bankAccount||'未维护'}`, `员工 ${row.empName} 的薪资核算明细`, {dangerouslyUseHTMLString: true}); };
+
+        // --- 薪资支付 ---
+        const payments = ref([]);
+        const paymentTotal = ref(0);
+        const paymentCurrent = ref(1);
+        const paymentLoading = ref(false);
+        const paymentSearch = reactive({ yearMonth: '', calcStatus: '' });
+        
+        const loadPayments = (page = paymentCurrent.value) => {
+            paymentCurrent.value = page;
+            paymentLoading.value = true;
+            axios.get('/api/salary/page', { params: { current: page, size: 10, ...paymentSearch } }).then(r => {
+                if(r.data.code===200) { payments.value = r.data.data?.records||[]; paymentTotal.value = r.data.data?.total||0; }
+            }).finally(()=>paymentLoading.value=false);
+        };
+        const executePayment = (row) => {
+            if(row.calcStatus < 2) return ElementPlus.ElMessage.warning('该账单未公开定表，不可打款');
+            ElementPlus.ElMessageBox.confirm(`准备向账户 ${row.bankAccount||'【未绑定对公账户】'} 汇款 ¥${row.netSalary} 元，是否连通银行接口执行？`, '安全支付网关接入中...').then(()=>{
+                const loadInstance = ElementPlus.ElLoading.service({ text: '正在验证网银密钥与通讯...' });
+                setTimeout(()=>{
+                    axios.put('/api/salary/' + row.id + '/pay').then(r=>{
+                        if(r.data.code===200) { ElementPlus.ElMessage.success('支付成功，资金已汇出！'); loadPayments(); }
+                        else ElementPlus.ElMessage.error(r.data.message||'打款失败');
+                    }).finally(()=>loadInstance.close());
+                }, 1500);
+            }).catch(()=>{});
+        };
+
+        // --- 员工管理 ---
+        const employees = ref([]);
+        const empTotal = ref(0);
+        const empCurrent = ref(1);
+        const empSize = ref(10);
+        const empLoading = ref(false);
+        const empSearch = reactive({ empNo: '', realName: '', deptId: '' });
+        const empDialogVisible = ref(false);
+        const empForm = reactive({ id:'', empNo:'', realName:'', gender:1, phone:'', idCard:'', deptId:'', baseSalary:0, hireDate:'', initialPassword:'' });
+        const importInput = ref(null);
+
+        const loadEmployees = (page = empCurrent.value) => {
+            empCurrent.value = page;
+            empLoading.value = true;
+            axios.get('/api/employee/page', { params: { current: page, size: empSize.value, ...empSearch } }).then(r => {
+                if (r.data.code === 200) {
+                    employees.value = r.data.data?.records || r.data.data || [];
+                    empTotal.value = r.data.data?.total || 0;
+                }
+            }).finally(() => { empLoading.value = false; });
+        };
+
+        const resetEmpSearch = () => {
+            Object.assign(empSearch, { empNo:'', realName:'', deptId:'' });
+            empCurrent.value = 1;
+            loadEmployees(1);
+        };
+        const openEmpForm = (row) => {
+            empDialogVisible.value = true;
+            if(row) Object.assign(empForm, row);
+            else Object.assign(empForm, { id:'', empNo:'', realName:'', gender:1, phone:'', idCard:'', deptId:'', baseSalary:null, hireDate:'', initialPassword:'' });
+        };
+        const saveEmployee = () => {
+            if(!empForm.empNo || !empForm.realName || !empForm.deptId) return ElementPlus.ElMessage.warning('请填写必填项');
+            const params = { ...empForm };
+            if(!empForm.id && empForm.initialPassword) params.initialPassword = empForm.initialPassword; // 传给后端
+            // 对于传给后台接口的参数，后端可能只收 Employee 对象，initialPassword 可以放到请求的 params，也可以统一处理
+            // 这里为了简单，我们请求参数增加 initialPassword 字段（或者在后端URL传参）
+            const url = empForm.id ? '/api/employee' : `/api/employee?initialPassword=${empForm.initialPassword||''}`;
+            const req = empForm.id ? axios.put(url, params) : axios.post(url, params);
+            req.then(r => {
+                if(r.data.code === 200) {
+                    ElementPlus.ElMessage.success('保存成功');
+                    empDialogVisible.value = false;
+                    loadEmployees();
+                } else ElementPlus.ElMessage.error(r.data.message || '保存失败');
+            });
+        };
+        const deleteEmp = (id) => {
+            ElementPlus.ElMessageBox.confirm('确认将此员工标记为离职？账号将立即停用！', '警告', { type: 'error' }).then(() => {
+                axios.delete(`/api/employee/${id}`).then(r => {
+                    if(r.data.code === 200) { ElementPlus.ElMessage.success('已标记离职'); loadEmployees(); }
+                    else ElementPlus.ElMessage.error(r.data.message || '操作失败');
+                });
+            }).catch(()=>{});
+        };
+
+        const triggerImport = () => importInput.value.click();
+        const handleImportFile = (e) => {
+            const file = e.target.files[0];
+            if(!file) return;
+            const fd = new FormData();
+            fd.append('file', file);
+            const loadInstance = ElementPlus.ElLoading.service({ text: '正在解析Excel导入...' });
+            axios.post('/api/employee/import', fd).then(r => {
+                if(r.data.code === 200) { ElementPlus.ElMessage.success('导入成功'); loadEmployees(1); }
+                else ElementPlus.ElMessage.error(r.data.message || '导入失败');
+            }).catch(err => ElementPlus.ElMessage.error(err.response?.data?.message || '网络错误'))
+              .finally(() => { loadInstance.close(); e.target.value = ''; });
+        };
+        const exportExcel = () => {
+            const url = `/api/employee/export?token=${localStorage.getItem('token')}&empNo=${empSearch.empNo}&realName=${empSearch.realName}&deptId=${empSearch.deptId}`;
+            window.open(url, '_blank');
+        };
+
+        const logout = () => {
+            localStorage.clear();
+            window.location.href = '../login.html';
+        };
+
+        onMounted(() => {
+            if (!localStorage.getItem('token')) { window.location.href = '../login.html'; return; }
+            loadDashboard();
+        });
+
+        return {
+            userInfo, menus, currentMenu, currentMenuLabel, stats, notices,
+            pwdForm, updatePassword,
+            departments, deptLoading, deptDialogVisible, deptForm, loadDepartments, openDeptForm, saveDept, deleteDept,
+            employees, empTotal, empCurrent, empLoading, empSearch, empDialogVisible, empForm, importInput,
+            loadEmployees, resetEmpSearch, openEmpForm, saveEmployee, deleteEmp, triggerImport, handleImportFile, exportExcel,
+            // --- 考勤 ---
+            attendances, attendTotal, attendCurrent, attendLoading, attendSearch, attendDialogVisible, attendForm, attendImportInput, allEmployees, loadAttendances, openAttendForm, saveAttend, deleteAttend, triggerAttendImport, handleAttendImport, loadAllEmployeesForSelect,
+            // --- 公告 ---
+            noticeList, noticeTotal, noticeCurrent, noticeSearch, noticeLoading, noticeDialogVisible, noticeForm, loadNotices, openNoticeForm, saveNotice, deleteNotice,
+            // --- 审批/异常/投诉 ---
+            applies, applyTotal, applyCurrent, applyLoading, applySearch, loadApplies, reviewApply,
+            anomalies, anomalyTotal, anomalyCurrent, anomalyLoading, anomalySearch, anomalyDialogVisible, anomalyForm, loadAnomalies, openProcessAnomaly, saveAnomaly,
+            feedbacks, feedbackTotal, feedbackCurrent, feedbackLoading, feedbackSearch, feedbackDialogVisible, feedbackForm, loadFeedbacks, openReplyFeedback, saveFeedback,
+            // --- 社保/绩效 ---
+            socConfigs, socTotal, socCurrent, socLoading, socSearch, socDialogVisible, socForm, loadSocConfigs, openSocForm, saveSocConfig,
+            performances, perfTotal, perfCurrent, perfLoading, perfSearch, perfDialogVisible, perfForm, loadPerformances, openPerfForm, savePerformance,
+            // --- 薪资计算发薪 ---
+            salaries, salaryTotal, salaryCurrent, salaryLoading, salarySearch, handleSalarySelection, loadSalaries, batchCalcSalary, batchPublishSalary, openSalaryDetail,
+            payments, paymentTotal, paymentCurrent, paymentLoading, paymentSearch, loadPayments, executePayment,
+            switchMenu, logout
+        };
+    }
+}).use(ElementPlus).mount('#app');
+</script>
+</body>
+</html>

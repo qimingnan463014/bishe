@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.salary.mapper.EmployeeMapper">
+
+    <!-- 完整员工结果映射（含部门、岗位、经理名冗余字段） -->
+    <resultMap id="EmployeeDetailMap" type="com.salary.entity.Employee">
+        <id     property="id"           column="id"/>
+        <result property="userId"        column="user_id"/>
+        <result property="empNo"         column="emp_no"/>
+        <result property="realName"      column="real_name"/>
+        <result property="gender"        column="gender"/>
+        <result property="idCard"        column="id_card"/>
+        <result property="phone"         column="phone"/>
+        <result property="deptId"        column="dept_id"/>
+        <result property="positionId"    column="position_id"/>
+        <result property="managerId"     column="manager_id"/>
+        <result property="hireDate"      column="hire_date"/>
+        <result property="baseSalary"    column="base_salary"/>
+        <result property="bankAccount"   column="bank_account"/>
+        <result property="bankName"      column="bank_name"/>
+        <result property="avatar"        column="avatar"/>
+        <result property="status"        column="status"/>
+        <result property="remark"        column="remark"/>
+        <result property="createTime"    column="create_time"/>
+        <result property="updateTime"    column="update_time"/>
+        <!-- 关联查询冗余字段 -->
+        <result property="deptName"      column="dept_name"/>
+        <result property="positionName"  column="position_name"/>
+        <result property="managerNo"     column="manager_no"/>
+        <result property="managerName"   column="manager_name"/>
+        <result property="loginAccount"  column="login_account"/>
+        <result property="loginPassword" column="login_password"/>
+        <result property="role"          column="role"/>
+    </resultMap>
+
+    <!--
+        分页查询员工列表（关联部门、岗位、经理信息，以及自身登录账号）
+        重要：只查询 role=3（普通员工），排除 role=2（经理）和 role=1（管理员）
+    -->
+    <select id="selectPageWithDetails" resultMap="EmployeeDetailMap">
+        SELECT
+            e.*,
+            d.dept_name,
+            p.position_name,
+            u.username  AS login_account,
+            u.role      AS role,
+            '123456'    AS login_password,
+            m.username  AS manager_no,
+            m.real_name AS manager_name
+        FROM t_employee e
+        LEFT JOIN t_department d ON e.dept_id    = d.id
+        LEFT JOIN t_position   p ON e.position_id = p.id
+        LEFT JOIN t_user        u ON e.user_id     = u.id
+        LEFT JOIN t_user        m ON e.manager_id  = m.id
+        <where>
+            <!-- 关键过滤：只显示普通员工（role=3），排除经理（role=2）和管理员（role=1） -->
+            AND u.role = 3
+            <if test="empNo != null and empNo != ''">
+                AND e.emp_no LIKE CONCAT('%', #{empNo}, '%')
+            </if>
+            <if test="realName != null and realName != ''">
+                AND e.real_name LIKE CONCAT('%', #{realName}, '%')
+            </if>
+            <if test="deptId != null and deptId != ''">
+                AND e.dept_id = #{deptId}
+            </if>
+            <if test="status != null">
+                AND e.status = #{status}
+            </if>
+            <if test="managerId != null">
+                AND e.manager_id = #{managerId}
+            </if>
+        </where>
+        ORDER BY e.create_time DESC
+    </select>
+
+    <!-- 根据工号查询详情 -->
+    <select id="selectByEmpNo" resultMap="EmployeeDetailMap">
+        SELECT
+            e.*,
+            d.dept_name,
+            p.position_name,
+            u.username  AS login_account,
+            '123456'    AS login_password,
+            m.username  AS manager_no,
+            m.real_name AS manager_name
+        FROM t_employee e
+        LEFT JOIN t_department d ON e.dept_id     = d.id
+        LEFT JOIN t_position   p ON e.position_id  = p.id
+        LEFT JOIN t_user        u ON e.user_id      = u.id
+        LEFT JOIN t_user        m ON e.manager_id   = m.id
+        WHERE e.emp_no = #{empNo}
+        LIMIT 1
+    </select>
+
+    <!-- 根据 userId 查询员工 -->
+    <select id="selectByUserId" resultMap="EmployeeDetailMap">
+        SELECT
+            e.*,
+            d.dept_name,
+            p.position_name,
+            u.username  AS login_account,
+            '123456'    AS login_password,
+            m.username  AS manager_no,
+            m.real_name AS manager_name
+        FROM t_employee e
+        LEFT JOIN t_department d ON e.dept_id     = d.id
+        LEFT JOIN t_position   p ON e.position_id  = p.id
+        LEFT JOIN t_user        u ON e.user_id      = u.id
+        LEFT JOIN t_user        m ON e.manager_id   = m.id
+        WHERE e.user_id = #{userId}
+        LIMIT 1
+    </select>
+
+    <!-- 查询指定部门的所有在职员工（经理录入考勤/薪资时选人用） -->
+    <select id="selectByDeptId" resultType="com.salary.entity.Employee">
+        SELECT * FROM t_employee
+        WHERE dept_id = #{deptId}
+          AND status  = 1
+        ORDER BY emp_no
+    </select>
+
+    <select id="selectByManagerId" resultType="com.salary.entity.Employee">
+        SELECT * FROM t_employee
+        WHERE manager_id = #{managerId}
+          AND status = 1
+        ORDER BY emp_no
+    </select>
+
+    <!-- 批量插入（EasyExcel 导入时使用，配合 ServiceImpl.saveBatch 即可，此处备用） -->
+    <insert id="batchInsert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_employee
+        (user_id, emp_no, real_name, gender, id_card, phone,
+         dept_id, position_id, manager_id, hire_date, base_salary,
+         bank_account, bank_name, status, create_time, update_time)
+        VALUES
+        <foreach collection="list" item="e" separator=",">
+            (#{e.userId}, #{e.empNo}, #{e.realName}, #{e.gender}, #{e.idCard}, #{e.phone},
+             #{e.deptId}, #{e.positionId}, #{e.managerId}, #{e.hireDate}, #{e.baseSalary},
+             #{e.bankAccount}, #{e.bankName}, #{e.status}, NOW(), NOW())
+        </foreach>
+    </insert>
+    <!-- 统计各部门人数分布 -->
+    <select id="countByDepartment" resultType="map">
+        SELECT d.dept_name as dept_name, COUNT(e.id) as count
+        FROM t_department d
+        LEFT JOIN t_employee e ON d.id = e.dept_id
+        GROUP BY d.dept_name
+    </select>
+
+    <!-- 分页查询部门经理列表（只显示 role=2 的经理） -->
+    <select id="selectPageWithDetailsForManager" resultMap="EmployeeDetailMap">
+        SELECT
+            e.*,
+            d.dept_name,
+            p.position_name,
+            u.username  AS login_account,
+            u.role      AS role,
+            '123456'    AS login_password,
+            m.username  AS manager_no,
+            m.real_name AS manager_name
+        FROM t_employee e
+        LEFT JOIN t_department d ON e.dept_id    = d.id
+        LEFT JOIN t_position   p ON e.position_id = p.id
+        LEFT JOIN t_user        u ON e.user_id     = u.id
+        LEFT JOIN t_user        m ON e.manager_id  = m.id
+        <where>
+            <!-- 只显示部门经理（role=2） -->
+            AND u.role = 2
+            <if test="empNo != null and empNo != ''">
+                AND e.emp_no LIKE CONCAT('%', #{empNo}, '%')
+            </if>
+            <if test="realName != null and realName != ''">
+                AND e.real_name LIKE CONCAT('%', #{realName}, '%')
+            </if>
+            <if test="deptId != null and deptId != ''">
+                AND e.dept_id = #{deptId}
+            </if>
+            <if test="status != null">
+                AND e.status = #{status}
+            </if>
+        </where>
+        ORDER BY e.create_time DESC
+    </select>
+
+</mapper>

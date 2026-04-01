@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.salary.mapper.DepartmentMapper">
+
+    <!-- 分页查询部门（含岗位数量统计） -->
+    <select id="selectPageWithCount" resultType="com.salary.entity.Department">
+        SELECT d.*
+        FROM t_department d
+        <where>
+            <if test="deptName != null and deptName != ''">
+                AND d.dept_name LIKE CONCAT('%', #{deptName}, '%')
+            </if>
+            <if test="status != null">
+                AND d.status = #{status}
+            </if>
+        </where>
+        ORDER BY d.sort_order, d.create_time DESC
+    </select>
+
+    <!-- 查询所有启用的部门（下拉框） -->
+    <select id="selectAllEnabled" resultType="com.salary.entity.Department">
+        SELECT * FROM t_department
+        WHERE status = 1
+        ORDER BY sort_order, dept_name
+    </select>
+
+</mapper>

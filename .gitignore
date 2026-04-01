@@ -1,0 +1,25 @@
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+release.properties
+
+# IDE
+.vs/
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Nested clone (avoid submodule pointer only)
+tmp_skills/
+
+# Root-level video (do not commit; GitHub rejects files > 100MB)
+/*.mp4
+/*.mkv
+/*.avi
+/*.mov
+/*.webm
+/*.m4v

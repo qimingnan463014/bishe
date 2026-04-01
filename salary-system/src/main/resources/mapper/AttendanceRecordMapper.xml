@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.salary.mapper.AttendanceRecordMapper">
+
+    <!--
+        多条件分页查询考勤记录
+        managerId 有值时：仅查该经理录入的记录（manager_id = #{managerId}）
+    -->
+    <select id="selectPageWithCondition" resultType="com.salary.entity.AttendanceRecord">
+        SELECT * FROM t_attendance_record
+        <where>
+            <if test="recordNo != null and recordNo != ''">
+                AND record_no = #{recordNo}
+            </if>
+            <if test="yearMonth != null and yearMonth != ''">
+                AND `year_month` = #{yearMonth}
+            </if>
+            <if test="empNo != null and empNo != ''">
+                AND emp_no = #{empNo}
+            </if>
+            <if test="deptId != null and deptId != ''">
+                AND dept_id = #{deptId}
+            </if>
+            <if test="managerId != null">
+                AND manager_id = #{managerId}
+            </if>
+        </where>
+        ORDER BY `year_month` DESC, create_time DESC
+    </select>
+
+    <!-- 根据员工ID和年月查询（薪资计算时读取考勤） -->
+    <select id="selectByEmpAndMonth" resultType="com.salary.entity.AttendanceRecord">
+        SELECT * FROM t_attendance_record
+        WHERE emp_id    = #{empId}
+          AND year_month = #{yearMonth}
+        LIMIT 1
+    </select>
+    <!-- 统计指定月份的出勤状态分布 -->
+    <select id="countAttendanceStatus" resultType="map">
+        SELECT
+            SUM(attend_days) as normal,
+            SUM(late_times) as late,
+            SUM(absent_days) as absent,
+            SUM(leave_days) as `leave`
+        FROM t_attendance_record
+        WHERE year_month = #{yearMonth}
+    </select>
+
+</mapper>

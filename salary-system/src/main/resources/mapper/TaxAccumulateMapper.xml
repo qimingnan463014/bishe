@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.salary.mapper.TaxAccumulateMapper">
+
+    <!--
+        查询上月累计个税数据（跨月累计预扣法核心查询）
+        - prevMonth 格式：YYYY-MM（例如本月为2026-03，则prevMonth=2026-02）
+        - 1月时 prevMonth = 上一年12月，但 taxYear 是当年，所以查不到，返回 null（正确：1月重新累计）
+    -->
+    <select id="selectPrevMonthAccumulate" resultType="com.salary.entity.TaxAccumulate">
+        SELECT * FROM t_tax_accumulate
+        WHERE emp_id     = #{empId}
+          AND tax_year   = #{taxYear}
+          AND `year_month` = #{prevMonth}
+        LIMIT 1
+    </select>
+
+    <!-- 查询员工当年最新累计记录（年度汇总/个人中心展示） -->
+    <select id="selectLatestByEmpAndYear" resultType="com.salary.entity.TaxAccumulate">
+        SELECT * FROM t_tax_accumulate
+        WHERE emp_id   = #{empId}
+          AND tax_year = #{taxYear}
+        ORDER BY `year_month` DESC
+        LIMIT 1
+    </select>
+
+</mapper>
