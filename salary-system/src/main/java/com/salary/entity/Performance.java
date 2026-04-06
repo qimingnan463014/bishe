@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 /**
  * 月度绩效评分实体
  * 对应数据库表：t_performance
- * 经理每月评分，绩效系数决定绩效奖金金额
+ * 经理每月评分，绩效结果直接决定绩效奖金金额
  */
 @Data
 @EqualsAndHashCode(callSuper = false)
@@ -72,12 +72,12 @@ public class Performance {
      */
     private BigDecimal score;
 
-    /** 绩效等级：S/A/B/C/D */
+    /** 绩效等级：优秀/良好/合格/不合格 */
     private String grade;
 
     /**
-     * 绩效奖金系数（由评分计算得出）
-     * 示例：90分 → 0.9，110分 → 1.1（超优），60分以下 → 0（C/D级无绩效）
+     * 绩效奖金金额（元）
+     * 由绩效评分自动映射得出，例如：优秀=1500、良好=1200、合格=900、不合格=0
      */
     private BigDecimal perfBonusRatio;
 

@@ -26,8 +26,14 @@
             <if test="calcStatus != null">
                 AND calc_status = #{calcStatus}
             </if>
+            <if test="excludeDraft != null and excludeDraft">
+                AND calc_status <![CDATA[<>]]> 1
+            </if>
             <if test="managerId != null">
                 AND manager_id = #{managerId}
+            </if>
+            <if test="excludeEmpNo != null and excludeEmpNo != ''">
+                AND emp_no <![CDATA[<>]]> #{excludeEmpNo}
             </if>
         </where>
         ORDER BY `year_month` DESC, create_time DESC
@@ -45,15 +51,26 @@
     <select id="selectByEmpId" resultType="com.salary.entity.SalaryRecord">
         SELECT * FROM t_salary_record
         WHERE emp_id = #{empId}
+          AND calc_status = 4
+          AND slip_published = 1
         ORDER BY `year_month` DESC
     </select>
     <!-- 统计月度实发工资总额趋势（近12个月） -->
     <select id="countMonthlyTrend" resultType="map">
-        SELECT `year_month` as month, SUM(net_salary) as total
-        FROM t_salary_record
-        GROUP BY `year_month`
-        ORDER BY `year_month` ASC
-        LIMIT 12
+        SELECT trend.month, trend.total
+        FROM (
+            SELECT `year_month` AS month, SUM(net_salary) AS total
+            FROM t_salary_record
+            <where>
+                <if test="anchorYearMonth != null and anchorYearMonth != ''">
+                    AND `year_month` &lt;= #{anchorYearMonth}
+                </if>
+            </where>
+            GROUP BY `year_month`
+            ORDER BY `year_month` DESC
+            LIMIT 12
+        ) trend
+        ORDER BY trend.month ASC
     </select>
 
     <!-- 统计当月薪资构成 -->
@@ -71,7 +88,13 @@
     <select id="avgSalaryByDepartment" resultType="map">
         SELECT dept_name as dept_name, AVG(net_salary) as avg_salary
         FROM t_salary_record
+        <where>
+            <if test="yearMonth != null and yearMonth != ''">
+                AND `year_month` = #{yearMonth}
+            </if>
+        </where>
         GROUP BY dept_name
+        ORDER BY avg_salary DESC
     </select>
 
 </mapper>

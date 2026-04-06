@@ -33,19 +33,19 @@ public class SocialSecurityConfig {
     /** 医疗保险单位缴纳比例（8%） */
     private BigDecimal medicalCompRatio;
 
-    /** 失业保险个人缴纳比例（0.5%） */
+    /** 失业保险个人缴纳比例（0.3%） */
     private BigDecimal unemploymentEmpRatio;
 
-    /** 失业保险单位缴纳比例（0.5%） */
+    /** 失业保险单位缴纳比例（展示备用，当前不参与个人税前扣除） */
     private BigDecimal unemploymentCompRatio;
 
     /** 工伤保险单位缴纳比例（个人不缴） */
     private BigDecimal injuryCompRatio;
 
-    /** 住房公积金个人缴纳比例（5%-12%） */
+    /** 住房公积金个人缴纳比例（12%） */
     private BigDecimal fundEmpRatio;
 
-    /** 住房公积金单位缴纳比例 */
+    /** 住房公积金单位缴纳比例（展示备用，当前不参与个人税前扣除） */
     private BigDecimal fundCompRatio;
 
     /** 缴费基数下限（元） */

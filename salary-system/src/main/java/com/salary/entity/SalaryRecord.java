@@ -90,7 +90,7 @@ public class SalaryRecord {
     /**
      * 个人缴纳社保费用（元）
      * 含：养老+医疗+失业+公积金个人部分
-     * 比例参考：养老8%+医疗2%+失业0.5%+公积金5%（按配置表）
+     * 比例参考：养老8% + 医疗2% + 失业0.3% + 公积金12%
      */
     private BigDecimal socialSecurityEmp;
 
@@ -130,6 +130,15 @@ public class SalaryRecord {
 
     /** 实际薪资发放日期 */
     private LocalDate payDate;
+
+    /** 发放文件/回单附件路径 */
+    private String issueFile;
+
+    /** 工资条是否已向员工/经理发布：0=未发布，1=已发布 */
+    private Integer slipPublished;
+
+    /** 工资条发布时间 */
+    private LocalDateTime slipPublishTime;
 
     /** 备注说明 */
     private String remark;

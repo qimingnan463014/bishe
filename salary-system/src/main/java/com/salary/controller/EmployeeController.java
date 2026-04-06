@@ -4,6 +4,7 @@ import com.salary.common.PageResult;
 import com.salary.common.Result;
 import com.salary.entity.Employee;
 import com.salary.service.EmployeeService;
+import com.salary.service.SysLogService;
 import com.salary.util.JwtUtil;
 import io.jsonwebtoken.Claims;
 import io.swagger.annotations.Api;
@@ -40,6 +41,7 @@ import java.util.UUID;
 public class EmployeeController {
 
     private final EmployeeService employeeService;
+    private final SysLogService sysLogService;
     private final JwtUtil jwtUtil;
     private static final Set<String> ALLOWED_IMAGE_EXTENSIONS = Set.of("jpg", "jpeg", "png", "webp");
     private static final Path AVATAR_UPLOAD_DIR = Paths.get(System.getProperty("user.dir"), "uploads", "avatar")
@@ -107,14 +109,27 @@ public class EmployeeController {
     @ApiOperation("修改员工")
     @PutMapping
     public Result<Void> update(@RequestBody Employee employee) {
-        employeeService.updateById(employee);
+        employeeService.updateEmployee(employee);
         return Result.successMsg("修改成功");
     }
 
     @ApiOperation("删除员工")
     @DeleteMapping("/{id:[0-9]+}")
-    public Result<Void> delete(@PathVariable Long id) {
+    public Result<Void> delete(@PathVariable Long id, HttpServletRequest request) {
+        Employee employee = employeeService.getById(id);
         employeeService.deleteEmployee(id);
+        Claims claims = jwtUtil.parseToken(jwtUtil.extractToken(request.getHeader("Authorization")));
+        String module = isManagerRecord(employee) ? "部门经理" : "员工管理";
+        String actionPrefix = isManagerRecord(employee) ? "删除部门经理[" : "删除员工[";
+        String target = employee == null
+                ? "ID=" + id
+                : (employee.getRealName() == null ? "-" : employee.getRealName()) + "/" +
+                (employee.getEmpNo() == null ? "-" : employee.getEmpNo());
+        sysLogService.recordOperation(
+                claims.get("username") != null ? claims.get("username").toString() : claims.getSubject(),
+                claims.get("role") == null ? null : Integer.valueOf(claims.get("role").toString()),
+                module,
+                actionPrefix + target + "]");
         return Result.successMsg("删除成功");
     }
 
@@ -158,5 +173,13 @@ public class EmployeeController {
                             @RequestParam(required = false) String realName,
                             @RequestParam(required = false) Long deptId) {
         employeeService.exportToExcel(response, empNo, realName, deptId);
+    }
+
+    private boolean isManagerRecord(Employee employee) {
+        if (employee == null) {
+            return false;
+        }
+        Integer roleValue = employee.getRole() != null ? employee.getRole() : employee.getUserRole();
+        return roleValue != null && roleValue == 2;
     }
 }

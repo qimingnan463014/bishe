@@ -33,18 +33,18 @@
     <select id="selectByEmpAndMonth" resultType="com.salary.entity.AttendanceRecord">
         SELECT * FROM t_attendance_record
         WHERE emp_id    = #{empId}
-          AND year_month = #{yearMonth}
+          AND `year_month` = #{yearMonth}
         LIMIT 1
     </select>
     <!-- 统计指定月份的出勤状态分布 -->
     <select id="countAttendanceStatus" resultType="map">
         SELECT
-            SUM(attend_days) as normal,
-            SUM(late_times) as late,
-            SUM(absent_days) as absent,
-            SUM(leave_days) as `leave`
+            GREATEST(SUM(COALESCE(attend_days, 0)) - SUM(COALESCE(late_times, 0)), 0) as normal,
+            SUM(COALESCE(late_times, 0)) as late,
+            SUM(COALESCE(absent_days, 0)) as absent,
+            SUM(COALESCE(leave_days, 0)) as `leave`
         FROM t_attendance_record
-        WHERE year_month = #{yearMonth}
+        WHERE `year_month` = #{yearMonth}
     </select>
 
 </mapper>

@@ -37,7 +37,8 @@ public class TaxAccumulate {
 
     /**
      * 本月应纳税所得额（元）
-     * = 应发工资 - 社保个人扣 - 5000起征点 - 专项附加扣除
+     * = 应发工资 - 个人五险一金 - 5000起征点
+     * 本系统继续采用累计预扣预缴法，但专项附加扣除暂按 0 处理
      */
     private BigDecimal monthTaxableIncome;
 
@@ -50,7 +51,7 @@ public class TaxAccumulate {
     /** 本月个人公积金（元） */
     private BigDecimal monthFund;
 
-    /** 本月专项附加扣除（元）：子女教育+继续教育+租房+房贷+赡养老人 */
+    /** 本月专项附加扣除（元）：字段保留，当前业务口径固定按 0 处理 */
     private BigDecimal monthSpecialDeduct;
 
     // ============================
@@ -66,10 +67,10 @@ public class TaxAccumulate {
     /** 年度累计应发工资总额（元） */
     private BigDecimal accumGross;
 
-    /** 年度累计个人社保（元） */
+    /** 年度累计个人五险一金税前扣除（元，含公积金） */
     private BigDecimal accumSocialSecurity;
 
-    /** 年度累计专项附加扣除（元） */
+    /** 年度累计专项附加扣除（元）：字段保留，当前业务口径固定按 0 处理 */
     private BigDecimal accumSpecialDeduct;
 
     /** 关联薪资记录ID */

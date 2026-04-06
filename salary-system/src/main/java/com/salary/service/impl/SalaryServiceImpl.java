@@ -15,20 +15,22 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.List;
 
 /**
  * 薪资计算 ServiceImpl
  * <p>
- * 算薪公式（严格按照业务需求）：
+ * 算薪公式（严格按照当前业务口径）：
  * <pre>
- *  社保     = 部门工资基数（dept.baseSalary） × 17.5%
- *  津贴     = 固定值（从薪资结构表读取）
- *  绩效     = 关联绩效表的 perfBonusRatio × 部门基数 × 绩效占比（默认20%）
- *  考勤扣款 = 迟到次数 × 50 + 早退次数 × 50 - 加班时长 × 20（加班为奖励，可为负扣款）
+ *  基本工资 = 部门基础工资；若员工为该部门经理，则基础工资 + 岗位工资
+ *  津贴     = 薪资草稿中的 allowance（统一口径，不再区分“其他补助”）
+ *  绩效     = 绩效评分模块已落库的绝对奖金金额 perfBonusRatio
+ *  加班工资 = 考勤数据中的 overtimeHours × 20
+ *  考勤扣款 = 优先读取考勤记录的 attendDeduct；若未维护则回退为 lateTimes × 50
  *  个税     = 跨月累计预扣预缴法（七级超额累进税率）
- *  实发工资 = 基本工资（部门基数） + 津贴 + 绩效 - 社保 - 考勤扣款 - 个税
+ *  实发工资 = 基本工资 + 津贴 + 绩效 + 加班工资 - 社保 - 考勤扣款 - 其他扣款 - 个税
  * </pre>
  */
 @Slf4j
@@ -40,8 +42,19 @@ public class SalaryServiceImpl extends ServiceImpl<SalaryRecordMapper, SalaryRec
     // ====================================================
     // 薪资计算常量
     // ====================================================
-    /** 社保缴纳比例：17.5%（个人缴纳，不可手动修改） */
-    private static final BigDecimal SOCIAL_SECURITY_RATIO = new BigDecimal("0.175");
+    /** 个人养老保险：8% */
+    private static final BigDecimal PENSION_RATIO = new BigDecimal("0.08");
+    /** 个人医疗保险：2% */
+    private static final BigDecimal MEDICAL_RATIO = new BigDecimal("0.02");
+    /** 个人失业保险：0.3% */
+    private static final BigDecimal UNEMPLOYMENT_RATIO = new BigDecimal("0.003");
+    /** 个人住房公积金：12% */
+    private static final BigDecimal HOUSING_FUND_RATIO = new BigDecimal("0.12");
+    /** 个人五险一金税前扣除合计：22.3%（不含工伤、生育，个人不缴） */
+    private static final BigDecimal PERSONAL_SOCIAL_TOTAL_RATIO = PENSION_RATIO
+            .add(MEDICAL_RATIO)
+            .add(UNEMPLOYMENT_RATIO)
+            .add(HOUSING_FUND_RATIO);
 
     /** 迟到/早退每次扣款（元） */
     private static final BigDecimal LATE_DEDUCT_PER_TIME = new BigDecimal("50");
@@ -74,6 +87,7 @@ public class SalaryServiceImpl extends ServiceImpl<SalaryRecordMapper, SalaryRec
     private final TaxAccumulateMapper       taxAccumulateMapper;
     private final SalaryPaymentMapper       salaryPaymentMapper;
     private final UserMapper                userMapper;
+    private final AnnouncementMapper        announcementMapper;
 
     // ====================================================
     //  查询
@@ -82,10 +96,11 @@ public class SalaryServiceImpl extends ServiceImpl<SalaryRecordMapper, SalaryRec
     @Override
     public PageResult<SalaryRecord> page(int current, int size,
                                           String yearMonth, String empNo, String realName,
-                                          Long deptId, Integer calcStatus, Long managerId) {
+                                          Long deptId, Integer calcStatus, Long managerId,
+                                          String excludeEmpNo, Boolean excludeDraft) {
         Page<SalaryRecord> page = new Page<>(current, size);
         return PageResult.of(salaryRecordMapper.selectPageWithCondition(
-                page, yearMonth, empNo, realName, deptId, calcStatus, managerId));
+                page, yearMonth, empNo, realName, deptId, calcStatus, managerId, excludeEmpNo, excludeDraft));
     }
 
     @Override
@@ -99,7 +114,11 @@ public class SalaryServiceImpl extends ServiceImpl<SalaryRecordMapper, SalaryRec
 
     @Override
     public SalaryRecord getByEmpAndMonth(Long empId, String yearMonth) {
-        return salaryRecordMapper.selectByEmpAndMonth(empId, yearMonth);
+        SalaryRecord record = salaryRecordMapper.selectByEmpAndMonth(empId, yearMonth);
+        if (record == null) {
+            return null;
+        }
+        return isSlipVisibleToEmployee(record) ? record : null;
     }
 
     // ====================================================
@@ -119,8 +138,11 @@ public class SalaryServiceImpl extends ServiceImpl<SalaryRecordMapper, SalaryRec
         Department dept = departmentMapper.selectById(emp.getDeptId());
         if (dept == null) throw new RuntimeException("部门不存在：deptId=" + emp.getDeptId());
 
-        // 部门工资基数 ≡ 员工本月基本工资（按需求规定）
-        BigDecimal baseSalary = dept.getBaseSalary();
+        SalaryRecord existingRecord = salaryRecordMapper.selectByEmpAndMonth(empId, yearMonth);
+
+        // 基本工资以部门信息为准；部门经理在部门基础工资上叠加岗位工资
+        BigDecimal baseSalary = resolveBaseSalary(emp, dept);
+        syncEmployeeBaseSalaryIfNeeded(emp, baseSalary);
 
         // ── 3. 读取当月考勤汇总 ────────────────────────────────────────
         AttendanceRecord attendance = attendanceRecordMapper.selectByEmpAndMonth(empId, yearMonth);
@@ -141,18 +163,20 @@ public class SalaryServiceImpl extends ServiceImpl<SalaryRecordMapper, SalaryRec
             int lateTimes = attendance.getLateTimes() != null ? attendance.getLateTimes() : 0;
             // 迟到/早退扣款 = 次数 × 50
             BigDecimal lateDeduct = LATE_DEDUCT_PER_TIME.multiply(BigDecimal.valueOf(lateTimes));
+            BigDecimal recordedAttendDeduct = nvl(attendance.getAttendDeduct());
 
             // 加班奖励 = 加班小时数 × 20（加班时已向下取整为整小时）
             BigDecimal overtimeHours = attendance.getOvertimeHours() != null
                     ? attendance.getOvertimeHours() : BigDecimal.ZERO;
-            overtimePay = OVERTIME_PAY_PER_HOUR.multiply(overtimeHours);
+            overtimePay = OVERTIME_PAY_PER_HOUR.multiply(overtimeHours).setScale(2, RoundingMode.HALF_UP);
 
-            // 净考勤扣款（可以为负，即加班奖励 > 迟到扣款时）
-            // 但实发工资公式中"扣款"项不含加班奖励，分开处理
-            attendDeduct = lateDeduct;
+            // 考勤扣款优先使用考勤模块已汇总的扣款值；若未汇总则回退到迟到/早退次数扣款
+            attendDeduct = recordedAttendDeduct.compareTo(BigDecimal.ZERO) > 0
+                    ? recordedAttendDeduct.setScale(2, RoundingMode.HALF_UP)
+                    : lateDeduct.setScale(2, RoundingMode.HALF_UP);
 
-            log.info("  考勤扣款：迟到/早退{}次 × 50 = {} 元; 加班{}小时 × 20 = {} 元",
-                    lateTimes, lateDeduct, overtimeHours, overtimePay);
+            log.info("  考勤扣款：迟到/早退{}次基础扣款={} 元，落库扣款={} 元；加班{}小时 × 20 = {} 元",
+                    lateTimes, lateDeduct, attendDeduct, overtimeHours, overtimePay);
         } else {
             log.warn("  未找到考勤记录，empId={} yearMonth={}，考勤扣款/加班奖励均为0", empId, yearMonth);
         }
@@ -171,42 +195,47 @@ public class SalaryServiceImpl extends ServiceImpl<SalaryRecordMapper, SalaryRec
         }
 
         // ── 5. 津贴（部门经理手动录入的津贴）────────────
-        // 查询当月是否已有已存在的薪资记录（经理可能已录入津贴草稿）
-        SalaryRecord existingRecord = salaryRecordMapper.selectByEmpAndMonth(empId, yearMonth);
+        // 查询当月是否已有已存在的薪资记录（经理可能已录入津贴/处罚草稿）
         BigDecimal allowance = (existingRecord != null && existingRecord.getAllowance() != null)
-                ? existingRecord.getAllowance() : BigDecimal.ZERO;
+                ? existingRecord.getAllowance().setScale(2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
+        BigDecimal otherDeduct = (existingRecord != null && existingRecord.getOtherDeduct() != null)
+                ? existingRecord.getOtherDeduct().setScale(2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
 
-        // ── 6. ★ 社保计算（不可手动修改）──────────────────────────────
+        // ── 6. ★ 五险一金个人扣款计算（不可手动修改）────────────────────
         //
-        //  社保 = 部门工资基数 × 17.5%
-        //  此处直接使用部门基数作为社保计算基数，与员工实际基本工资无关
+        //  个人税前扣除 = 薪资基数 × (养老8% + 医疗2% + 失业0.3% + 公积金12%)
+        //             = 薪资基数 × 22.3%
         //
         BigDecimal socialSecurityEmp = baseSalary
-                .multiply(SOCIAL_SECURITY_RATIO)
+                .multiply(PERSONAL_SOCIAL_TOTAL_RATIO)
                 .setScale(2, RoundingMode.HALF_UP);
-        log.info("  社保：部门基数{} × 17.5% = {} 元", baseSalary, socialSecurityEmp);
+        log.info("  五险一金：薪资基数{} × 22.3% = {} 元", baseSalary, socialSecurityEmp);
 
         // ── 7. 应发合计 ────────────────────────────────────────────────
         //  应发合计 = ①基本工资 + ③绩效奖金 + ④加班奖励 + ⑥部门经理录入的津贴
         BigDecimal grossSalary = baseSalary
                 .add(allowance)
                 .add(perfBonus)
-                .add(overtimePay);
+                .add(overtimePay)
+                .setScale(2, RoundingMode.HALF_UP);
         log.info("  应发工资 = {} + {} + {} + {} = {}",
                 baseSalary, allowance, perfBonus, overtimePay, grossSalary);
 
         // ── 8. ★ 跨月累计预扣个税（核心算法）──────────────────────────────────────
-        BigDecimal incomeTax = calculateIncomeTax(emp, yearMonth, grossSalary, socialSecurityEmp);
+        BigDecimal incomeTax = calculateIncomeTax(emp, yearMonth, baseSalary, grossSalary, socialSecurityEmp);
 
         // ── 9. 实发工资 = ⑥应发合计 - ②社保 - ⑤考勤扣款 - ⑦本月实扣个税 ────────────
-        BigDecimal totalDeduct = socialSecurityEmp.add(attendDeduct).add(incomeTax);
-        BigDecimal netSalary   = grossSalary.subtract(socialSecurityEmp)
-                .subtract(attendDeduct)
-                .subtract(incomeTax)
+        BigDecimal totalDeduct = socialSecurityEmp
+                .add(attendDeduct)
+                .add(otherDeduct)
+                .add(incomeTax)
+                .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal netSalary   = grossSalary
+                .subtract(totalDeduct)
                 .setScale(2, RoundingMode.HALF_UP);
 
-        log.info("  实发 = {} - {} - {} - {} = {}",
-                grossSalary, socialSecurityEmp, attendDeduct, incomeTax, netSalary);
+        log.info("  实发 = {} - {} - {} - {} - {} = {}",
+                grossSalary, socialSecurityEmp, attendDeduct, otherDeduct, incomeTax, netSalary);
 
         // ── 10. 构建并保存薪资记录 ─────────────────────────────────────
         SalaryRecord record;
@@ -244,11 +273,13 @@ public class SalaryServiceImpl extends ServiceImpl<SalaryRecordMapper, SalaryRec
         record.setGrossSalary(grossSalary);
         record.setSocialSecurityEmp(socialSecurityEmp);
         record.setAttendDeduct(attendDeduct);
-        record.setOtherDeduct(BigDecimal.ZERO);
+        record.setOtherDeduct(otherDeduct);
         record.setIncomeTax(incomeTax);
         record.setTotalDeduct(totalDeduct);
         record.setNetSalary(netSalary);
         record.setCalcStatus(1); // 草稿，等待审核
+        record.setSlipPublished(0);
+        record.setSlipPublishTime(null);
         record.setRecordDate(LocalDate.now());
 
         if (isNew) { save(record); } else { updateById(record); }
@@ -269,7 +300,7 @@ public class SalaryServiceImpl extends ServiceImpl<SalaryRecordMapper, SalaryRec
      * 2. 累计免税额 = N × 5000
      * 3. 累计总收入 = 上月累计应发工资 + 本月应发工资
      * 4. 累计总社保 = 上月累计社保 + 本月社保
-     * 5. 累计应纳税所得额 = 累计总收入 - 累计总社保 - 累计免税额
+     * 5. 累计应纳税所得额 = 累计总收入 - 累计个人五险一金 - 累计免税额
      * 6. 本年应缴税额 = 套用七级税率表（超额累进）
      * 7. 本月税款 = 本年应缴税额 - 上月累计已缴税额（最小为0）
      * </pre>
@@ -277,11 +308,14 @@ public class SalaryServiceImpl extends ServiceImpl<SalaryRecordMapper, SalaryRec
      * @param emp              员工档案（含 hireDate）
      * @param yearMonth        本月（YYYY-MM）
      * @param grossSalary      本月应发工资
-     * @param socialSecurityEmp 本月个人社保
+     * 说明：专项附加扣除在本系统中暂不参与计算，但仍保留国家要求的累计预扣法。
+     *
+     * @param socialSecurityEmp 本月个人五险一金税前扣除
      * @return 本月应预扣个税金额（≥ 0）
      */
     private BigDecimal calculateIncomeTax(Employee emp,
                                            String yearMonth,
+                                           BigDecimal baseSalary,
                                            BigDecimal grossSalary,
                                            BigDecimal socialSecurityEmp) {
         // ─── 推算本税务年度的在职月份数 N ─────────────────────────────
@@ -317,7 +351,7 @@ public class SalaryServiceImpl extends ServiceImpl<SalaryRecordMapper, SalaryRec
         BigDecimal newAccumGross  = accumGross.add(grossSalary);
         BigDecimal newAccumSocial = accumSocial.add(socialSecurityEmp);
 
-        // 累计免税额 = 在职月份数 × 5000
+        // 累计免税额 = 在职月份数 × 5000（入职前月份收入与起征额均按0处理）
         BigDecimal accumExempt = TAX_THRESHOLD_PER_MONTH.multiply(BigDecimal.valueOf(monthsInService));
 
         // 累计应纳税所得额
@@ -325,8 +359,8 @@ public class SalaryServiceImpl extends ServiceImpl<SalaryRecordMapper, SalaryRec
         if (accumTaxable.compareTo(BigDecimal.ZERO) <= 0) {
             log.info("  个税：累计应纳税所得额 ≤ 0，本月免税");
             saveTaxAccumulate(emp.getId(), yearMonth, String.valueOf(taxYear),
-                    BigDecimal.ZERO, BigDecimal.ZERO, grossSalary, socialSecurityEmp,
-                    newAccumGross, newAccumSocial, accumTax);
+                    baseSalary, BigDecimal.ZERO, BigDecimal.ZERO, grossSalary, socialSecurityEmp,
+                    newAccumGross, newAccumSocial, BigDecimal.ZERO, accumTax);
             return BigDecimal.ZERO;
         }
 
@@ -344,10 +378,15 @@ public class SalaryServiceImpl extends ServiceImpl<SalaryRecordMapper, SalaryRec
                 monthsInService, accumTaxable, yearTotalTax, accumTax, monthTax);
 
         // ─── 保存累计记录 ─────────────────────────────────────────────
+        BigDecimal monthTaxableIncome = grossSalary
+                .subtract(socialSecurityEmp)
+                .subtract(TAX_THRESHOLD_PER_MONTH)
+                .max(BigDecimal.ZERO)
+                .setScale(2, RoundingMode.HALF_UP);
+
         saveTaxAccumulate(emp.getId(), yearMonth, String.valueOf(taxYear),
-                grossSalary.subtract(socialSecurityEmp).subtract(TAX_THRESHOLD_PER_MONTH), // 本月应纳税所得
-                monthTax, grossSalary, socialSecurityEmp,
-                newAccumGross, newAccumSocial, newAccumTax);
+                baseSalary, monthTaxableIncome, monthTax, grossSalary, socialSecurityEmp,
+                newAccumGross, newAccumSocial, accumTaxable, newAccumTax);
 
         return monthTax;
     }
@@ -366,7 +405,7 @@ public class SalaryServiceImpl extends ServiceImpl<SalaryRecordMapper, SalaryRec
      *  (960000, ∞)       → 45%, 速算181920
      * </pre>
      *
-     * @param accTaxable 年度累计应纳税所得额（已减去免税额和专项扣除）
+     * @param accTaxable 年度累计应纳税所得额（已减去个人五险一金与5000/月起征额，不含专项附加扣除）
      * @return 年度应缴税额
      */
     private BigDecimal calcProgressiveTax(BigDecimal accTaxable) {
@@ -388,10 +427,13 @@ public class SalaryServiceImpl extends ServiceImpl<SalaryRecordMapper, SalaryRec
      * 保存/更新个税累计记录（t_tax_accumulate）
      */
     private void saveTaxAccumulate(Long empId, String yearMonth, String taxYear,
-                                    BigDecimal monthTaxable, BigDecimal monthTax,
+                                    BigDecimal baseSalary, BigDecimal monthTaxable, BigDecimal monthTax,
                                     BigDecimal monthGross, BigDecimal monthSocial,
                                     BigDecimal newAccumGross, BigDecimal newAccumSocial,
-                                    BigDecimal newAccumTax) {
+                                    BigDecimal accumTaxableIncome, BigDecimal newAccumTax) {
+        BigDecimal safeBaseSalary = nvl(baseSalary).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal monthFund = safeBaseSalary.multiply(HOUSING_FUND_RATIO).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal monthInsurance = nvl(monthSocial).subtract(monthFund).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
         TaxAccumulate ta = taxAccumulateMapper.selectOne(
                 new LambdaQueryWrapper<TaxAccumulate>()
                         .eq(TaxAccumulate::getEmpId, empId)
@@ -403,13 +445,13 @@ public class SalaryServiceImpl extends ServiceImpl<SalaryRecordMapper, SalaryRec
         ta.setYearMonth(yearMonth);
         ta.setMonthTaxableIncome(monthTaxable);
         ta.setMonthTax(monthTax);
-        ta.setMonthSocialSecurity(monthSocial);
-        ta.setMonthFund(BigDecimal.ZERO); // 公积金如需单独列可扩展
+        ta.setMonthSocialSecurity(monthInsurance);
+        ta.setMonthFund(monthFund);
         ta.setMonthSpecialDeduct(BigDecimal.ZERO);
         ta.setAccumGross(newAccumGross);
         ta.setAccumSocialSecurity(newAccumSocial);
         ta.setAccumTax(newAccumTax);
-        ta.setAccumTaxableIncome(newAccumGross.subtract(newAccumSocial));
+        ta.setAccumTaxableIncome(accumTaxableIncome);
         ta.setAccumSpecialDeduct(BigDecimal.ZERO);
 
         if (ta.getId() == null) {
@@ -452,6 +494,8 @@ public class SalaryServiceImpl extends ServiceImpl<SalaryRecordMapper, SalaryRec
 
         record.setCalcStatus(4);
         record.setPayDate(LocalDate.now());
+        record.setSlipPublished(0);
+        record.setSlipPublishTime(null);
         updateById(record);
 
         Employee emp = employeeMapper.selectById(record.getEmpId());
@@ -498,13 +542,13 @@ public class SalaryServiceImpl extends ServiceImpl<SalaryRecordMapper, SalaryRec
         SalaryRecord record = getById(salaryId);
         if (record == null) throw new RuntimeException("薪资记录不存在：id=" + salaryId);
         if (record.getCalcStatus() != 1) {
-            throw new RuntimeException("当前状态不允许发布（需为草稿/未发布），当前状态=" + record.getCalcStatus());
+            throw new RuntimeException("当前状态不允许提交审核（需为草稿），当前状态=" + record.getCalcStatus());
         }
         SalaryRecord update = new SalaryRecord();
         update.setId(salaryId);
-        update.setCalcStatus(2); // 2 = 已发布（员工可见）
+        update.setCalcStatus(2); // 2 = 待审核
         updateById(update);
-        log.info("薪资已发布：id={} empNo={} yearMonth={}", salaryId, record.getEmpNo(), record.getYearMonth());
+        log.info("薪资已提交审核：id={} empNo={} yearMonth={}", salaryId, record.getEmpNo(), record.getYearMonth());
     }
 
     /**
@@ -597,6 +641,40 @@ public class SalaryServiceImpl extends ServiceImpl<SalaryRecordMapper, SalaryRec
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public void publishSalarySlip(Long salaryId, Long operatorId, String operatorName) {
+        SalaryRecord record = getById(salaryId);
+        if (record == null) {
+            throw new RuntimeException("薪资记录不存在：id=" + salaryId);
+        }
+        if (record.getCalcStatus() != 4) {
+            throw new RuntimeException("只有已发放的工资记录才允许发布工资条");
+        }
+        if (Integer.valueOf(1).equals(record.getSlipPublished())) {
+            return;
+        }
+        SalaryRecord update = new SalaryRecord();
+        update.setId(salaryId);
+        update.setSlipPublished(1);
+        update.setSlipPublishTime(LocalDateTime.now());
+        updateById(update);
+        createSalarySlipAnnouncement(record, operatorId, operatorName);
+        log.info("工资条已发布：salaryId={} empNo={} yearMonth={}", salaryId, record.getEmpNo(), record.getYearMonth());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void publishSalarySlips(List<Long> ids, Long operatorId, String operatorName) {
+        for (Long id : ids) {
+            try {
+                publishSalarySlip(id, operatorId, operatorName);
+            } catch (Exception e) {
+                log.error("批量发布工资条失败 id={}：{}", id, e.getMessage());
+            }
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public void manualUpdate(SalaryRecord record) {
         BigDecimal gross = record.getBaseSalary()
                 .add(nvl(record.getOvertimePay()))
@@ -615,8 +693,28 @@ public class SalaryServiceImpl extends ServiceImpl<SalaryRecordMapper, SalaryRec
     }
 
     @Override
-    public List<java.util.Map<String, Object>> getMonthlyTrend() {
-        return salaryRecordMapper.countMonthlyTrend();
+    @Transactional(rollbackFor = Exception.class)
+    public void updateIssueFile(Long salaryId, String issueFile, Integer role) {
+        if (role == null || role != 1) {
+            throw new RuntimeException("只有管理员才能上传发放文件");
+        }
+        SalaryRecord record = getById(salaryId);
+        if (record == null) {
+            throw new RuntimeException("薪资记录不存在：id=" + salaryId);
+        }
+        SalaryRecord update = new SalaryRecord();
+        update.setId(salaryId);
+        update.setIssueFile(issueFile);
+        updateById(update);
+    }
+
+    @Override
+    public List<java.util.Map<String, Object>> getMonthlyTrend(String yearMonth) {
+        String targetYearMonth = yearMonth;
+        if (targetYearMonth == null || targetYearMonth.trim().isEmpty()) {
+            targetYearMonth = YearMonth.now().toString();
+        }
+        return salaryRecordMapper.countMonthlyTrend(targetYearMonth);
     }
 
     @Override
@@ -625,11 +723,79 @@ public class SalaryServiceImpl extends ServiceImpl<SalaryRecordMapper, SalaryRec
     }
 
     @Override
-    public List<java.util.Map<String, Object>> getDeptAvgSalary() {
-        return salaryRecordMapper.avgSalaryByDepartment();
+    public List<java.util.Map<String, Object>> getDeptAvgSalary(String yearMonth) {
+        String targetYearMonth = yearMonth;
+        if (targetYearMonth == null || targetYearMonth.trim().isEmpty()) {
+            targetYearMonth = YearMonth.now().toString();
+        }
+        return salaryRecordMapper.avgSalaryByDepartment(targetYearMonth);
+    }
+
+    private boolean isSlipVisibleToEmployee(SalaryRecord record) {
+        return record != null
+                && Integer.valueOf(4).equals(record.getCalcStatus())
+                && Integer.valueOf(1).equals(record.getSlipPublished());
     }
 
     private BigDecimal nvl(BigDecimal v) {
         return v == null ? BigDecimal.ZERO : v;
+    }
+
+    private void createSalarySlipAnnouncement(SalaryRecord record, Long operatorId, String operatorName) {
+        String title = String.format("%s 工资条已发布", record.getYearMonth());
+        Announcement existing = announcementMapper.selectOne(
+                new LambdaQueryWrapper<Announcement>()
+                        .eq(Announcement::getTitle, title)
+                        .eq(Announcement::getStatus, 1)
+                        .orderByDesc(Announcement::getPubTime)
+                        .last("LIMIT 1"));
+        if (existing != null) {
+            return;
+        }
+        Announcement announcement = new Announcement();
+        announcement.setTitle(title);
+        announcement.setContent(String.format(
+                "各位同事：%s 的工资条现已开放查询，请登录系统进入“我的薪水”查看对应月份的工资明细。",
+                record.getYearMonth()));
+        announcement.setCoverImage(null);
+        announcement.setPubUserId(operatorId);
+        announcement.setPubUserName((operatorName == null || operatorName.trim().isEmpty()) ? "系统管理员" : operatorName);
+        announcement.setTargetRole(0);
+        announcement.setIsTop(0);
+        announcement.setStatus(1);
+        announcement.setPubTime(LocalDateTime.now());
+        announcementMapper.insert(announcement);
+    }
+
+    private BigDecimal resolveBaseSalary(Employee emp, Department dept) {
+        BigDecimal baseSalary = nvl(dept.getBaseSalary());
+        if (isDepartmentManager(emp, dept)) {
+            baseSalary = baseSalary.add(nvl(dept.getPositionSalary()));
+        }
+        return baseSalary.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private boolean isDepartmentManager(Employee emp, Department dept) {
+        return emp != null
+                && emp.getUserId() != null
+                && dept != null
+                && dept.getManagerId() != null
+                && dept.getManagerId().equals(emp.getUserId());
+    }
+
+    private void syncEmployeeBaseSalaryIfNeeded(Employee emp, BigDecimal expectedBaseSalary) {
+        if (emp == null || emp.getId() == null) {
+            return;
+        }
+        BigDecimal currentBaseSalary = nvl(emp.getBaseSalary()).setScale(2, RoundingMode.HALF_UP);
+        if (currentBaseSalary.compareTo(expectedBaseSalary) == 0) {
+            return;
+        }
+        Employee update = new Employee();
+        update.setId(emp.getId());
+        update.setBaseSalary(expectedBaseSalary);
+        employeeMapper.updateById(update);
+        emp.setBaseSalary(expectedBaseSalary);
+        log.info("  同步员工档案基础工资：empId={} {} -> {}", emp.getId(), currentBaseSalary, expectedBaseSalary);
     }
 }

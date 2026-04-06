@@ -10,8 +10,10 @@ import com.salary.common.PageResult;
 import com.salary.dto.AttendanceClockDTO;
 import com.salary.dto.AttendanceSummaryDTO;
 import com.salary.entity.AttendanceRecord;
+import com.salary.entity.AttendanceRule;
 import com.salary.entity.Employee;
 import com.salary.mapper.AttendanceRecordMapper;
+import com.salary.mapper.AttendanceRuleMapper;
 import com.salary.mapper.EmployeeMapper;
 import com.salary.mapper.SalaryRecordMapper;
 import com.salary.service.AttendanceService;
@@ -23,6 +25,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -59,10 +62,15 @@ public class AttendanceServiceImpl extends ServiceImpl<AttendanceRecordMapper, A
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
     /** 日期格式 */
     // DATE_FMT removed (unused)
+    private static final BigDecimal DEFAULT_LEAVE_DEDUCT_RATIO = new BigDecimal("1.0");
+    private static final BigDecimal DEFAULT_SICK_LEAVE_DEDUCT_RATIO = new BigDecimal("0.5");
+    private static final int DEFAULT_WORK_DAYS = 22;
+    private static final BigDecimal ZERO = BigDecimal.ZERO;
 
     private final AttendanceRecordMapper attendanceRecordMapper;
     private final SalaryRecordMapper     salaryRecordMapper;
     private final EmployeeMapper         employeeMapper;
+    private final AttendanceRuleMapper   attendanceRuleMapper;
 
     // ====================================================
     //  查询 / 基础 CRUD
@@ -90,6 +98,7 @@ public class AttendanceServiceImpl extends ServiceImpl<AttendanceRecordMapper, A
         }
         record.setRecordNo(generateRecordNo());
         record.setManagerId(managerId);
+        fillAttendanceDeduct(record);
         save(record);
     }
 
@@ -100,6 +109,7 @@ public class AttendanceServiceImpl extends ServiceImpl<AttendanceRecordMapper, A
         if (exist == null) throw new RuntimeException("考勤记录不存在");
         if (exist.getStatus() != null && exist.getStatus() == 3)
             throw new RuntimeException("该考勤已锁定，禁止修改");
+        fillAttendanceDeduct(record);
         updateById(record);
     }
 
@@ -325,13 +335,13 @@ public class AttendanceServiceImpl extends ServiceImpl<AttendanceRecordMapper, A
         record.setManagerName(emp.getManagerName());
         record.setStatus(1); // 正常
         int normalClockDays = Math.max(summary.getAttendDays() - summary.getLateTimes() - summary.getEarlyLeaveTimes(), 0);
-        record.setRemark(String.format("系统导入：迟到%d次；早退%d次；正常打卡%d天；加班%s小时",
+        fillAttendanceDeduct(record);
+        record.setRemark(String.format("系统导入：迟到%d次；早退%d次；正常打卡%d天；加班%s小时；考勤扣款%s元",
                 summary.getLateTimes(),
                 summary.getEarlyLeaveTimes(),
                 normalClockDays,
-                summary.getOvertimeHours() == null ? "0" : summary.getOvertimeHours().toPlainString()));
-        // 考勤扣款先置0，由薪资计算时从规则表读取实时计算
-        record.setAttendDeduct(BigDecimal.ZERO);
+                summary.getOvertimeHours() == null ? "0" : summary.getOvertimeHours().toPlainString(),
+                record.getAttendDeduct() == null ? "0.00" : record.getAttendDeduct().toPlainString()));
 
         if (exist == null) {
             record.setRecordNo(generateRecordNo());
@@ -375,5 +385,81 @@ public class AttendanceServiceImpl extends ServiceImpl<AttendanceRecordMapper, A
     @Override
     public java.util.Map<String, Object> getAttendanceStatus(String yearMonth) {
         return attendanceRecordMapper.countAttendanceStatus(yearMonth);
+    }
+
+    private void fillAttendanceDeduct(AttendanceRecord record) {
+        if (record == null) {
+            return;
+        }
+        AttendanceRule rule = resolveActiveAttendanceRule();
+        BigDecimal baseSalary = resolveEmployeeBaseSalary(record.getEmpId());
+        BigDecimal daySalary = resolveDaySalary(baseSalary, rule);
+        BigDecimal absentDeduct = resolveAbsentDeduct(record, daySalary, rule);
+        BigDecimal leaveDeduct = resolveLeaveDeduct(record, daySalary, rule);
+        BigDecimal lateDeduct = nvl(rule.getLateDeductPerTime(), new BigDecimal("50"))
+                .multiply(BigDecimal.valueOf(record.getLateTimes() == null ? 0 : record.getLateTimes()));
+        BigDecimal totalDeduct = absentDeduct
+                .add(leaveDeduct)
+                .add(lateDeduct)
+                .setScale(2, RoundingMode.HALF_UP);
+        record.setAttendDeduct(totalDeduct);
+    }
+
+    private AttendanceRule resolveActiveAttendanceRule() {
+        AttendanceRule rule = attendanceRuleMapper.selectOne(new LambdaQueryWrapper<AttendanceRule>()
+                .eq(AttendanceRule::getIsActive, 1)
+                .orderByDesc(AttendanceRule::getEffectiveDate)
+                .last("LIMIT 1"));
+        if (rule != null) {
+            return rule;
+        }
+        AttendanceRule fallback = new AttendanceRule();
+        fallback.setWorkDays(DEFAULT_WORK_DAYS);
+        fallback.setLateDeductPerTime(new BigDecimal("50"));
+        fallback.setLeaveDeductRatio(DEFAULT_LEAVE_DEDUCT_RATIO);
+        fallback.setSickLeaveDeductRatio(DEFAULT_SICK_LEAVE_DEDUCT_RATIO);
+        fallback.setAbsentDeductPerDay(BigDecimal.ZERO);
+        return fallback;
+    }
+
+    private BigDecimal resolveEmployeeBaseSalary(Long empId) {
+        if (empId == null) {
+            return ZERO;
+        }
+        Employee emp = employeeMapper.selectById(empId);
+        if (emp == null || emp.getBaseSalary() == null) {
+            return ZERO;
+        }
+        return emp.getBaseSalary();
+    }
+
+    private BigDecimal resolveDaySalary(BigDecimal baseSalary, AttendanceRule rule) {
+        int workDays = rule.getWorkDays() == null || rule.getWorkDays() <= 0 ? DEFAULT_WORK_DAYS : rule.getWorkDays();
+        return nvl(baseSalary, ZERO)
+                .divide(BigDecimal.valueOf(workDays), 2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal resolveAbsentDeduct(AttendanceRecord record, BigDecimal daySalary, AttendanceRule rule) {
+        BigDecimal absentDays = nvl(record.getAbsentDays(), ZERO);
+        if (absentDays.compareTo(ZERO) <= 0) {
+            return ZERO;
+        }
+        BigDecimal absentDeductPerDay = nvl(rule.getAbsentDeductPerDay(), ZERO);
+        BigDecimal unitDeduct = absentDeductPerDay.compareTo(ZERO) > 0 ? absentDeductPerDay : daySalary;
+        return unitDeduct.multiply(absentDays);
+    }
+
+    private BigDecimal resolveLeaveDeduct(AttendanceRecord record, BigDecimal daySalary, AttendanceRule rule) {
+        BigDecimal leaveDays = nvl(record.getLeaveDays(), ZERO);
+        BigDecimal sickLeaveDays = nvl(record.getSickLeaveDays(), ZERO);
+        BigDecimal personalLeaveDays = leaveDays.subtract(sickLeaveDays).max(ZERO);
+        BigDecimal leaveRatio = nvl(rule.getLeaveDeductRatio(), DEFAULT_LEAVE_DEDUCT_RATIO);
+        BigDecimal sickLeaveRatio = nvl(rule.getSickLeaveDeductRatio(), DEFAULT_SICK_LEAVE_DEDUCT_RATIO);
+        return daySalary.multiply(personalLeaveDays).multiply(leaveRatio)
+                .add(daySalary.multiply(sickLeaveDays).multiply(sickLeaveRatio));
+    }
+
+    private BigDecimal nvl(BigDecimal value, BigDecimal defaultValue) {
+        return value == null ? defaultValue : value;
     }
 }

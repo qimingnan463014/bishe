@@ -1,18 +1,24 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>员工薪资管理系统门户</title>
     <!-- Element Plus CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css"/>
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css" />
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://unpkg.com/element-plus"></script>
     <script src="https://unpkg.com/@element-plus/icons-vue"></script>
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
 
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
             background-color: #f4f6f9;
@@ -29,13 +35,15 @@
             justify-content: space-between;
             padding: 0 40px;
             color: #fff;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
+
         .top-container .sys-title {
             font-size: 22px;
             font-weight: 600;
             letter-spacing: 1px;
         }
+
         .top-user {
             display: flex;
             align-items: center;
@@ -43,28 +51,31 @@
             font-size: 15px;
             cursor: pointer;
         }
+
         .top-user .avatar {
             width: 36px;
             height: 36px;
             border-radius: 50%;
-            border: 2px solid rgba(255,255,255,0.8);
+            border: 2px solid rgba(255, 255, 255, 0.8);
         }
 
         /* 导航菜单 */
         .menu-bar {
             background-color: #fff;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
             display: flex;
             justify-content: center;
             position: sticky;
             top: 0;
             z-index: 100;
         }
+
         .el-menu-demo {
             border-bottom: none !important;
-            width: 1000px;
+            max-width: 100%;
             justify-content: center;
         }
+
         .el-menu-demo .el-menu-item {
             font-size: 16px;
             font-weight: 500;
@@ -78,11 +89,30 @@
         }
 
         /* 面板隐藏/显示 */
-        .page-panel { display: none; margin: 20px auto; width: 1200px; }
-        .page-panel.active { display: block; animation: fadeIn 0.4s; }
-        @keyframes fadeIn { from{opacity:0; transform:translateY(10px)} to{opacity:1; transform:translateY(0)} }
-        
-        /* 轮播图特效 */
+        .page-panel {
+            display: none;
+            margin: 20px auto;
+            width: 1200px;
+        }
+
+        .page-panel.active {
+            display: block;
+            animation: fadeIn 0.4s;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px)
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0)
+            }
+        }
+
+        /* 轮播图特效*/
         .el-carousel__item img {
             width: 100%;
             height: 100%;
@@ -99,6 +129,7 @@
             position: relative;
             letter-spacing: 2px;
         }
+
         .section-title::after {
             content: '';
             display: block;
@@ -114,17 +145,19 @@
             background: #fff;
             padding: 30px;
             border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
             line-height: 1.8;
             color: #555;
             font-size: 15px;
             text-align: justify;
         }
+
         .intro-imgs {
             display: flex;
             gap: 20px;
             margin: 20px 0;
         }
+
         .intro-imgs img {
             flex: 1;
             height: 180px;
@@ -132,591 +165,2485 @@
             border-radius: 8px;
             transition: transform 0.3s;
         }
-        .intro-imgs img:hover { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(0,0,0,0.15); }
+
+        .intro-imgs img:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        }
 
         /* 公告卡片 */
-        .notice-card { margin-bottom: 15px; cursor: pointer; transition: all 0.3s; }
-        .notice-card:hover { transform: translateY(-3px); box-shadow: 0 4px 15px rgba(64,158,255,0.2) !important; }
-        .n-title { font-size: 18px; font-weight: 600; color: #303133; margin-bottom: 8px; }
-        .n-desc { font-size: 14px; color: #606266; line-height: 1.6; margin-bottom: 15px; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-        .n-info { font-size: 13px; color: #909399; display: flex; justify-content: space-between; }
-        .custom-card { border-radius:12px; border:none; box-shadow: 0 4px 16px rgba(0,0,0,0.04); }
-        .mb-20 { margin-bottom: 20px; }
+        .notice-card {
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .notice-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 15px rgba(64, 158, 255, 0.2) !important;
+        }
+
+        .notice-page-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 20px;
+        }
+
+        .notice-detail-shell {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .notice-detail-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .notice-detail-eyebrow {
+            font-size: 12px;
+            letter-spacing: 1px;
+            color: #4c8ed9;
+            font-weight: 700;
+        }
+
+        .notice-detail-title {
+            font-size: 30px;
+            line-height: 1.3;
+            color: #1d3557;
+            font-weight: 700;
+            margin-top: 8px;
+        }
+
+        .notice-detail-meta {
+            margin-top: 14px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .notice-detail-cover {
+            width: 100%;
+            max-height: 360px;
+            border-radius: 20px;
+            overflow: hidden;
+            background: #eef4fb;
+        }
+
+        .notice-detail-content {
+            white-space: pre-wrap;
+            line-height: 1.9;
+            font-size: 15px;
+            color: #41556b;
+        }
+
+        .notice-detail-back.el-button {
+            border-radius: 999px;
+            padding: 0 20px;
+            height: 42px;
+        }
+
+        .n-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #303133;
+            margin-bottom: 8px;
+        }
+
+        .n-desc {
+            font-size: 14px;
+            color: #606266;
+            line-height: 1.6;
+            margin-bottom: 15px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .n-info {
+            font-size: 13px;
+            color: #909399;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .custom-card {
+            border-radius: 12px;
+            border: none;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+        }
+
+        .page-footer {
+            margin-top: 18px;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .page-footer .el-pagination {
+            background: rgba(255, 255, 255, 0.92);
+            border: 1px solid #dce9f7;
+            border-radius: 18px;
+            padding: 10px 14px;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+            --el-pagination-button-height: 34px;
+            --el-pagination-button-width: 34px;
+            --el-pagination-hover-color: #3f8cff;
+        }
+
+        .page-footer .el-pagination .btn-prev,
+        .page-footer .el-pagination .btn-next,
+        .page-footer .el-pagination .el-pager li {
+            border-radius: 10px;
+        }
+
+        .page-footer .el-pagination .el-pager li {
+            min-width: 34px;
+            height: 34px;
+            line-height: 34px;
+        }
+
+        .page-footer .el-pagination .el-pager li.is-active {
+            background: linear-gradient(135deg, #4bbdff, #2f7ef7);
+            color: #fff;
+            box-shadow: 0 8px 18px rgba(65, 134, 255, 0.22);
+        }
+
+        .page-footer .el-pagination .el-select .el-input__wrapper,
+        .page-footer .el-pagination .el-input__wrapper {
+            border-radius: 10px;
+            box-shadow: 0 0 0 1px #dbe8f6 inset;
+        }
+
+        .mb-20 {
+            margin-bottom: 20px;
+        }
+
+        /* ==================== 弹窗美化 ==================== */
+        .dialog-header-gradient {
+            background: linear-gradient(135deg, #e8f4ff 0%, #f0f7ff 100%);
+            border-radius: 16px 16px 0 0;
+            padding: 20px 26px 18px;
+            border-bottom: 1px solid #dce9f7;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .dialog-header-gradient .dialog-title-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #6ec6f5, #1890ff);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .dialog-header-gradient .dialog-title-text {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1a3d5c;
+            letter-spacing: 0.02em;
+        }
+
+        .dialog-header-gradient .dialog-title-sub {
+            font-size: 13px;
+            color: #7a9bb5;
+            margin-top: 4px;
+            line-height: 1.5;
+        }
+
+        .dialog-body-padding {
+            padding: 22px 26px 10px;
+        }
+
+        .dialog-footer-bar {
+            padding: 12px 24px 16px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            border-top: 1px solid #eef3fa;
+        }
+
+        /* el-dialog 全局圆角升级 */
+        .modern-dialog .el-dialog {
+            border-radius: 18px !important;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(24, 100, 200, 0.15) !important;
+        }
+
+        .modern-dialog .el-dialog__header {
+            display: none;
+        }
+
+        .modern-dialog .el-dialog__body {
+            padding: 0;
+        }
+
+        .modern-dialog .el-dialog__footer {
+            padding: 0;
+        }
+
+        .detail-dialog .el-dialog {
+            border-radius: 22px !important;
+            overflow: hidden;
+            background: linear-gradient(180deg, #f8fbff 0%, #ffffff 34%);
+            box-shadow: 0 24px 72px rgba(15, 23, 42, 0.16) !important;
+        }
+
+        .detail-dialog .el-dialog__header {
+            display: none;
+        }
+
+        .detail-dialog .el-dialog__body {
+            padding: 0;
+        }
+
+        .detail-dialog .el-dialog__footer {
+            display: none;
+            padding: 0;
+        }
+
+        .detail-shell {
+            padding: 22px 24px 24px;
+        }
+
+        .detail-hero {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 2px 0 18px;
+        }
+
+        .detail-hero__media {
+            flex-shrink: 0;
+        }
+
+        .detail-hero__image {
+            width: 84px;
+            height: 84px;
+            border-radius: 50%;
+            overflow: hidden;
+            background: #eef5ff;
+            border: 2px solid rgba(255, 255, 255, 0.92);
+            box-shadow: 0 14px 28px rgba(121, 143, 173, 0.18);
+            cursor: pointer;
+        }
+
+        .detail-hero__content {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .detail-hero__eyebrow {
+            font-size: 12px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #94a3b8;
+        }
+
+        .detail-hero__title {
+            font-size: 28px;
+            line-height: 1.1;
+            font-weight: 700;
+            color: #111827;
+        }
+
+        .detail-hero__subtitle {
+            font-size: 14px;
+            color: #64748b;
+            line-height: 1.6;
+        }
+
+        .detail-hero__tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .detail-hero__tags .el-tag {
+            border-radius: 999px;
+            padding: 0 12px;
+        }
+
+        .detail-panel {
+            border: 1px solid #e5edf6;
+            border-radius: 14px;
+            background: #fff;
+        }
+
+        .detail-panel .el-card__body {
+            padding: 18px 20px;
+        }
+
+        .detail-panel__title {
+            margin: 0 0 14px;
+            font-size: 15px;
+            font-weight: 700;
+            color: #111827;
+        }
+
+        .detail-descriptions .el-descriptions__body,
+        .detail-descriptions .el-descriptions__table {
+            background: transparent;
+        }
+
+        .detail-descriptions .el-descriptions__label {
+            color: #6b7280;
+            font-weight: 500;
+            width: 120px;
+        }
+
+        .detail-descriptions .el-descriptions__content {
+            color: #111827;
+            font-weight: 600;
+        }
+
+        .detail-descriptions .el-descriptions__cell {
+            padding: 12px 10px;
+        }
+
+        .detail-field {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 22px;
+            word-break: break-word;
+        }
+
+        .detail-field.is-muted {
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .detail-field.is-money {
+            color: #0f766e;
+            font-weight: 700;
+        }
+
+        .detail-inline-image {
+            width: 132px;
+            height: 88px;
+            border-radius: 14px;
+            border: 1px solid #dbe7f3;
+            cursor: pointer;
+            object-fit: cover;
+            background: #eef5ff;
+        }
+
+        .detail-actions {
+            padding: 0 24px 22px;
+            display: flex;
+            justify-content: flex-end;
+        }
     </style>
 </head>
+
 <body>
-<div id="app">
-    <!-- 顶部 -->
-    <div class="top-container">
-        <div class="sys-title">{{ websiteContent.portalTitle }}</div>
-        <el-dropdown @command="handleCommand">
-            <div class="top-user">
-                <img src="./front_assets/yuangong_touxiang8.jpg" class="avatar" alt="Avatar"/>
-                <span>欢迎您，{{ userInfo.realName || '员工' }}</span>
+    <div id="app">
+        <!-- 顶部 -->
+        <div class="top-container">
+            <div class="sys-title">{{ websiteContent.portalTitle }}</div>
+            <div style="display:flex;align-items:center;gap:20px;">
+                <span style="cursor:pointer;font-size:15px;" @click="handleSelect('home')">首页</span>
+                <span style="cursor:pointer;font-size:15px;" @click="handleSelect('notice')">通知公告</span>
+                <el-dropdown @command="handleCommand">
+                    <div class="top-user">
+                        <img :src="empProfile.avatar || userInfo.avatar || './front_assets/yuangong_touxiang8.jpg'"
+                            class="avatar" alt="Avatar" />
+                        <span>欢迎{{ userInfo.realName || '员工' }} ！</span>
+                    </div>
+                    <template #dropdown>
+                        <el-dropdown-menu>
+
+                            <el-dropdown-item v-if="userInfo.role === 1 || userInfo.role === 2" command="admin">切换至管理后台</el-dropdown-item>
+                                <el-dropdown-item command="logout" divided>安全退出</el-dropdown-item>
+                        </el-dropdown-menu>
+                    </template>
+                </el-dropdown>
             </div>
-            <template #dropdown>
-                <el-dropdown-menu>
-                    <el-dropdown-item v-if="userInfo.role === 1 || userInfo.role === 2" command="admin">=> 切换至管理后台</el-dropdown-item>
-                    <el-dropdown-item command="logout" divided>安全退出</el-dropdown-item>
-                </el-dropdown-menu>
-            </template>
-        </el-dropdown>
-    </div>
+        </div>
 
-    <!-- 导航菜单 -->
-    <div class="menu-bar">
-        <el-menu :default-active="currentMenu" class="el-menu-demo" mode="horizontal" @select="handleSelect">
-            <el-menu-item index="home">首页门户</el-menu-item>
-            <el-menu-item index="profile">个人中心</el-menu-item>
-            <el-menu-item index="attendance">考勤打卡</el-menu-item>
-            <el-menu-item index="attendance_apply">考勤申请</el-menu-item>
-            <el-menu-item index="salary">我的薪水</el-menu-item>
-            <el-menu-item index="feedback">纠纷申诉</el-menu-item>
-        </el-menu>
-    </div>
+        <!-- 导航菜单 -->
+        <div class="menu-bar">
+            <el-menu :default-active="currentMenu" class="el-menu-demo" mode="horizontal" :ellipsis="false"
+                @select="handleSelect">
+                <el-menu-item index="profile">个人中心</el-menu-item>
+                <el-menu-item index="attendance_apply">考勤申请</el-menu-item>
+                <el-menu-item index="attendance">考勤数据</el-menu-item>
+                <el-menu-item index="salary">薪资核算</el-menu-item>
+                <el-menu-item index="salary-feedback">薪资反馈</el-menu-item>
+                <el-menu-item index="tax">工资个税与社保</el-menu-item>
+                    <el-menu-item index="performance">绩效评分</el-menu-item>
+                    <el-menu-item index="feedback">投诉反馈</el-menu-item>
+            </el-menu>
+        </div>
 
-    <!-- 动态视图区 -->
-    <div class="main-view">
-        
-        <!-- ===== 1. 首页门户 ===== -->
-        <div class="page-panel" :class="{active: currentMenu === 'home'}" style="width: 100%; max-width:1440px; margin-top:0;">
-            <!-- 大轮播图 -->
-            <el-carousel height="450px" indicator-position="outside">
-                <el-carousel-item v-for="(img, i) in websiteContent.carouselImages.filter(Boolean)" :key="i">
-                    <img :src="img" alt="banner">
-                </el-carousel-item>
-            </el-carousel>
+        <!-- 动态视图区 -->
+        <div class="main-view">
 
-            <div style="width: 1200px; margin: 0 auto; padding-top: 20px;">
-                <!-- 关于我们 & 系统简介 -->
-                <div class="section-title">{{ websiteContent.aboutSubtitle ? (websiteContent.aboutTitle + ' ' + websiteContent.aboutSubtitle) : websiteContent.aboutTitle }}</div>
-                <div class="intro-box">
-                    <div style="white-space:pre-line;">{{ websiteContent.aboutContent }}</div>
-                    <div class="intro-imgs">
-                        <img v-for="(img, index) in websiteContent.aboutImages.filter(Boolean)" :key="'about-' + index" :src="img"/>
+            <!-- ===== 1. 首页门户 ===== -->
+            <div class="page-panel" :class="{active: currentMenu === 'home'}"
+                style="width: 100%; max-width:1440px; margin-top:0;">
+                <!-- 大轮播图 -->
+                <el-carousel height="450px" indicator-position="outside">
+                    <el-carousel-item v-for="(img, i) in websiteContent.carouselImages.filter(Boolean)" :key="i">
+                        <img :src="img" alt="banner">
+                    </el-carousel-item>
+                </el-carousel>
+
+                <div style="width: 1200px; margin: 0 auto; padding-top: 20px;">
+                    <!-- 关于我们 & 系统简介 -->
+                    <div class="section-title">{{ websiteContent.aboutTitle }}</div>
+                    <div class="intro-box">
+                        <div style="white-space:pre-line;">{{ websiteContent.aboutContent }}</div>
+                        <div class="intro-imgs">
+                            <img v-for="(img, index) in websiteContent.aboutImages.filter(Boolean)"
+                                :key="'about-' + index" :src="img" />
+                        </div>
+                    </div>
+
+                    <div class="section-title">{{ websiteContent.noticeSectionTitle }}</div>
+                    <el-row :gutter="20">
+                        <el-col :span="8" v-for="n in noticeList" :key="n.id">
+                            <el-card class="notice-card" shadow="hover" @click="openNoticeDetail(n, 'home')">
+                                <div class="n-title">{{ n.title }}</div>
+                                <div class="n-desc">{{ n.content }}</div>
+                                <div class="n-info">
+                                    <span>🕒 {{ (n.pubTime || '').substring(0, 10) || '-' }}</span>
+                                    <span>阅览 ></span>
+                                </div>
+                            </el-card>
+                        </el-col>
+                    </el-row>
+                    <div v-if="noticeList.length === 0" style="text-align:center;color:#999;padding:40px;">暂无最新公告</div>
                     </div>
                 </div>
 
-                <div class="section-title">{{ websiteContent.noticeSectionTitle }}</div>
-                <el-row :gutter="20">
-                    <el-col :span="8" v-for="n in noticeList" :key="n.id">
-                        <el-card class="notice-card" shadow="hover" @click="viewNotice(n)">
-                            <div class="n-title">{{ n.title }}</div>
-                            <div class="n-desc">{{ n.content }}</div>
-                            <div class="n-info">
-                                <span>🕒 {{ (n.pubTime || '').substring(0, 10) || '-' }}</span>
-                                <span>阅览 ></span>
-                            </div>
-                        </el-card>
-                    </el-col>
-                </el-row>
-                <div v-if="noticeList.length === 0" style="text-align:center;color:#999;padding:40px;">暂无最新公告</div>
-            </div>
-        </div>
+                <div class="page-panel" :class="{active: currentMenu === 'notice'}">
+                    <div class="section-title">通知公告</div>
+                    <el-card shadow="never" class="custom-card">
+                        <div class="mb-20" style="display:flex;gap:12px;flex-wrap:wrap;">
+                            <el-input v-model="noticeSearch.title" placeholder="请输入公告标题" clearable style="width:260px;" />
+                            <el-button type="primary" @click="loadNoticeCenter(1)">查询</el-button>
+                        </div>
+                        <div class="notice-page-grid">
+                            <el-card class="notice-card" shadow="hover" v-for="n in noticeCenterList" :key="'notice-center-' + n.id"
+                                @click="openNoticeDetail(n, 'notice')">
+                                <div class="n-title">{{ n.title }}</div>
+                                <div class="n-desc">{{ n.content }}</div>
+                                <div class="n-info">
+                                    <span>🕒 {{ formatDateTimeText(n.pubTime).slice(0, 10) || '-' }}</span>
+                                    <span>查看详情 ></span>
+                                </div>
+                            </el-card>
+                        </div>
+                        <div v-if="noticeCenterList.length === 0" style="text-align:center;color:#999;padding:40px;">暂无公告数据</div>
+                        <div class="page-footer">
+                            <el-pagination layout="total, sizes, prev, pager, next, jumper"
+                                :page-sizes="[6, 12, 18, 24]" :total="noticeTotal"
+                                v-model:current-page="noticeCurrent" v-model:page-size="noticeSize"
+                                @current-change="loadNoticeCenter" @size-change="() => loadNoticeCenter(1)">
+                            </el-pagination>
+                        </div>
+                    </el-card>
+                </div>
 
-        <!-- ===== 2. 个人中心 ===== -->
-        <div class="page-panel" :class="{active: currentMenu === 'profile'}">
-            <div class="section-title">个人信息档案</div>
-            <el-row :gutter="24">
-                <el-col :span="14">
-                    <el-card shadow="hover" class="custom-card" style="margin-bottom:16px;">
-                        <template #header><div style="font-weight:bold;font-size:15px;">📋 基本信息</div></template>
-                        <div style="display:flex;gap:18px;align-items:center;margin-bottom:18px;">
-                            <div style="width:72px;height:72px;border-radius:50%;overflow:hidden;border:3px solid #deeeff;background:#f0f5fb;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                                <img v-if="empProfile.avatar" :src="empProfile.avatar" style="width:100%;height:100%;object-fit:cover;"/>
-                                <span v-else style="font-size:28px;">👤</span>
+                <div class="page-panel" :class="{active: currentMenu === 'notice-detail'}">
+                    <div class="section-title">公告详情</div>
+                    <el-card shadow="never" class="custom-card" v-loading="noticeDetailLoading">
+                        <div class="notice-detail-shell">
+                            <div class="notice-detail-header">
+                                <div>
+                                    <div class="notice-detail-eyebrow">通知公告</div>
+                                    <div class="notice-detail-title">{{ noticeDetail.title || '公告详情' }}</div>
+                                    <div class="notice-detail-meta">
+                                        <el-tag effect="light" type="primary">{{ formatDateTimeText(noticeDetail.pubTime) }}</el-tag>
+                                        <el-tag effect="light" type="success">{{ noticeDetail.pubUserName || '系统公告' }}</el-tag>
+                                    </div>
+                                </div>
+                                <el-button type="primary" plain class="notice-detail-back" @click="backFromNoticeDetail">返回上一页</el-button>
                             </div>
-                            <div>
-                                <div style="font-size:18px;font-weight:bold;color:#333;">{{ empProfile.realName || userInfo.realName }}</div>
-                                <el-tag type="success" style="margin-top:6px;">在职员工</el-tag>
+                            <el-image v-if="noticeDetail.coverImage" :src="noticeDetail.coverImage"
+                                :preview-src-list="[noticeDetail.coverImage]" :hide-on-click-modal="true"
+                                class="notice-detail-cover" fit="cover"></el-image>
+                            <div class="intro-box">
+                                <div class="notice-detail-content">{{ noticeDetail.content || '暂无公告内容' }}</div>
                             </div>
                         </div>
-                        <el-descriptions :column="2" border size="small">
-                            <el-descriptions-item label="工号">{{ empProfile.empNo || userInfo.empNo || '-' }}</el-descriptions-item>
+                    </el-card>
+                </div>
+
+                <!-- ===== 2. 个人中心 ===== -->
+                <div class="page-panel" :class="{active: currentMenu === 'profile'}">
+                    <div class="section-title">个人信息档案</div>
+                    <!-- 上：基本信息（全宽） -->
+                    <el-card shadow="hover" class="custom-card" style="margin-bottom:20px;">
+                        <template #header>
+                            <div style="display:flex;justify-content:space-between;align-items:center;">
+                                <span style="font-weight:bold;font-size:15px;">📋 基本信息</span>
+                                <el-button type="primary" size="small" @click="empEditDialogVisible=true">✏️
+                                    修改个人信息</el-button>
+                            </div>
+                        </template>
+                        <div style="display:flex;gap:24px;align-items:center;margin-bottom:20px;">
+                            <div
+                                style="width:80px;height:80px;border-radius:50%;overflow:hidden;border:3px solid #deeeff;background:#f0f5fb;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                <img v-if="empProfile.avatar" :src="empProfile.avatar"
+                                    style="width:100%;height:100%;object-fit:cover;" />
+                                <span v-else style="font-size:32px;">👤</span>
+                            </div>
+                            <div>
+                                <div style="font-size:20px;font-weight:bold;color:#333;">{{ empProfile.realName ||
+                                    userInfo.realName }}</div>
+                                <el-tag type="success" style="margin-top:8px;">在职员工</el-tag>
+                            </div>
+                        </div>
+                        <el-descriptions :column="3" border size="default">
+                            <el-descriptions-item label="工号">{{ empProfile.empNo || userInfo.empNo || '-'
+                                }}</el-descriptions-item>
                             <el-descriptions-item label="登录账号">{{ userInfo.username || '-' }}</el-descriptions-item>
-                            <el-descriptions-item label="姓名">{{ empProfile.realName || userInfo.realName || '-' }}</el-descriptions-item>
-                            <el-descriptions-item label="性别">{{ empProfile.gender === 1 ? '男' : empProfile.gender === 0 ? '女' : '-' }}</el-descriptions-item>
+                            <el-descriptions-item label="姓名">{{ empProfile.realName || userInfo.realName || '-'
+                                }}</el-descriptions-item>
+                            <el-descriptions-item label="性别">{{ empProfile.gender === 1 ? '男' : empProfile.gender === 0
+                                ? '女' : '-' }}</el-descriptions-item>
                             <el-descriptions-item label="手机">{{ empProfile.phone || '-' }}</el-descriptions-item>
                             <el-descriptions-item label="身份证">{{ empProfile.idCard || '-' }}</el-descriptions-item>
-                            <el-descriptions-item label="所在部门">{{ empProfile.deptName || '-' }}</el-descriptions-item>
-                            <el-descriptions-item label="岗位">{{ empProfile.positionName || empProfile.position || '-' }}</el-descriptions-item>
-                            <el-descriptions-item label="基本工资">{{ empProfile.baseSalary != null ? ('¥ ' + empProfile.baseSalary) : '-' }}</el-descriptions-item>
+                            <el-descriptions-item label=" 所在部门">{{ empProfile.deptName || '-' }}</el-descriptions-item>
+                            <el-descriptions-item label="岗位">{{ empProfile.positionName || empProfile.position || '-'
+                                }}</el-descriptions-item>
+                            <el-descriptions-item label="基本工资">{{ empProfile.baseSalary != null ? ('¥ ' +
+                                empProfile.baseSalary) : '-' }}</el-descriptions-item>
                             <el-descriptions-item label="银行卡号">{{ empProfile.bankCard || '-' }}</el-descriptions-item>
                             <el-descriptions-item label="入职时间">{{ empProfile.hireDate || '-' }}</el-descriptions-item>
-                            <el-descriptions-item label=""><!-- 占位 --></el-descriptions-item>
-                            <el-descriptions-item label="所属经理账号"><el-tag size="small" type="warning">{{ empProfile.managerNo || '-' }}</el-tag></el-descriptions-item>
-                            <el-descriptions-item label="所属经理姓名"><el-tag size="small" type="warning">{{ empProfile.managerName || '-' }}</el-tag></el-descriptions-item>
+                            <el-descriptions-item label="所属经理"><el-tag size=" small" type="warning">{{
+                                    empProfile.managerName || '-' }}</el-tag></el-descriptions-item>
                         </el-descriptions>
                     </el-card>
-                </el-col>
-                <el-col :span="10">
-                    <el-card shadow="hover" class="custom-card" style="margin-bottom:16px;">
-                        <template #header><div style="font-weight:bold;font-size:15px;">✏️ 修改基本信息</div></template>
-                        <el-form :model="empEditForm" label-width="80px" size="small">
-                            <el-form-item label="手机"><el-input v-model="empEditForm.phone" placeholder="手机号"></el-input></el-form-item>
-                            <el-form-item label="银行卡号"><el-input v-model="empEditForm.bankCard" placeholder="银行卡号"></el-input></el-form-item>
-                            <el-form-item><el-button type="primary" @click="saveEmpProfile">保存</el-button></el-form-item>
-                        </el-form>
-                    </el-card>
-                    <el-card shadow="hover" class="custom-card">
-                        <template #header><div style="font-weight:bold;font-size:15px;">🔒 修改登录密码</div></template>
-                        <el-form :model="pwdForm" label-width="80px" size="small">
-                            <el-form-item label="原密码"><el-input v-model="pwdForm.oldHash" type="password" show-password placeholder="当前密码"></el-input></el-form-item>
-                            <el-form-item label="新密码"><el-input v-model="pwdForm.newHash" type="password" show-password placeholder="不少于6位"></el-input></el-form-item>
-                            <el-form-item><el-button type="primary" @click="changePwd">确认修改</el-button></el-form-item>
-                        </el-form>
-                    </el-card>
-                </el-col>
-            </el-row>
-        </div>
 
-        <!-- ===== 3. 我的考勤流水 ===== -->
-        <div class="page-panel" :class="{active: currentMenu === 'attendance'}">
-            <div class="section-title">我的综合考勤面板</div>
-            <el-card shadow="never" class="custom-card mb-20">
-                <el-alert title="本人的当月历史考勤流水清单" type="info" show-icon class="mb-20"></el-alert>
-                <el-table :data="myAttendances" border stripe>
-                    <el-table-column prop="yearMonth" label="账期" width="100"></el-table-column>
-                    <el-table-column prop="attendDays" label="出勤天数" width="100"></el-table-column>
-                    <el-table-column prop="absentDays" label="旷工" width="80"></el-table-column>
-                    <el-table-column prop="lateTimes" label="迟到次数" width="100"></el-table-column>
-                    <el-table-column prop="leaveDays" label="病事假" width="80"></el-table-column>
-                    <el-table-column prop="overtimeHours" label="加班时长(H)" width="120"></el-table-column>
-                    <el-table-column prop="status" label="考勤状态" width="100">
-                        <template #default="{row}">
-                            <el-tag :type="row.status===1?'success':(row.status===2?'warning':'info')">
-                                {{row.status===1?'正常':(row.status===2?'异常':'待定')}}
-                            </el-tag>
+                    <!-- 下：修改登录密码 -->
+                    <el-card shadow="hover" class="custom-card" style="max-width:600px; margin: 0 auto;">
+                        <template #header>
+                            <div style="font-weight:bold;font-size:15px;">🔒 修改登录密码</div>
                         </template>
-                    </el-table-column>
-                </el-table>
-            </el-card>
-        </div>
-
-        <!-- ===== 4. 考勤申请 ===== -->
-        <div class="page-panel" :class="{active: currentMenu === 'attendance_apply'}">
-            <div class="section-title">我的考勤事件申请表</div>
-            <el-card shadow="never" class="custom-card">
-                <div class="mb-20">
-                    <el-button type="primary" @click="openApplyForm">发起新申请表单</el-button>
+                        <el-form :model="pwdForm" label-width="90px">
+                            <el-form-item label="原密码" required><el-input v-model=" pwdForm.oldHash" type="password"
+                                    show-password placeholder="当前密码"></el-input></el-form-item>
+                            <el-form-item label="新密码" required><el-input v-model=" pwdForm.newHash" type="password"
+                                    show-password placeholder="不少于6位"></el-input></el-form-item>
+                            <el-form-item><el-button type=" primary" @click="changePwd"
+                                    style="width: 100%;">确认修改密码</el-button></el-form-item>
+                        </el-form>
+                    </el-card>
                 </div>
-                <el-table :data="myApplies" border stripe>
-                    <el-table-column prop="applyDate" label="涉及日期" width="120"></el-table-column>
-                    <el-table-column prop="applyType" label="申请类别" width="100">
-                        <template #default="{row}">
-                            <el-tag>{{ ['','补签','销假','提报加班','申诉排班'][row.applyType] }}</el-tag>
-                        </template>
-                    </el-table-column>
-                    <el-table-column prop="reason" label="详细阐述事由" show-overflow-tooltip></el-table-column>
-                    <el-table-column prop="status" label="人事工单状态" width="120">
-                        <template #default="{row}">
-                            <el-tag :type="row.status===0?'warning':(row.status===1?'success':'danger')" effect="dark">
-                                {{ row.status===0?'审批流转中':(row.status===1?'经理已批准':'已驳回') }}
-                            </el-tag>
-                        </template>
-                    </el-table-column>
-                    <el-table-column prop="createTime" label="投递时间" width="160"></el-table-column>
-                </el-table>
-            </el-card>
-        </div>
 
-        <!-- ===== 5. 薪水单 ===== -->
-        <div class="page-panel" :class="{active: currentMenu === 'salary'}">
-            <div class="section-title">历月薪酬下发明细 (工资条)</div>
-            <el-card shadow="never" class="custom-card">
-                <el-table :data="mySalaries" border stripe>
-                    <el-table-column prop="yearMonth" label="下发账期" width="100" align="center"></el-table-column>
-                    <el-table-column prop="baseSalary" label="基础底薪" width="100" align="right"></el-table-column>
-                    <el-table-column prop="perfBonus" label="绩效激励" width="100" align="right"></el-table-column>
-                    <el-table-column prop="allowance" label="综合津贴" width="100" align="right"></el-table-column>
-                    <el-table-column prop="overtimePay" label="加班核发" width="100" align="right"></el-table-column>
-                    <el-table-column prop="socialSecurityEmp" label="五险一金代扣" width="120" align="right">
-                        <template #default="{row}">-{{row.socialSecurityEmp}}</template>
-                    </el-table-column>
-                    <el-table-column prop="incomeTax" label="个税抵扣" width="100" align="right">
-                        <template #default="{row}">-{{row.incomeTax}}</template>
-                    </el-table-column>
-                    <el-table-column prop="attendDeduct" label="考勤惩罚" width="100" align="right">
-                        <template #default="{row}">-{{row.attendDeduct}}</template>
-                    </el-table-column>
-                    <el-table-column prop="netSalary" label="最终实发(笔)" width="130" align="right">
-                        <template #default="scope"><strong style="color:#67c23a; font-size:16px;">¥{{scope.row.netSalary}}</strong></template>
-                    </el-table-column>
-                    <el-table-column prop="calcStatus" label="状态" width="100" align="center">
-                        <template #default="{row}">
-                            <el-tag :type="row.calcStatus>=4?'success':'warning'">{{ row.calcStatus>=4?'已到账':'内部清算' }}</el-tag>
-                        </template>
-                    </el-table-column>
-                </el-table>
-            </el-card>
-        </div>
-
-        <!-- ===== 6. 投诉反馈 ===== -->
-        <div class="page-panel" :class="{active: currentMenu === 'feedback'}">
-            <div class="section-title">职工意见反馈与异常工单办理</div>
-            <el-card shadow="never" class="custom-card">
-                <el-tabs type="border-card">
-                    <el-tab-pane label="平台异常反馈区">
-                        <div class="mb-20"><el-button type="danger" @click="openAnomalyForm">提交系统故障或记录异常</el-button></div>
-                        <el-table :data="myAnomalies" border size="small">
-                            <el-table-column prop="yearMonth" label="涉及账期" width="100"></el-table-column>
-                            <el-table-column prop="reportType" label="类型" width="100">
-                                <template #default="{row}">{{ ['','考勤漏打','计算不公','平台BUG'][row.reportType] }}</template>
-                            </el-table-column>
-                            <el-table-column prop="title" label="概要简述" show-overflow-tooltip></el-table-column>
-                            <el-table-column prop="status" label="处理状态" width="100">
+                <!-- ===== 3. 我的考勤流水 ===== -->
+                <div class="page-panel" :class="{active: currentMenu === 'attendance'}">
+                    <div class="section-title">我的综合考勤面板</div>
+                    <el-card shadow="never" class="custom-card mb-20">
+                        <el-alert title="本人的当月历史考勤流水清单" type="info" show-icon class="mb-20"></el-alert>
+                        <div class="mb-20" style="display:flex;justify-content:flex-end;">
+                            <el-button type="primary" plain @click="printAttendances">打印考勤</el-button>
+                        </div>
+                        <el-table :data="myAttendances" border stripe>
+                            <el-table-column prop="yearMonth" label="月份" min-width="120"></el-table-column>
+                            <el-table-column prop="attendDays" label="出勤天数" min-width="120"></el-table-column>
+                            <el-table-column prop="absentDays" label="旷工天数" min-width="120"></el-table-column>
+                            <el-table-column prop="lateTimes" label="迟到天数" min-width="120"></el-table-column>
+                            <el-table-column prop="leaveDays" label="请假天数" min-width="120"></el-table-column>
+                            <el-table-column prop="overtimeHours" label="加班小时" min-width="120"></el-table-column>
+                            <el-table-column prop="status" label="考勤状态" min-width="180">
                                 <template #default="{row}">
-                                    <el-tag :type="row.status===0?'danger':(row.status===1?'warning':'success')">
-                                        {{ row.status===0?'HR待处理':(row.status===1?'调查取证中':'已闭环结案') }}
+                                    <el-tag :type="row.status===1?'success':(row.status===2?'warning':'info')">
+                                        {{row.status===1?'正常':(row.status===2?'异常':'待定')}}
                                     </el-tag>
                                 </template>
                             </el-table-column>
-                            <el-table-column prop="processResult" label="官方最终答复" show-overflow-tooltip></el-table-column>
                         </el-table>
-                    </el-tab-pane>
-                    <el-tab-pane label="薪水单异议专线">
-                        <div class="mb-20"><el-button type="warning" @click="openFeedbackForm">我要发起薪金投诉</el-button></div>
-                        <el-table :data="myFeedbacks" border size="small">
-                            <el-table-column prop="feedbackType" label="投诉性质" width="100">
-                                <template #default="{row}">{{ ['','底薪偏低','奖金计算错','漏发全勤'][row.feedbackType] }}</template>
-                            </el-table-column>
-                            <el-table-column prop="title" label="主诉标题" show-overflow-tooltip></el-table-column>
-                            <el-table-column prop="status" label="响应" width="100">
+                        <div class="page-footer">
+                            <el-pagination layout="total, sizes, prev, pager, next, jumper"
+                                :page-sizes="[10, 20, 50, 100]" :total="tablePaging.attendance.total"
+                                v-model:current-page="tablePaging.attendance.current"
+                                v-model:page-size="tablePaging.attendance.size" @current-change="loadAttendances"
+                                @size-change="loadAttendances">
+                            </el-pagination>
+                        </div>
+                    </el-card>
+                </div>
+
+                <!-- ===== 4. 考勤申请 ===== -->
+                <div class="page-panel" :class="{active: currentMenu === 'attendance_apply'}">
+                    <div class="section-title">我的考勤事件申请表</div>
+                    <el-card shadow="never" class="custom-card">
+                        <div class="mb-20">
+                            <el-button type="primary" @click="openApplyForm">发起新申请表单</el-button>
+                        </div>
+                        <el-table :data="myApplies" border stripe>
+                            <el-table-column prop="applyDate" label="涉及日期" min-width="140"></el-table-column>
+                            <el-table-column prop="applyType" label="申请类别" min-width="120">
                                 <template #default="{row}">
-                                    <el-tag :type="row.status===0?'danger':(row.status===2?'success':'info')">
-                                        {{ row.status===0?'未阅读':(row.status===2?'已致电解决':'驳回申请') }}
+                                    <el-tag>{{ ['','补签','销假','提报加班','申诉排班'][row.applyType] }}</el-tag>
+                                </template>
+                            </el-table-column>
+                            <el-table-column prop="reason" label="详细阐述事由" show-overflow-tooltip></el-table-column>
+                            <el-table-column prop="status" label="人事工单状态" min-width="140">
+                                <template #default="{row}">
+                                    <el-tag :type="row.status===0?'warning':(row.status===1?'success':'danger')"
+                                        effect="dark">
+                                        {{ row.status===0?'审批流转中':(row.status===1?'经理已批准':'已驳回') }}
                                     </el-tag>
                                 </template>
                             </el-table-column>
-                            <el-table-column prop="replyContent" label="核算组处理回执函" show-overflow-tooltip></el-table-column>
+                            <el-table-column prop="createTime" label="投递时间" min-width="170"></el-table-column>
+                            <el-table-column label="操作" min-width="90" align="center" fixed="right">
+                                <template #default="{row}"><el-button link type="primary"
+                                        @click="viewDetails(row, 'attendance_apply')">详情</el-button></template>
+                            </el-table-column>
                         </el-table>
-                    </el-tab-pane>
-                </el-tabs>
-            </el-card>
+                        <div class="page-footer">
+                            <el-pagination layout="total, sizes, prev, pager, next, jumper"
+                                :page-sizes="[10, 20, 50, 100]" :total="tablePaging.apply.total"
+                                v-model:current-page="tablePaging.apply.current"
+                                v-model:page-size="tablePaging.apply.size" @current-change="loadApplies"
+                                @size-change="loadApplies">
+                            </el-pagination>
+                        </div>
+                    </el-card>
+                </div>
+
+                <!-- ===== 5. 薪水单 ===== -->
+                <div class="page-panel" :class="{active: currentMenu === 'salary'}">
+                    <div class="section-title">历月薪酬下发明细 (工资单)</div>
+                    <el-card shadow="never" class="custom-card">
+                        <el-table :data="salaryDisplayRows" border stripe>
+                            <el-table-column prop="yearMonth" label="月份" min-width="110" align="center"></el-table-column>
+                            <el-table-column prop="empNo" label="工号" min-width="100" align="center"></el-table-column>
+                            <el-table-column prop="empName" label="姓名" min-width="100" align="center"></el-table-column>
+                            <el-table-column prop="deptName" label="部门" min-width="120" align="center"></el-table-column>
+                            <el-table-column prop="baseSalary" label="基本工资" min-width="110" align="right"></el-table-column>
+                            <el-table-column prop="overtimePay" label="加班工资" min-width="110"
+                                align="right"></el-table-column>
+                            <el-table-column prop="perfBonus" label="绩效奖金" min-width="110" align="right"></el-table-column>
+                            <el-table-column prop="allowance" label="津贴" min-width="110" align="right"></el-table-column>
+                            <el-table-column prop="socialSecurityEmp" label="五险一金" min-width="120" align="right">
+                                <template #default="{row}">{{ formatNegativeAmount(row.socialSecurityEmp) }}</template>
+                            </el-table-column>
+                            <el-table-column prop="incomeTax" label="个税" min-width="110" align="right">
+                                <template #default="{row}">{{ formatNegativeAmount(row.incomeTax) }}</template>
+                            </el-table-column>
+                            <el-table-column prop="deductAmount" label="扣款金额" min-width="110" align="right">
+                                <template #default="{row}">{{ formatNegativeAmount(row.deductAmount) }}</template>
+                            </el-table-column>
+                            <el-table-column prop="netSalary" label="实发工资" min-width="140" align="right">
+                                <template #default="scope"><strong
+                                        style="color:#67c23a; font-size:16px;">¥{{scope.row.netSalary}}</strong></template>
+                            </el-table-column>
+                            <el-table-column prop="calcStatus" label="状态" min-width="110" align="center">
+                                <template #default="{row}">
+                                    <el-tag :type="row.calcStatus>=4?'success':'warning'">{{
+                                        row.calcStatus>=4?'已到账':'内部清算' }}</el-tag>
+                                </template>
+                            </el-table-column>
+                            <el-table-column label="操作" min-width="140" align="center" fixed="right">
+                                <template #default="{row}">
+                                    <el-button link type="primary" @click="viewDetails(row, 'salary')">详情</el-button>
+                                    <el-button link type="warning" @click="openSalaryFeedbackForm(row)">薪资反馈</el-button>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                        <div class="page-footer">
+                            <el-pagination layout="total, sizes, prev, pager, next, jumper"
+                                :page-sizes="[10, 20, 50, 100]" :total="tablePaging.salary.total"
+                                v-model:current-page="tablePaging.salary.current"
+                                v-model:page-size="tablePaging.salary.size" @current-change="loadSalaries"
+                                @size-change="loadSalaries">
+                            </el-pagination>
+                        </div>
+                    </el-card>
+                </div>
+
+                <!-- ===== 6. 薪资反馈 ===== -->
+                <div class="page-panel" :class="{active: currentMenu === 'salary-feedback'}">
+                    <div class="section-title">薪资反馈记录</div>
+                    <el-card shadow="never" class="custom-card">
+                        <el-table :data="mySalaryFeedbacks" border size="small">
+                            <el-table-column prop="yearMonth" label="关联账期" min-width="120"></el-table-column>
+                            <el-table-column prop="feedbackType" label="反馈类型" min-width="120">
+                                <template #default="{row}">{{ ['','工资/津贴异议','绩效/个税异议'][row.feedbackType] || '-'
+                                    }}</template>
+                            </el-table-column>
+                            <el-table-column prop="title" label="反馈标题" min-width="180"
+                                show-overflow-tooltip></el-table-column>
+                            <el-table-column prop="content" label="反馈内容" min-width="220"
+                                show-overflow-tooltip></el-table-column>
+                            <el-table-column prop="replyContent" label="回复内容" min-width="220" show-overflow-tooltip>
+                                <template #default="{row}">{{ row.replyContent || '-' }}</template>
+                            </el-table-column>
+                            <el-table-column prop="status" label="处理状态" min-width="110">
+                                <template #default="{row}">
+                                    <el-tag
+                                        :type="row.status===0?'warning':(row.status===1?'primary':(row.status===2?'success':'danger'))">
+                                        {{ row.status===0?'待处理':(row.status===1?'调查取证中':(row.status===2?'已解决':'驳回')) }}
+                                    </el-tag>
+                                </template>
+                            </el-table-column>
+                            <el-table-column prop="createTime" label="提交时间" min-width="180"></el-table-column>
+                            <el-table-column label="操作" min-width="90" align="center" fixed="right">
+                                <template #default="{row}"><el-button link type="primary"
+                                        @click="viewDetails(row, 'salary-feedback')">详情</el-button></template>
+                            </el-table-column>
+                        </el-table>
+                        <div class="page-footer">
+                            <el-pagination layout="total, sizes, prev, pager, next, jumper"
+                                :page-sizes="[10, 20, 50, 100]" :total="tablePaging.salaryFeedback.total"
+                                v-model:current-page="tablePaging.salaryFeedback.current"
+                                v-model:page-size="tablePaging.salaryFeedback.size"
+                                @current-change="loadSalaryFeedbacks" @size-change="loadSalaryFeedbacks">
+                            </el-pagination>
+                        </div>
+                    </el-card>
+                </div>
+
+                <!-- ===== 7. 投诉反馈 ===== -->
+                <div class="page-panel" :class="{active: currentMenu === 'feedback'}">
+                    <div class="section-title">投诉反馈与异常上报</div>
+                    <el-card shadow="never" class="custom-card">
+                        <div class="mb-20" style="display:flex;gap:12px;flex-wrap:wrap;">
+                            <el-button type="danger" @click="openAnomalyForm">提交系统问题或工作异常</el-button>
+                            <el-button type="warning" @click="openFeedbackForm">提交投诉或特殊情况反馈</el-button>
+                        </div>
+                        <el-table :data="complaintPageRows" border size="small">
+                            <el-table-column prop="typeText" label="类型" min-width="120"></el-table-column>
+                            <el-table-column prop="title" label="标题" min-width="180" show-overflow-tooltip></el-table-column>
+                            <el-table-column prop="contentText" label="内容" min-width="220" show-overflow-tooltip></el-table-column>
+                            <el-table-column prop="replyText" label="处理/回复" min-width="220" show-overflow-tooltip>
+                                <template #default="{row}">{{ row.replyText || '-' }}</template>
+                            </el-table-column>
+                            <el-table-column prop="statusText" label="状态" min-width="110">
+                                <template #default="{row}">
+                                    <el-tag :type="row.statusTag">{{ row.statusText }}</el-tag>
+                                </template>
+                            </el-table-column>
+                            <el-table-column prop="timeText" label="提交时间" min-width="180"></el-table-column>
+                            <el-table-column label="操作" min-width="90" align="center" fixed="right">
+                                <template #default="{row}"><el-button link type="primary"
+                                        @click="viewDetails(row, 'feedback')">详情</el-button></template>
+                            </el-table-column>
+                        </el-table>
+                        <div class="page-footer">
+                            <el-pagination layout="total, sizes, prev, pager, next, jumper"
+                                :page-sizes="[10, 20, 50, 100]" :total="complaintTotal"
+                                v-model:current-page="complaintCurrent" v-model:page-size="complaintSize"
+                                @current-change="loadComplaintRecords" @size-change="() => loadComplaintRecords(1)">
+                            </el-pagination>
+                        </div>
+                    </el-card>
+                </div>
+
+                <!-- ===== 8. 工资个税与社保 ===== -->
+                <div class="page-panel" :class="{active: currentMenu === 'tax'}">
+                    <div class="section-title">我的个税缴纳与社保档案</div>
+                    <el-card shadow="never" class="custom-card">
+                        <el-table :data="taxDisplayRows" border stripe size="small">
+                            <el-table-column prop="taxYear" label="汇算清缴年度" min-width="130" align="center"></el-table-column>
+                            <el-table-column prop="totalIncome" label="累计薪水收入" min-width="130"
+                                align="right"></el-table-column>
+                            <el-table-column prop="totalTaxFree" label="累计免税额" min-width="120"
+                                align="right"></el-table-column>
+                            <el-table-column prop="totalSocialSecurity" label="累计社保抵扣" min-width="130"
+                                align="right"></el-table-column>
+                            <el-table-column prop="totalSpecialDeduct" label="累计专项扣除" min-width="130"
+                                align="right"></el-table-column>
+                            <el-table-column prop="accumulatedTaxable" label="应纳税所得额" min-width="130"
+                                align="right"></el-table-column>
+                            <el-table-column prop="taxPaid" label="已缴个税总计" min-width="130" align="right">
+                                <template #default="{row}"><strong
+                                        style="color:#f56c6c;">{{row.taxPaid}}</strong></template>
+                            </el-table-column>
+                            <el-table-column label="操作" min-width="90" align="center" fixed="right">
+                                <template #default="{row}"><el-button link type="primary"
+                                        @click="viewDetails(row, 'tax')">详情</el-button></template>
+                            </el-table-column>
+                        </el-table>
+                        <div class="page-footer">
+                            <el-pagination layout="total, sizes, prev, pager, next, jumper"
+                                :page-sizes="[10, 20, 50, 100]" :total="tablePaging.tax.total"
+                                v-model:current-page="tablePaging.tax.current" v-model:page-size="tablePaging.tax.size"
+                                @current-change="loadTaxes" @size-change="loadTaxes">
+                            </el-pagination>
+                        </div>
+                    </el-card>
+                </div>
+
+                <!-- ===== 9. 绩效评分 ===== -->
+                <div class="page-panel" :class="{active: currentMenu === 'performance'}">
+                    <div class="section-title">我的月度绩效与星级评分</div>
+                    <el-card shadow="never" class="custom-card">
+                        <el-table :data="performanceDisplayRows" border stripe size="small">
+                            <el-table-column prop="yearMonth" label="评估账期" min-width="110" align="center"></el-table-column>
+                            <el-table-column prop="workAttitude" label="工作态度" min-width="100"
+                                align="center"></el-table-column>
+                            <el-table-column prop="businessSkill" label="业务能力" min-width="100"
+                                align="center"></el-table-column>
+                            <el-table-column prop="workPerformance" label="产出绩效" min-width="100"
+                                align="center"></el-table-column>
+                            <el-table-column prop="bonusDeduct" label="考勤加扣分" min-width="110" align="center">
+                                <template #default="{row}">
+                                    <span
+                                        :style="{color: row.bonusDeduct<0?'#f56c6c':'#67c23a'}">{{row.bonusDeduct>0?'+'+row.bonusDeduct:row.bonusDeduct}}</span>
+                                </template>
+                            </el-table-column>
+                            <el-table-column prop="totalScore" label="综合总分" min-width="110" align="center">
+                                <template #default="{row}"><strong>{{row.totalScore}}</strong></template>
+                            </el-table-column>
+                            <el-table-column prop="grade" label="评级" min-width="100" align="center">
+                                <template #default="{row}">
+                                    <el-tag
+                                        :type="row.grade==='优秀'?'success':(row.grade==='良好'?'primary':(row.grade==='合格'?'warning':'danger'))">{{row.grade}}</el-tag>
+                                </template>
+                            </el-table-column>
+                            <el-table-column prop="evaluateRemark" label="主管述职评语"
+                                show-overflow-tooltip></el-table-column>
+                            <el-table-column label="操作" min-width="90" align="center" fixed="right">
+                                <template #default="{row}"><el-button link type="primary"
+                                        @click="viewDetails(row, 'performance')">详情</el-button></template>
+                            </el-table-column>
+                        </el-table>
+                        <div class="page-footer">
+                            <el-pagination layout="total, sizes, prev, pager, next, jumper"
+                                :page-sizes="[10, 20, 50, 100]" :total="tablePaging.performance.total"
+                                v-model:current-page="tablePaging.performance.current"
+                                v-model:page-size="tablePaging.performance.size" @current-change="loadPerformances"
+                                @size-change="loadPerformances">
+                            </el-pagination>
+                        </div>
+                    </el-card>
+                </div>
+
+            </div>
+
+            <!-- 弹窗：全局单据详情 -->
+            <el-dialog v-model="detailDialogVisible" :width="detailDialog.width" top="6vh" class="detail-dialog">
+                <template #header>
+                    <div class="dialog-header-gradient" style="background: linear-gradient(135deg, #1890ff, #36cfc9);">
+                        <div class="dialog-title-icon" style="background: rgba(255,255,255,0.2);">📄</div>
+                        <div>
+                            <div class="dialog-title-text">信息详细总览</div>
+                            <div class="dialog-title-sub">当前条目的所有关联属性字段解析</div>
+                        </div>
+                    </div>
+                </template>
+                <div class="detail-shell">
+                    <div class="detail-hero">
+                        <div class="detail-hero__media">
+                            <el-image v-if="detailDialog.avatar" :src="detailDialog.avatar"
+                                :preview-src-list="[detailDialog.avatar]" :hide-on-click-modal="true" teleported
+                                class="detail-hero__image" fit="cover"></el-image>
+                            <el-avatar v-else :size="84" class="detail-hero__image">{{ detailDialog.avatarFallback || '?'
+                                }}</el-avatar>
+                        </div>
+                        <div class="detail-hero__content">
+                            <div class="detail-hero__eyebrow">{{ detailDialog.eyebrow }}</div>
+                            <div class="detail-hero__title">{{ detailDialog.title }}</div>
+                            <div class="detail-hero__subtitle">{{ detailDialog.subtitle }}</div>
+                            <div class="detail-hero__tags">
+                                <el-tag v-for="(tag, index) in detailDialog.tags" :key="index" :type="tag.type || 'info'"
+                                    effect="light">{{ tag.label }}</el-tag>
+                            </div>
+                        </div>
+                    </div>
+                    <el-card shadow="never" class="detail-panel">
+                        <template #header>
+                            <div class="detail-panel__title">{{ detailDialog.sectionTitle }}</div>
+                        </template>
+                        <el-descriptions :column="detailDialog.columns || 2" border class="detail-descriptions">
+                            <el-descriptions-item v-for="(item, index) in detailDialog.items" :key="index"
+                                :label="item.label" :span="item.span || 1">
+                                <template v-if="item.kind === 'image' && item.image">
+                                    <el-image :src="item.image" :preview-src-list="[item.image]" :hide-on-click-modal="true"
+                                        teleported class="detail-inline-image" fit="cover"></el-image>
+                                </template>
+                                <template v-else>
+                                    <span class="detail-field"
+                                        :class="{ 'is-muted': item.kind === 'muted', 'is-money': item.kind === 'money' }">{{
+                                        item.value }}</span>
+                                </template>
+                            </el-descriptions-item>
+                        </el-descriptions>
+                    </el-card>
+                </div>
+                <template #footer>
+                    <div class="dialog-footer-bar">
+                        <el-button @click="detailDialogVisible=false">关 闭</el-button>
+                    </div>
+                </template>
+                <div class="detail-actions"><el-button @click="detailDialogVisible = false">关闭</el-button></div>
+            </el-dialog>
+
+            <!-- 弹窗：全局密码修改 -->
+            <el-dialog v-model="pwdDialogVisible" width="450px" custom-class="modern-dialog">
+                <template #header>
+                    <div class="dialog-header-gradient">
+                        <div class="dialog-title-icon" style="background: linear-gradient(135deg, #a18cd1, #fbc2eb);">🔐
+                        </div>
+                        <div>
+                            <div class="dialog-title-text">安全重置密码</div>
+                            <div class="dialog-title-sub">定期更新您的登录密码保障账号安全</div>
+                        </div>
+                    </div>
+                </template>
+                <div class="dialog-body-padding">
+                    <el-form :model="pwdForm" label-width="90px">
+                        <el-form-item label="当前密码" required><el-input type="password" v-model="pwdForm.oldHash"
+                                show-password /></el-form-item>
+                        <el-form-item label="新设密码" required><el-input type="password" v-model="pwdForm.newHash"
+                                show-password /></el-form-item>
+                    </el-form>
+                </div>
+                <template #footer>
+                    <div class="dialog-footer-bar">
+                        <el-button @click="pwdDialogVisible=false">搁置</el-button>
+                        <el-button type="primary" @click="changePwd">确认锁定</el-button>
+                    </div>
+                </template>
+            </el-dialog>
+
+            <!-- 弹窗：完善个人信息-->
+            <el-dialog v-model="empEditDialogVisible" width="600px" custom-class="modern-dialog">
+                <template #header>
+                    <div class="dialog-header-gradient">
+                        <div class="dialog-title-icon">✏️</div>
+                        <div>
+                            <div class="dialog-title-text">员工信息维护</div>
+                            <div class="dialog-title-sub">您只可修改通讯与基础资料，职务与薪资等信息如需变更请联系人事</div>
+                            </div>
+                        </div>
+                </template>
+                <div class="dialog-body-padding">
+                    <el-form :model="empEditForm" label-width="90px">
+                        <!-- 基础不可修改信息 (只读） -->
+                        <el-row :gutter="20">
+                            <el-col :span="12">
+                                <el-form-item label="工号"><el-input v-model="empProfile.empNo"
+                                        disabled></el-input></el-form-item>
+                            </el-col>
+                            <el-col :span="12">
+                                <el-form-item label="所在部门"><el-input v-model=" empProfile.deptName"
+                                        disabled></el-input></el-form-item>
+                            </el-col>
+                        </el-row>
+                        <el-row :gutter="20">
+                            <el-col :span="12">
+                                <el-form-item label="当前岗位"><el-input
+                                        :model-value="empProfile.positionName || empProfile.position"
+                                        disabled></el-input></el-form-item>
+                            </el-col>
+                            <el-col :span="12">
+                                <el-form-item label="入职时间"><el-input v-model="empProfile.hireDate"
+                                        disabled></el-input></el-form-item>
+                            </el-col>
+                        </el-row>
+
+                        <el-divider border-style="dashed">以下资料可变更</el-divider>
+
+                        <el-row :gutter="20">
+                            <el-col :span="12">
+                                <el-form-item label="真实姓名"><el-input v-model="empEditForm.realName"
+                                        placeholder="员工真实姓名"></el-input></el-form-item>
+                            </el-col>
+                            <el-col :span="12">
+                                <el-form-item label="性别">
+                                    <el-radio-group v-model="empEditForm.gender">
+                                        <el-radio :label="1">男</el-radio>
+                                        <el-radio :label="0">女</el-radio>
+                                    </el-radio-group>
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                        <el-form-item label="身份证号"><el-input v-model="empEditForm.idCard"
+                                placeholder="请输入身份证号"></el-input></el-form-item>
+                        <el-form-item label="手机号"><el-input v-model="empEditForm.phone"
+                                placeholder="请输入手机号"></el-input></el-form-item>
+                        <el-form-item label="银行卡号"><el-input v-model="empEditForm.bankCard"
+                                placeholder="请输入银行卡号"></el-input></el-form-item>
+                    </el-form>
+                </div>
+                <template #footer>
+                    <div class="dialog-footer-bar">
+                        <el-button @click="empEditDialogVisible=false">取消</el-button>
+                        <el-button type="primary" @click="saveEmpProfile">保存更新</el-button>
+                    </div>
+                </template>
+            </el-dialog>
+
+            <!-- 统一组件 -->
+            <el-dialog v-model="noticeVisible" width="600px" custom-class="modern-dialog">
+                <template #header>
+                    <div class="dialog-header-gradient">
+                        <div class="dialog-title-icon">📢</div>
+                        <div>
+                            <div class="dialog-title-text">公告阅览</div>
+                            <div class="dialog-title-sub">公司最新通知与政策发布</div>
+                        </div>
+                    </div>
+                </template>
+                <div class="dialog-body-padding" style="padding-top: 10px; padding-bottom: 30px;">
+                    <h2 style="text-align:center;margin-bottom:10px;color:#1a3d5c;">{{ currentUserNotice.title }}</h2>
+                    <div style="text-align:center;color:#999;font-size:13px;margin-bottom:20px;">发布时间：{{
+                        currentUserNotice.pubTime }}</div>
+                    <div style="line-height:1.8; color:#444; font-size:15px; white-space:pre-wrap;">{{
+                        currentUserNotice.content }}</div>
+                </div>
+            </el-dialog>
+
+            <!-- 弹窗：发起考勤申请 -->
+            <el-dialog v-model="applyDialogVisible" width="550px" custom-class="modern-dialog">
+                <template #header>
+                    <div class="dialog-header-gradient">
+                        <div class="dialog-title-icon">📝</div>
+                        <div>
+                            <div class="dialog-title-text">新建考勤异动申请工单</div>
+                            <div class="dialog-title-sub">提交补签、请假或加班异动申请</div>
+                        </div>
+                    </div>
+                </template>
+                <div class="dialog-body-padding">
+                    <el-form :model="applyForm" label-width="90px">
+                        <el-form-item label="涉事日期" required><el-date-picker v-model="applyForm.applyDate" type="date"
+                                value-format="YYYY-MM-DD" style="width:100%" /></el-form-item>
+                        <el-form-item label="申请类型" required>
+                            <el-select v-model="applyForm.applyType" style="width:100%">
+                                <el-option label="忘打卡补签" :value="1"></el-option>
+                                <el-option label="病事假报备" :value="2"></el-option>
+                                <el-option label="法定节假加班" :value="3"></el-option>
+                                <el-option label="排班异常异议" :value="4"></el-option>
+                            </el-select>
+                        </el-form-item>
+                        <el-form-item label="申请原因" required><el-input type="textarea" :rows="3"
+                                v-model="applyForm.reason" placeholder="简述前因后果..." /></el-form-item>
+                    </el-form>
+                </div>
+                <template #footer>
+                    <div class="dialog-footer-bar">
+                        <el-button @click="applyDialogVisible=false">搁置</el-button>
+                        <el-button type="primary" @click="submitApply">投递至经理桌面</el-button>
+                    </div>
+                </template>
+            </el-dialog>
+
+            <!-- 弹窗：异常上报 -->
+            <el-dialog v-model="anomalyDialogVisible" width="550px" custom-class="modern-dialog">
+                <template #header>
+                    <div class="dialog-header-gradient">
+                        <div class="dialog-title-icon" style="background: linear-gradient(135deg, #ff8f8f, #f25555);">🚨
+                        </div>
+                        <div>
+                            <div class="dialog-title-text">系统及考勤录入异常上报专线</div>
+                            <div class="dialog-title-sub">紧急反馈系统崩溃或重大运转故障</div>
+                        </div>
+                    </div>
+                </template>
+                <div class="dialog-body-padding">
+                    <el-form :model="anomalyForm" label-width="90px">
+                        <el-form-item label="故障月份" required><el-date-picker v-model="anomalyForm.yearMonth" type="month"
+                                value-format="YYYY-MM" style="width:100%" /></el-form-item>
+                        <el-form-item label="故障类型" required>
+                            <el-select v-model="anomalyForm.reportType" style="width:100%">
+                                <el-option label="考勤机同步漏电" :value="1"></el-option>
+                                <el-option label="薪资公式计算错" :value="2"></el-option>
+                                <el-option label="平台崩溃或BUG" :value="3"></el-option>
+                            </el-select>
+                        </el-form-item>
+                        <el-form-item label="故障长标" required><el-input v-model="anomalyForm.title"
+                                placeholder="一句话概括" /></el-form-item>
+                        <el-form-item label="复现细节"><el-input type="textarea" :rows="3" v-model="anomalyForm.description"
+                                placeholder="请详细阐述情况..." /></el-form-item>
+                    </el-form>
+                </div>
+                <template #footer>
+                    <div class="dialog-footer-bar">
+                        <el-button @click="anomalyDialogVisible=false">搁置</el-button>
+                        <el-button type="danger" @click="submitAnomaly">立刻拉响警报</el-button>
+                    </div>
+                </template>
+            </el-dialog>
+
+            <!-- 弹窗：薪资投诉 -->
+            <el-dialog v-model="feedbackDialogVisible" width="550px" custom-class="modern-dialog">
+                <template #header>
+                    <div class="dialog-header-gradient">
+                        <div class="dialog-title-icon" style="background: linear-gradient(135deg, #f7c45c, #f0a22e);">📬
+                        </div>
+                        <div>
+                            <div class="dialog-title-text">投诉反馈</div>
+                            <div class="dialog-title-sub">向行政组反馈您的诉求与特殊困难</div>
+                        </div>
+                    </div>
+                </template>
+                <div class="dialog-body-padding">
+                    <el-form :model="feedbackForm" label-width="90px">
+                        <el-form-item label="反馈类型">
+                            <el-tag type="warning">投诉反馈</el-tag>
+                        </el-form-item>
+                        <el-form-item label="反馈标题" required><el-input v-model="feedbackForm.title"
+                                placeholder="例如：排班异常、系统问题、工作特殊情况"></el-input></el-form-item>
+                        <el-form-item label="详细说明"><el-input type="textarea" :rows="3" v-model="feedbackForm.content"
+                                placeholder="请说明问题经过、影响范围和期望处理方式..."></el-input></el-form-item>
+                    </el-form>
+                </div>
+                <template #footer>
+                    <div class="dialog-footer-bar">
+                        <el-button @click="feedbackDialogVisible=false">取消</el-button>
+                        <el-button type="warning" @click="submitFeedback">提交投诉反馈</el-button>
+                    </div>
+                </template>
+            </el-dialog>
+
+            <el-dialog v-model="salaryFeedbackDialogVisible" width="560px" custom-class="modern-dialog">
+                <template #header>
+                    <div class="dialog-header-gradient">
+                        <div class="dialog-title-icon" style="background: linear-gradient(135deg, #f7c45c, #f0a22e);">💰
+                        </div>
+                        <div>
+                            <div class="dialog-title-text">薪资反馈工单</div>
+                            <div class="dialog-title-sub">就当前核算的工资与津贴明细提出异议</div>
+                        </div>
+                    </div>
+                </template>
+                <div class="dialog-body-padding">
+                    <el-form :model="salaryFeedbackForm" label-width="95px">
+                        <el-form-item label="反馈类型" required>
+                            <el-select v-model="salaryFeedbackForm.feedbackType" style="width:100%">
+                                <el-option label="工资/津贴异议" :value="1"></el-option>
+                                <el-option label="绩效/个税异议" :value="2"></el-option>
+                            </el-select>
+                        </el-form-item>
+                        <el-form-item label="反馈标题" required><el-input v-model="salaryFeedbackForm.title"
+                                placeholder="例如：2026-04 绩效奖金核算有误" /></el-form-item>
+                        <el-form-item label="详细说明"><el-input type="textarea" :rows="3"
+                                v-model="salaryFeedbackForm.content"
+                                placeholder="请说明您认为有异议的工资项、金额或依据..." /></el-form-item>
+                    </el-form>
+                </div>
+                <template #footer>
+                    <div class="dialog-footer-bar">
+                        <el-button @click="salaryFeedbackDialogVisible=false">取消</el-button>
+                        <el-button type="warning" @click="submitSalaryFeedback">提交薪资反馈</el-button>
+                    </div>
+                </template>
+            </el-dialog>
+
         </div>
 
-    </div>
-
-    <!-- 弹窗：全局密码修改 -->
-    <el-dialog title="安全重置密码" v-model="pwdDialogVisible" width="400px">
-        <el-form :model="pwdForm" label-width="90px">
-            <el-form-item label="当前密码" required><el-input type="password" v-model="pwdForm.oldHash" show-password/></el-form-item>
-            <el-form-item label="新设密码" required><el-input type="password" v-model="pwdForm.newHash" show-password/></el-form-item>
-        </el-form>
-        <template #footer><el-button @click="pwdDialogVisible=false">搁置</el-button><el-button type="primary" @click="changePwd">确认锁定</el-button></template>
-    </el-dialog>
-
-    <!-- 统一组件区 -->
-    <el-dialog title="公告阅览" v-model="noticeVisible" width="600px">
-        <h2 style="text-align:center;margin-bottom:10px;">{{ currentUserNotice.title }}</h2>
-        <div style="text-align:center;color:#999;font-size:13px;margin-bottom:20px;">发布时间：{{ currentUserNotice.pubTime }}</div>
-        <div style="line-height:1.8; color:#444;">{{ currentUserNotice.content }}</div>
-    </el-dialog>
-
-    <!-- 弹窗：发起考勤申请 -->
-    <el-dialog title="新建考勤异动申请工单" v-model="applyDialogVisible" width="500px">
-        <el-form :model="applyForm" label-width="90px">
-            <el-form-item label="涉事日期" required><el-date-picker v-model="applyForm.applyDate" type="date" value-format="YYYY-MM-DD" style="width:100%"/></el-form-item>
-            <el-form-item label="申请类型" required>
-                <el-select v-model="applyForm.applyType" style="width:100%">
-                    <el-option label="忘打卡补签" :value="1"></el-option>
-                    <el-option label="病事假报告" :value="2"></el-option>
-                    <el-option label="法定节假加班" :value="3"></el-option>
-                    <el-option label="排班异常异议" :value="4"></el-option>
-                </el-select>
-            </el-form-item>
-            <el-form-item label="申请原因" required><el-input type="textarea" v-model="applyForm.reason" placeholder="简述前因后果..."/></el-form-item>
-        </el-form>
-        <template #footer><el-button @click="applyDialogVisible=false">搁置</el-button><el-button type="primary" @click="submitApply">投递至经理桌面</el-button></template>
-    </el-dialog>
-
-    <!-- 弹窗：异常上报 -->
-    <el-dialog title="系统及考勤录入异常上报专线" v-model="anomalyDialogVisible" width="500px">
-        <el-form :model="anomalyForm" label-width="90px">
-            <el-form-item label="故障月份" required><el-date-picker v-model="anomalyForm.yearMonth" type="month" value-format="YYYY-MM" style="width:100%"/></el-form-item>
-            <el-form-item label="故障类型" required>
-                <el-select v-model="anomalyForm.reportType" style="width:100%">
-                    <el-option label="考勤机同步漏打" :value="1"></el-option>
-                    <el-option label="薪资公式计算错" :value="2"></el-option>
-                    <el-option label="平台崩溃或BUG" :value="3"></el-option>
-                </el-select>
-            </el-form-item>
-            <el-form-item label="故障长标题" required><el-input v-model="anomalyForm.title" placeholder="一句话概括"/></el-form-item>
-            <el-form-item label="复现细节"><el-input type="textarea" v-model="anomalyForm.description" placeholder="请详细阐述情况..."/></el-form-item>
-        </el-form>
-        <template #footer><el-button @click="anomalyDialogVisible=false">搁置</el-button><el-button type="danger" @click="submitAnomaly">立刻拉响警报</el-button></template>
-    </el-dialog>
-
-    <!-- 弹窗：薪资投诉 -->
-    <el-dialog title="薪资核算异议专线" v-model="feedbackDialogVisible" width="500px">
-        <el-form :model="feedbackForm" label-width="90px">
-            <el-form-item label="异议方向" required>
-                <el-select v-model="feedbackForm.feedbackType" style="width:100%">
-                    <el-option label="底薪核发明显违规" :value="1"></el-option>
-                    <el-option label="绩效奖金计算有误" :value="2"></el-option>
-                    <el-option label="其他金钱克扣行为" :value="3"></el-option>
-                </el-select>
-            </el-form-item>
-            <el-form-item label="主要诉求" required><el-input v-model="feedbackForm.title" placeholder="要求修正某月数据"/></el-form-item>
-            <el-form-item label="事由证据"><el-input type="textarea" v-model="feedbackForm.content" placeholder="请罗列您的打卡或其他支持证据..."/></el-form-item>
-        </el-form>
-        <template #footer><el-button @click="feedbackDialogVisible=false">搁置</el-button><el-button type="warning" @click="submitFeedback">向核算组施压投递</el-button></template>
-    </el-dialog>
-
-</div>
-
-<script>
-const { createApp, ref, reactive, onMounted } = Vue;
-
-axios.interceptors.request.use(cfg => {
-    const token = localStorage.getItem('token');
-    if (token) cfg.headers['Authorization'] = token;
-    return cfg;
-});
-axios.interceptors.response.use(res => res, err => {
-    if (err.response?.status === 401) {
-        localStorage.clear();
-        window.location.href = '/api/login.html';
-    }
-    return Promise.reject(err);
-});
-
-createApp({
-    setup() {
-        const userInfo = ref({});
-        const currentMenu = ref('home');
-        
-        // 首页数据
-        const WEBSITE_CONTENT_STORAGE_KEY = 'salaryWebsiteContent';
-        const normalizeFilledImages = (images, fallback = []) => {
-            const list = Array.isArray(images) ? images.filter(item => !!item) : [];
-            return list.length ? list : [...fallback];
-        };
-        const syncAboutImagesByCarousel = (aboutImages, carouselImages) => {
-            return carouselImages.map((_, index) => Array.isArray(aboutImages) ? (aboutImages[index] || '') : '');
-        };
-        const createDefaultWebsiteContent = () => ({
-            portalTitle: '基于Java的员工薪资管理系统设计与实现',
-            aboutTitle: '关于我们',
-            aboutSubtitle: 'ABOUT US',
-            aboutContent: '欢迎访问员工薪资管理系统门户。这里用于展示企业网站的轮播图、关于我们介绍和通知公告栏目内容，方便管理员统一维护网站首页展示信息。',
-            systemIntroTitle: '系统简介',
-            systemIntroContent: '本系统主要用于管理员、部门经理和员工对薪资、考勤、绩效及公告信息进行统一管理。',
-            systemIntroImage: '/api/front_assets/aboutus_picture1.jpg',
-            noticeSectionTitle: '通知公告',
-            carouselImages: [
-                '/api/front_assets/picture1.jpg',
-                '/api/front_assets/picture2.jpg',
-                '/api/front_assets/picture3.jpg'
-            ],
-            aboutImages: [
-                '/api/front_assets/aboutus_picture1.jpg',
-                '/api/front_assets/aboutus_picture2.jpg',
-                '/api/front_assets/aboutus_picture3.jpg'
-            ]
-        });
-        const websiteContent = reactive(createDefaultWebsiteContent());
-        const syncWebsiteContent = () => {
-            const defaults = createDefaultWebsiteContent();
-            
-            // 优先从数据库拉取
-            axios.get('/api/sys-config/website_content').then(r => {
-                if (r.data.code === 200 && r.data.data) {
-                    try {
-                        const stored = JSON.parse(r.data.data.configValue || '{}');
-                        Object.assign(websiteContent, defaults, stored);
-                        websiteContent.carouselImages = normalizeFilledImages(stored.carouselImages, defaults.carouselImages);
-                        websiteContent.aboutImages = syncAboutImagesByCarousel(stored.aboutImages, websiteContent.carouselImages);
-                        websiteContent.systemIntroImage = stored.systemIntroImage || defaults.systemIntroImage;
-                        document.title = websiteContent.portalTitle;
-                        return;
-                    } catch(e) { console.error('Parse remote config error'); }
+        <script>
+            const { createApp, ref, reactive, onMounted, computed } = Vue;
+            const ADMIN_TOKEN_KEY = 'adminToken';
+            const ADMIN_USER_KEY = 'adminUserInfo';
+            const EMPLOYEE_TOKEN_KEY = 'employeeToken';
+            const EMPLOYEE_USER_KEY = 'employeeUserInfo';
+            const LEGACY_TOKEN_KEY = 'token';
+            const LEGACY_USER_KEY = 'userInfo';
+            const readStoredJson = (key) => {
+                try {
+                    return JSON.parse(localStorage.getItem(key) || '{}');
+                } catch (error) {
+                    return {};
                 }
-                loadLocalWebsiteContent(defaults);
-            }).catch(() => loadLocalWebsiteContent(defaults));
-        };
-        const loadLocalWebsiteContent = (defaults) => {
-            try {
-                const stored = JSON.parse(localStorage.getItem(WEBSITE_CONTENT_STORAGE_KEY) || '{}');
-                Object.assign(websiteContent, defaults, stored);
-                websiteContent.carouselImages = normalizeFilledImages(stored.carouselImages, defaults.carouselImages);
-                websiteContent.aboutImages = syncAboutImagesByCarousel(stored.aboutImages, websiteContent.carouselImages);
-                websiteContent.systemIntroImage = stored.systemIntroImage || defaults.systemIntroImage;
-            } catch (error) {
-                Object.assign(websiteContent, defaults);
-            }
-            document.title = websiteContent.portalTitle;
-        };
-        const noticeList = ref([]);
-        const noticeVisible = ref(false);
-        const currentUserNotice = ref({});
-
-        // 数据池
-        const myAttendances = ref([]);
-        const myApplies = ref([]);
-        const mySalaries = ref([]);
-        const myAnomalies = ref([]);
-        const myFeedbacks = ref([]);
-
-        // 密码
-        const pwdDialogVisible = ref(false);
-        const pwdForm = reactive({ oldHash: '', newHash: '' });
-
-        // 表单实体
-        const applyDialogVisible = ref(false);
-        const applyForm = reactive({ applyDate:'', applyType:1, reason:'' });
-
-        const anomalyDialogVisible = ref(false);
-        const anomalyForm = reactive({ yearMonth:'', reportType:1, title:'', description:'' });
-
-        const feedbackDialogVisible = ref(false);
-        const feedbackForm = reactive({ feedbackType:1, title:'', content:'' });
-
-        // 员工个人详细档案（从后端拉完整信息）
-        const empProfile = reactive({ id:'', empNo:'', realName:'', gender:'', phone:'', idCard:'', deptName:'', positionName:'', position:'', baseSalary:null, bankCard:'', hireDate:'', managerNo:'', managerName:'', avatar:'' });
-        const empEditForm = reactive({ phone:'', bankCard:'' });
-        const loadSelfProfile = () => {
-            axios.get('/api/auth/me').then(r => {
-                if (r.data.code === 200 && r.data.data) {
-                    Object.assign(empProfile, r.data.data);
-                    empEditForm.phone = empProfile.phone || '';
-                    empEditForm.bankCard = empProfile.bankCard || '';
+            };
+            const clearLegacyAuth = () => {
+                localStorage.removeItem(LEGACY_TOKEN_KEY);
+                localStorage.removeItem(LEGACY_USER_KEY);
+            };
+            const clearEmployeeAuth = () => {
+                localStorage.removeItem(EMPLOYEE_TOKEN_KEY);
+                localStorage.removeItem(EMPLOYEE_USER_KEY);
+                clearLegacyAuth();
+            };
+            const saveEmployeeAuth = (token, payload = {}) => {
+                localStorage.setItem(EMPLOYEE_TOKEN_KEY, token);
+                localStorage.setItem(EMPLOYEE_USER_KEY, JSON.stringify(payload));
+            };
+            const saveAdminAuth = (token, payload = {}) => {
+                localStorage.setItem(ADMIN_TOKEN_KEY, token);
+                localStorage.setItem(ADMIN_USER_KEY, JSON.stringify(payload));
+            };
+            const getEmployeeToken = () => localStorage.getItem(EMPLOYEE_TOKEN_KEY) || '';
+            const getAdminToken = () => localStorage.getItem(ADMIN_TOKEN_KEY) || '';
+            const getEmployeeUserInfo = () => readStoredJson(EMPLOYEE_USER_KEY);
+            const migrateLegacyAuth = () => {
+                const legacyToken = localStorage.getItem(LEGACY_TOKEN_KEY);
+                if (!legacyToken) return;
+                if (getEmployeeToken() || getAdminToken()) {
+                    clearLegacyAuth();
                     return;
                 }
-                fallbackLoadSelf();
-            }).catch(() => fallbackLoadSelf());
-        };
-        const fallbackLoadSelf = () => {
-            const empNo = userInfo.value.empNo || userInfo.value.username;
-            if (!empNo) return;
-            axios.get('/api/employee/page', { params: { empNo, size: 5 } }).then(r => {
-                const row = r.data.data?.records?.[0] || r.data.data?.[0];
-                if (row) {
-                    Object.assign(empProfile, row);
-                    empEditForm.phone = empProfile.phone || '';
-                    empEditForm.bankCard = empProfile.bankCard || '';
+                const legacyUser = readStoredJson(LEGACY_USER_KEY);
+                const legacyRole = Number(legacyUser.role || 0);
+                if (legacyRole === 3) {
+                    localStorage.setItem(EMPLOYEE_TOKEN_KEY, legacyToken);
+                    localStorage.setItem(EMPLOYEE_USER_KEY, JSON.stringify(legacyUser));
+                } else if (legacyRole === 1 || legacyRole === 2) {
+                    localStorage.setItem(ADMIN_TOKEN_KEY, legacyToken);
+                    localStorage.setItem(ADMIN_USER_KEY, JSON.stringify(legacyUser));
                 }
-            }).catch(() => {});
-        };
-        const saveEmpProfile = () => {
-            if (!empProfile.id) return ElementPlus.ElMessage.warning('未获取到员工ID，无法保存');
-            axios.put('/api/employee', { id: empProfile.id, phone: empEditForm.phone, bankCard: empEditForm.bankCard }).then(r => {
-                if (r.data.code === 200) {
-                    ElementPlus.ElMessage.success('保存成功');
-                    empProfile.phone = empEditForm.phone;
-                    empProfile.bankCard = empEditForm.bankCard;
-                } else ElementPlus.ElMessage.error(r.data.message || '保存失败');
+                clearLegacyAuth();
+            };
+
+            axios.interceptors.request.use(cfg => {
+                const token = getEmployeeToken();
+                if (token) cfg.headers['Authorization'] = token;
+                return cfg;
             });
-        };
-
-        // --- 初始化操作 ---
-        const initUser = async () => {
-            const token = localStorage.getItem('token');
-            if(!token) { window.location.href = '/api/login.html'; return; }
-            Object.assign(userInfo.value, JSON.parse(localStorage.getItem('userInfo') || '{}'));
-            loadSelfProfile();
-            if(userInfo.value.role === 3) {
-                loadMyData();
-            }
-        };
-
-        const loadNotices = () => {
-            axios.get('/api/announcement/list', { params: { page:1, size:6 } }).then(r => {
-                if(r.data.code === 200) noticeList.value = (r.data.data?.records || r.data.data || []).slice(0, 6);
+            axios.interceptors.response.use(res => res, err => {
+                if (err.response?.status === 401) {
+                    clearEmployeeAuth();
+                    window.location.href = '/api/login.html';
+                }
+                return Promise.reject(err);
             });
-        };
 
-        const loadMyData = () => {
-            // 一次性拉满 C 端本人的业务流水
-            const eid = userInfo.value.id;
-            axios.get('/api/attendance/page', { params: { empId:eid, current:1, size:50 } }).then(r => myAttendances.value = r.data?.data?.records||[]);
-            axios.get('/api/attendance-apply/page', { params: { empId:eid, current:1, size:50 } }).then(r => myApplies.value = r.data?.data?.records||[]);
-            axios.get('/api/salary/page', { params: { empId:eid, current:1, size:50 } }).then(r => mySalaries.value = r.data?.data?.records||[]);
-            axios.get('/api/anomaly/page', { params: { empId:eid, current:1, size:50 } }).then(r => myAnomalies.value = r.data?.data?.records||[]);
-            axios.get('/api/feedback/page', { params: { empId:eid, current:1, size:50 } }).then(r => myFeedbacks.value = r.data?.data?.records||[]);
-        };
+            createApp({
+                setup() {
+                    const userInfo = ref({});
+                    const currentMenu = ref('home');
+                    const normalizeUserRole = () => {
+                        const normalizedRole = Number(userInfo.value.role || 0);
+                        userInfo.value = { ...userInfo.value, role: normalizedRole };
+                        localStorage.setItem(EMPLOYEE_USER_KEY, JSON.stringify(userInfo.value));
+                        return normalizedRole;
+                    };
+                    const syncEmployeeUserInfo = (payload = {}) => {
+                        userInfo.value = { ...userInfo.value, ...payload };
+                        localStorage.setItem(EMPLOYEE_USER_KEY, JSON.stringify(userInfo.value));
+                    };
 
-        const handleSelect = (key) => {
-            currentMenu.value = key;
-            if (key === 'profile') loadSelfProfile();
-        };
+                    // 首页数据
+                    const WEBSITE_CONTENT_STORAGE_KEY = 'salaryWebsiteContent';
+                    const normalizeFilledImages = (images, fallback = []) => {
+                        const list = Array.isArray(images) ? images.filter(item => !!item) : [];
+                        return list.length ? list : [...fallback];
+                    };
+                    const syncAboutImagesByCarousel = (aboutImages, carouselImages) => {
+                        return carouselImages.map((_, index) => Array.isArray(aboutImages) ? (aboutImages[index] || '') : '');
+                    };
+                    const createDefaultWebsiteContent = () => ({
+                        portalTitle: '基于Java的员工薪资管理系统设计与实现',
+                        aboutTitle: '关于我们',
+                        aboutSubtitle: '',
+                        aboutContent: '欢迎访问员工薪资管理系统门户。这里用于展示企业网站的轮播图、关于我们介绍和通知公告栏目内容，方便管理员统一维护网站首页展示信息。',
+                        systemIntroTitle: '系统简介',
+                        systemIntroContent: '本系统主要用于管理员、部门经理和员工对薪资、考勤、绩效及公告信息进行统一管理。',
+                        systemIntroImage: '/api/front_assets/aboutus_picture1.jpg',
+                        noticeSectionTitle: '通知公告',
+                        carouselImages: [
+                            '/api/front_assets/picture1.jpg',
+                            '/api/front_assets/picture2.jpg',
+                            '/api/front_assets/picture3.jpg'
+                        ],
+                        aboutImages: [
+                            '/api/front_assets/aboutus_picture1.jpg',
+                            '/api/front_assets/aboutus_picture2.jpg',
+                            '/api/front_assets/aboutus_picture3.jpg'
+                        ]
+                    });
+                    const websiteContent = reactive(createDefaultWebsiteContent());
+                    const syncWebsiteContent = () => {
+                        const defaults = createDefaultWebsiteContent();
 
-        const handleCommand = (cmd) => {
-            if(cmd === 'admin') window.location.href = '/api/admin/index.html';
-            if(cmd === 'logout') {
-                localStorage.clear();
-                window.location.href = '/api/login.html';
-            }
-        };
+                        // 优先从数据库拉取
+                        axios.get('/api/sys-config/website_content').then(r => {
+                            if (r.data.code === 200 && r.data.data) {
+                                try {
+                                    const stored = JSON.parse(r.data.data.configValue || '{}');
+                                    Object.assign(websiteContent, defaults, stored);
+                                    websiteContent.carouselImages = normalizeFilledImages(stored.carouselImages, defaults.carouselImages);
+                                    websiteContent.aboutImages = syncAboutImagesByCarousel(stored.aboutImages, websiteContent.carouselImages);
+                                    websiteContent.systemIntroImage = stored.systemIntroImage || defaults.systemIntroImage;
+                                    document.title = websiteContent.portalTitle;
+                                    return;
+                                } catch (e) { console.error('Parse remote config error'); }
+                            }
+                            loadLocalWebsiteContent(defaults);
+                        }).catch(() => loadLocalWebsiteContent(defaults));
+                    };
+                    const loadLocalWebsiteContent = (defaults) => {
+                        try {
+                            const stored = JSON.parse(localStorage.getItem(WEBSITE_CONTENT_STORAGE_KEY) || '{}');
+                            Object.assign(websiteContent, defaults, stored);
+                            websiteContent.carouselImages = normalizeFilledImages(stored.carouselImages, defaults.carouselImages);
+                            websiteContent.aboutImages = syncAboutImagesByCarousel(stored.aboutImages, websiteContent.carouselImages);
+                            websiteContent.systemIntroImage = stored.systemIntroImage || defaults.systemIntroImage;
+                        } catch (error) {
+                            Object.assign(websiteContent, defaults);
+                        }
+                        document.title = websiteContent.portalTitle;
+                    };
+                    const noticeList = ref([]);
+                    const noticeCenterList = ref([]);
+                    const noticeVisible = ref(false);
+                    const currentUserNotice = ref({});
+                    const noticeSearch = reactive({ title: '' });
+                    const noticeCurrent = ref(1);
+                    const noticeSize = ref(6);
+                    const noticeTotal = ref(0);
+                    const noticeDetailLoading = ref(false);
+                    const noticeDetailSource = ref('notice');
+                    const noticeDetail = reactive({ id: '', title: '', content: '', coverImage: '', pubTime: '', pubUserName: '' });
 
-        const viewNotice = (n) => {
-            currentUserNotice.value = n;
-            noticeVisible.value = true;
-        };
+                    // 数据表
+                    const myAttendances = ref([]);
+                    const myApplies = ref([]);
+                    const mySalaries = ref([]);
+                    const myAnomalies = ref([]);
+                    const myFeedbacks = ref([]);
+                    const mySalaryFeedbacks = ref([]);
+                    const myTaxes = ref([]);
+                    const myPerformances = ref([]);
+                    const complaintRows = ref([]);
+                    const complaintCurrent = ref(1);
+                    const complaintSize = ref(10);
 
-        const changePwd = () => {
-            if(!pwdForm.oldHash || !pwdForm.newHash) return ElementPlus.ElMessage.warning('密码不能为空');
-            axios.put('/api/auth/change-password', null, { params: { oldPassword: pwdForm.oldHash, newPassword: pwdForm.newHash } }).then(r=>{
-                if(r.data.code===200) {
-                    ElementPlus.ElMessage.success('密码重新上锁成功，请牢记新密码。');
-                    pwdDialogVisible.value = false;
-                } else ElementPlus.ElMessage.error(r.data.message);
-            });
-        };
+                    // 通用详情弹窗逻辑
+                    const detailDialogVisible = ref(false);
+                    const detailDialog = reactive({
+                        width: '820px',
+                        eyebrow: '',
+                        title: '',
+                        subtitle: '',
+                        avatar: '',
+                        avatarFallback: '?',
+                        sectionTitle: '详细信息',
+                        columns: 2,
+                        tags: [],
+                        items: []
+                    });
+                    const detailSkipKeys = ['id', 'empId', 'empNo', 'empName', 'deptId', 'deptName', 'tenantId', 'isDeleted', 'replyUserId', 'reporterId', 'processorId', 'sourceType', 'statusTag', 'contentText', 'replyText', 'typeText', 'timeText', 'avatar', 'managerId', 'salaryRecordId', 'slipPublishTime', 'createTime', 'updateTime'];
+                    const detailTimeKeys = ['reviewTime', 'replyTime', 'processTime', 'createTime', 'updateTime', 'recordDate', 'payDate', 'slipPublishTime', 'pubTime', 'registerDate', 'anomalyDate'];
+                    const detailMoneyKeys = new Set(['baseSalary', 'perfBonus', 'allowance', 'overtimePay', 'netSalary', 'totalIncome', 'totalTaxFree', 'taxPaid', 'totalSocialSecurity', 'totalSpecialDeduct', 'accumulatedTaxable', 'accumGross', 'accumTax', 'accumTaxableIncome', 'accumSocialSecurity', 'accumSpecialDeduct', 'monthSpecialDeduct', 'monthSocialSecurity', 'monthFund', 'monthTax', 'monthTaxableIncome', 'socialSecurityEmp', 'attendDeduct', 'otherDeduct', 'incomeTax', 'totalDeduct', 'deductAmount', 'perfBonusRatio', 'qualifiedBonus', 'goodBonus', 'excellentBonus', 'fullAttendBonus', 'otherIncome', 'grossSalary']);
+                    const detailNegativeKeys = new Set(['socialSecurityEmp', 'attendDeduct', 'otherDeduct', 'incomeTax', 'totalDeduct', 'deductAmount']);
+                    const detailMutedKeys = new Set(['recordNo', 'managerId', 'managerNo', 'managerName', 'reviewUserId', 'replyUserName', 'bankAccount', 'bankCard', 'bankName', 'issueFile', 'attachment', 'remark', 'recordDate', 'payDate', 'pubTime', 'pubUserId', 'pubUserName', 'loginAccount', 'loginPassword', 'initialPassword', 'salaryRecordId']);
+                    const formatDateTimeText = (value) => {
+                        if (value === null || value === undefined || value === '') return '-';
+                        const text = String(value).trim();
+                        if (!text) return '-';
+                        return text.replace('T', ' ').replace('.000Z', '').replace('Z', '').slice(0, 19);
+                    };
+                    const createDetailTag = (label, type = 'info') => ({ label, type });
+                    const createDetailItem = (label, value, kind = 'text', extra = {}) => {
+                        const safeValue = value === null || value === undefined || value === '' ? '-' : value;
+                        return {
+                            label,
+                            value: safeValue,
+                            kind,
+                            span: extra.span || 1,
+                            image: kind === 'image' && safeValue !== '-' ? safeValue : '',
+                        };
+                    };
+                    const openDetailDialog = (payload = {}) => {
+                        detailDialog.width = payload.width || '820px';
+                        detailDialog.eyebrow = payload.eyebrow || '';
+                        detailDialog.title = payload.title || '详情';
+                        detailDialog.subtitle = payload.subtitle || '';
+                        detailDialog.avatar = payload.avatar || '';
+                        detailDialog.avatarFallback = payload.avatarFallback || ((payload.title || '?')[0]);
+                        detailDialog.sectionTitle = payload.sectionTitle || '详细信息';
+                        detailDialog.columns = payload.columns || 2;
+                        detailDialog.tags = Array.isArray(payload.tags) ? payload.tags : [];
+                        detailDialog.items = Array.isArray(payload.items) ? payload.items : [];
+                        detailDialogVisible.value = true;
+                    };
+                    const getApplyTypeText = (value) => ['', '补签', '请假', '加班申请', '考勤异议'][Number(value)] || '-';
+                    const getReportTypeText = (value) => ['', '考勤异常', '薪资异常', '系统异常'][Number(value)] || '异常上报';
+                    const getFeedbackTypeText = (value) => ['', '工资/津贴异议', '绩效/个税异议', '系统/工作问题'][Number(value)] || '投诉反馈';
+                    const getApplyStatusText = (value) => ['审批流转中', '经理已批准', '已驳回'][Number(value)] || '-';
+                    const getTicketStatusText = (value) => ['待处理', '处理中', '已解决', '已驳回'][Number(value)] || '-';
+                    const getTicketStatusTag = (value) => {
+                        if (Number(value) === 2) return 'success';
+                        if (Number(value) === 3) return 'info';
+                        if (Number(value) === 1) return 'warning';
+                        return 'danger';
+                    };
+                    const getSalaryStatusText = (value) => ['草稿', '待提交', '待审核', '待发放', '已到账'][Number(value)] || '-';
+                    const getSalaryStatusTag = (value) => {
+                        if (Number(value) >= 4) return 'success';
+                        if (Number(value) === 3) return 'primary';
+                        if (Number(value) === 2) return 'warning';
+                        return 'info';
+                    };
+                    const getGradeTagType = (grade, score) => {
+                        if (grade === '优秀' || Number(score) >= 86) return 'success';
+                        if (grade === '良好' || Number(score) >= 76) return 'primary';
+                        if (grade === '合格' || Number(score) >= 61) return 'warning';
+                        return 'danger';
+                    };
+                    const resolveEmployeeSalaryBaseSalary = (row = {}) => {
+                        const profileBaseSalary = Number(empProfile.baseSalary ?? userInfo.value.baseSalary ?? 0);
+                        if (profileBaseSalary > 0) return profileBaseSalary;
+                        return Number(row.baseSalary ?? 0);
+                    };
+                    const resolveEmployeeGrossSalary = (row = {}) => {
+                        const baseSalary = resolveEmployeeSalaryBaseSalary(row);
+                        const grossSalary = Number(
+                            row.grossSalary
+                            ?? (baseSalary
+                                + Number(row.allowance || 0)
+                                + Number(row.perfBonus || 0)
+                                + Number(row.overtimePay || 0)
+                                + Number(row.fullAttendBonus || 0)
+                                + Number(row.otherIncome || 0))
+                        );
+                        return Number.isFinite(grossSalary) ? grossSalary : 0;
+                    };
+                    const resolveEmployeeLinkedSalary = (taxRow = {}) => {
+                        const targetSalaryId = String(taxRow.salaryRecordId || '');
+                        const targetYearMonth = String(taxRow.yearMonth || '');
+                        return (mySalaries.value || []).find(row =>
+                            (targetSalaryId && String(row.id || '') === targetSalaryId)
+                            || (targetYearMonth && String(row.yearMonth || '') === targetYearMonth)
+                        ) || {};
+                    };
+                    const resolveEmployeeTaxSnapshot = (taxRow = {}) => {
+                        const linkedSalary = resolveEmployeeLinkedSalary(taxRow);
+                        const baseSalary = resolveEmployeeSalaryBaseSalary(linkedSalary);
+                        const socialSecurityEmp = Number(
+                            linkedSalary.socialSecurityEmp
+                            ?? ((Number(taxRow.monthSocialSecurity || 0) + Number(taxRow.monthFund || 0)) || 0)
+                        );
+                        const calcBase = baseSalary > 0 ? baseSalary : (socialSecurityEmp > 0 ? (socialSecurityEmp / 0.223) : 0);
+                        const normalizedBaseSalary = baseSalary > 0 ? baseSalary : Number(calcBase.toFixed(2));
+                        return {
+                            linkedSalary,
+                            baseSalary: normalizedBaseSalary,
+                            grossSalary: resolveEmployeeGrossSalary(linkedSalary),
+                            housingFund: Number((calcBase * 0.12).toFixed(2)),
+                            medicalInsurance: Number((calcBase * 0.02).toFixed(2)),
+                            pensionInsurance: Number((calcBase * 0.08).toFixed(2)),
+                            unemploymentInsurance: Number((calcBase * 0.003).toFixed(2)),
+                            socialSecurityEmp,
+                            incomeTax: Number(linkedSalary.incomeTax ?? taxRow.monthTax ?? 0),
+                            deductDate: ((linkedSalary.recordDate || linkedSalary.payDate || taxRow.yearMonth || taxRow.createTime || '') + '').slice(0, 10) || '-',
+                            managerNo: linkedSalary.managerNo || empProfile.managerNo || '-',
+                            managerName: linkedSalary.managerName || empProfile.managerName || '-',
+                            bankCard: linkedSalary.bankCard || linkedSalary.bankAccount || empProfile.bankCard || '-'
+                        };
+                    };
+                    const getDetailAvatar = (row = {}) => row.avatar || empProfile.avatar || userInfo.value.avatar || '';
+                    const getDetailName = (row = {}) => row.empName || empProfile.realName || userInfo.value.realName || '员工';
+                    const getDetailEmpNo = (row = {}) => row.empNo || empProfile.empNo || userInfo.value.empNo || userInfo.value.username || '-';
+                    const getDetailDeptName = (row = {}) => row.deptName || empProfile.deptName || userInfo.value.deptName || '-';
+                    const formatDetailAmount = (value, negative = false) => {
+                        const amount = Number(value ?? 0);
+                        if (!Number.isFinite(amount)) return value === null || value === undefined || value === '' ? '-' : value;
+                        const finalValue = negative ? (amount > 0 ? -amount : amount) : amount;
+                        return `${finalValue}`;
+                    };
+                    const detailLabelMap = {
+                        yearMonth: '账期月份',
+                        title: '标题',
+                        content: '反馈内容',
+                        reason: '申请事由',
+                        applyDate: '申请日期',
+                        status: '处理状态',
+                        replyContent: '官方回复',
+                        processResult: '处理结果',
+                        reportType: '上报类型',
+                        feedbackType: '反馈类型',
+                        baseSalary: '基本工资',
+                        perfBonus: '绩效奖金',
+                        allowance: '津贴',
+                        overtimePay: '加班工资',
+                        netSalary: '实发工资',
+                        taxYear: '汇算年度',
+                        totalIncome: '累计收入',
+                        totalTaxFree: '累计免税额',
+                        taxPaid: '已缴个税',
+                        workAttitude: '工作态度',
+                        businessSkill: '业务技能',
+                        workPerformance: '工作绩效',
+                        bonusDeduct: '员工考勤',
+                        totalScore: '总得分',
+                        score: '综合总分',
+                        grade: '绩效等级',
+                        evaluateRemark: '评审评语',
+                        evalComment: '评审评语',
+                        attendDays: '出勤天数',
+                        absentDays: '旷工天数',
+                        lateTimes: '迟到次数',
+                        leaveDays: '请假天数',
+                        sickLeaveDays: '病假天数',
+                        overtimeHours: '加班小时',
+                        attendHours: '出勤时长',
+                        fullAttendBonus: '全勤奖金',
+                        otherIncome: '其他收入',
+                        grossSalary: '应发工资（扣款前）',
+                        socialSecurityEmp: '五险一金',
+                        attendDeduct: '考勤扣款',
+                        otherDeduct: '其他扣款',
+                        incomeTax: '个税扣除',
+                        totalDeduct: '扣款合计',
+                        deductAmount: '扣款金额',
+                        calcStatus: '薪资状态',
+                        accumGross: '年度累计应发工资',
+                        accumTax: '年度累计已缴个税',
+                        accumTaxableIncome: '年度累计应纳税所得额',
+                        accumSocialSecurity: '年度累计社保',
+                        accumSpecialDeduct: '年度累计专项扣除',
+                        monthSpecialDeduct: '本月专项扣除',
+                        monthSocialSecurity: '本月社保',
+                        monthFund: '本月公积金',
+                        monthTax: '本月个税',
+                        totalSocialSecurity: '累计社保扣除',
+                        totalSpecialDeduct: '累计专项扣除',
+                        accumulatedTaxable: '累计应纳税所得额',
+                        monthTaxableIncome: '本月应纳税所得额',
+                        reviewComment: '审批意见',
+                        reviewTime: '审批时间',
+                        replyUserName: '回复人员',
+                        replyTime: '回复时间',
+                        processTime: '处理时间',
+                        description: '详细描述',
+                        managerNo: '经理工号',
+                        managerName: '部门经理',
+                        bankAccount: '发薪账户',
+                        bankCard: '银行卡号',
+                        bankName: '开户银行',
+                        remark: '备注',
+                        createTime: '创建时间',
+                        updateTime: '更新时间',
+                        recordDate: '登记日期',
+                        registerDate: '登记日期',
+                        payDate: '发放日期',
+                        slipPublished: '工资条发布状态',
+                        anomalyDate: '异常时间'
+                    };
+                    const getDetailLabel = (key) => detailLabelMap[key] || key;
+                    const getDetailDisplayValue = (key, value, row = {}) => {
+                        if (value === null || value === undefined || value === '') return '-';
+                        if (detailTimeKeys.includes(key)) return formatDateTimeText(value);
+                        if (key === 'gender') return Number(value) === 1 ? '男' : ((Number(value) === 0 || Number(value) === 2) ? '女' : value);
+                        if (key === 'applyType') return getApplyTypeText(value);
+                        if (key === 'reportType') return getReportTypeText(value);
+                        if (key === 'feedbackType') return getFeedbackTypeText(value);
+                        if (key === 'status') {
+                            if (Object.prototype.hasOwnProperty.call(row, 'applyType')) return getApplyStatusText(value);
+                            if (Object.prototype.hasOwnProperty.call(row, 'feedbackType') || Object.prototype.hasOwnProperty.call(row, 'reportType') || row.sourceType) return getTicketStatusText(value);
+                        }
+                        if (key === 'calcStatus') return getSalaryStatusText(value);
+                        if (key === 'slipPublished') return Number(value) === 1 ? '已发布' : '未发布';
+                        if (key === 'bonusDeduct') {
+                            const score = Number(value);
+                            return Number.isFinite(score) && score > 0 ? `+${score}` : value;
+                        }
+                        if (detailMoneyKeys.has(key)) return formatDetailAmount(value, detailNegativeKeys.has(key));
+                        return value;
+                    };
+                    const buildExtraDetailItems = (row = {}, usedKeys = []) => {
+                        const used = new Set([...detailSkipKeys, ...usedKeys]);
+                        return Object.keys(row).filter(key => {
+                            const value = row[key];
+                            return !used.has(key) && value !== null && value !== undefined && value !== '';
+                        }).map(key => createDetailItem(
+                            getDetailLabel(key),
+                            getDetailDisplayValue(key, row[key], row),
+                            detailMoneyKeys.has(key) ? 'money' : (detailMutedKeys.has(key) ? 'muted' : 'text')
+                        ));
+                    };
+                    const viewDetails = (row, type) => {
+                        const detailRow = { ...(row || {}) };
+                        const employeeName = getDetailName(detailRow);
+                        const employeeNo = getDetailEmpNo(detailRow);
+                        const deptName = getDetailDeptName(detailRow);
+                        const avatar = getDetailAvatar(detailRow);
+                        const avatarFallback = (employeeName || detailRow.title || '?')[0];
+                        if (type === 'attendance_apply') {
+                            const usedKeys = ['applyDate', 'applyType', 'reason', 'status', 'createTime', 'reviewTime', 'reviewComment', 'managerNo', 'managerName', 'attendanceId', 'proof'];
+                            openDetailDialog({
+                                eyebrow: '考勤申请',
+                                title: employeeName,
+                                subtitle: `${detailRow.applyDate || '-'} · ${deptName}`,
+                                avatar,
+                                avatarFallback,
+                                sectionTitle: '申请详情',
+                                tags: [
+                                    createDetailTag(getApplyTypeText(detailRow.applyType), 'primary'),
+                                    createDetailTag(getApplyStatusText(detailRow.status), Number(detailRow.status) === 1 ? 'success' : (Number(detailRow.status) === 2 ? 'danger' : 'warning'))
+                                ],
+                                items: [
+                                    createDetailItem('工号', employeeNo, 'muted'),
+                                    createDetailItem('申请日期', detailRow.applyDate || '-', 'muted'),
+                                    createDetailItem('申请类型', getApplyTypeText(detailRow.applyType)),
+                                    createDetailItem('审批状态', getApplyStatusText(detailRow.status)),
+                                    createDetailItem('提交时间', formatDateTimeText(detailRow.createTime), 'muted'),
+                                    createDetailItem('审批时间', formatDateTimeText(detailRow.reviewTime), 'muted'),
+                                    createDetailItem('申请事由', detailRow.reason || '-', 'text', { span: 2 }),
+                                    createDetailItem('审批意见', detailRow.reviewComment || '-', 'muted', { span: 2 }),
+                                    createDetailItem('经理工号', detailRow.managerNo || '-', 'muted'),
+                                    createDetailItem('部门经理', detailRow.managerName || '-', 'muted'),
+                                    ...buildExtraDetailItems(detailRow, usedKeys)
+                                ]
+                            });
+                            return;
+                        }
+                        if (type === 'salary') {
+                            const usedKeys = ['yearMonth', 'empNo', 'empName', 'deptName', 'bankCard', 'bankAccount', 'baseSalary', 'allowance', 'perfBonus', 'overtimePay', 'grossSalary', 'socialSecurityEmp', 'attendDeduct', 'otherDeduct', 'incomeTax', 'totalDeduct', 'deductAmount', 'netSalary', 'managerNo', 'managerName', 'managerId', 'calcStatus', 'slipPublished', 'slipPublishTime', 'payDate', 'recordDate', 'createTime', 'updateTime'];
+                            openDetailDialog({
+                                width: '900px',
+                                eyebrow: '薪资详情',
+                                title: employeeName,
+                                subtitle: `${detailRow.yearMonth || '-'} · ${deptName}`,
+                                avatar,
+                                avatarFallback,
+                                sectionTitle: '薪资构成',
+                                tags: [
+                                    createDetailTag(employeeNo, 'primary'),
+                                    createDetailTag(getSalaryStatusText(detailRow.calcStatus), getSalaryStatusTag(detailRow.calcStatus)),
+                                    createDetailTag(Number(detailRow.slipPublished) === 1 ? '工资条已发布' : '工资条未发布', Number(detailRow.slipPublished) === 1 ? 'success' : 'info')
+                                ],
+                                items: [
+                                    createDetailItem('银行卡号', detailRow.bankCard || detailRow.bankAccount || empProfile.bankCard || '-', 'muted'),
+                                    createDetailItem('发薪账户', detailRow.bankAccount || '未维护', 'muted'),
+                                    createDetailItem('基本工资', formatDetailAmount(resolveEmployeeSalaryBaseSalary(detailRow)), 'money'),
+                                    createDetailItem('津贴', formatDetailAmount(detailRow.allowance), 'money'),
+                                    createDetailItem('绩效奖金', formatDetailAmount(detailRow.perfBonus), 'money'),
+                                    createDetailItem('加班工资', formatDetailAmount(detailRow.overtimePay), 'money'),
+                                    createDetailItem('应发工资（扣款前）', formatDetailAmount(detailRow.grossSalary ?? resolveEmployeeGrossSalary(detailRow)), 'money'),
+                                    createDetailItem('五险一金', formatDetailAmount(detailRow.socialSecurityEmp, true), 'money'),
+                                    createDetailItem('考勤扣款', formatDetailAmount(detailRow.attendDeduct, true), 'money'),
+                                    createDetailItem('其他扣款', formatDetailAmount(detailRow.otherDeduct, true), 'money'),
+                                    createDetailItem('个税扣除', formatDetailAmount(detailRow.incomeTax, true), 'money'),
+                                    createDetailItem('扣款合计', formatDetailAmount(detailRow.totalDeduct ?? detailRow.deductAmount, true), 'money'),
+                                    createDetailItem('实发工资', formatDetailAmount(detailRow.netSalary), 'money'),
+                                    createDetailItem('发放日期', formatDateTimeText(detailRow.payDate), 'muted'),
+                                    createDetailItem('登记日期', formatDateTimeText(detailRow.recordDate), 'muted'),
+                                    createDetailItem('经理工号', detailRow.managerNo || empProfile.managerNo || '-', 'muted'),
+                                    createDetailItem('部门经理', detailRow.managerName || empProfile.managerName || '-', 'muted'),
+                                    ...buildExtraDetailItems(detailRow, usedKeys)
+                                ]
+                            });
+                            return;
+                        }
+                        if (type === 'salary-feedback') {
+                            const usedKeys = ['yearMonth', 'feedbackType', 'title', 'content', 'replyContent', 'status', 'createTime', 'replyTime'];
+                            openDetailDialog({
+                                eyebrow: '薪资反馈',
+                                title: detailRow.title || employeeName,
+                                subtitle: `${detailRow.yearMonth || '-'} · ${getFeedbackTypeText(detailRow.feedbackType)}`,
+                                avatar,
+                                avatarFallback,
+                                sectionTitle: '反馈内容',
+                                tags: [
+                                    createDetailTag(getFeedbackTypeText(detailRow.feedbackType), 'warning'),
+                                    createDetailTag(getTicketStatusText(detailRow.status), getTicketStatusTag(detailRow.status))
+                                ],
+                                items: [
+                                    createDetailItem('反馈账期', detailRow.yearMonth || '-', 'muted'),
+                                    createDetailItem('反馈类型', getFeedbackTypeText(detailRow.feedbackType)),
+                                    createDetailItem('反馈标题', detailRow.title || '-', 'text', { span: 2 }),
+                                    createDetailItem('反馈内容', detailRow.content || '-', 'text', { span: 2 }),
+                                    createDetailItem('官方回复', detailRow.replyContent || '-', 'muted', { span: 2 }),
+                                    createDetailItem('提交时间', formatDateTimeText(detailRow.createTime), 'muted'),
+                                    createDetailItem('回复时间', formatDateTimeText(detailRow.replyTime), 'muted'),
+                                    ...buildExtraDetailItems(detailRow, usedKeys)
+                                ]
+                            });
+                            return;
+                        }
+                        if (type === 'feedback') {
+                            const isAnomaly = detailRow.sourceType === 'anomaly' || Object.prototype.hasOwnProperty.call(detailRow, 'reportType');
+                            if (isAnomaly) {
+                                const usedKeys = ['title', 'reportType', 'description', 'remark', 'processResult', 'status', 'createTime', 'processTime', 'anomalyDate'];
+                                openDetailDialog({
+                                    eyebrow: '异常上报',
+                                    title: detailRow.title || '异常上报详情',
+                                    subtitle: `${getReportTypeText(detailRow.reportType)} · ${formatDateTimeText(detailRow.createTime || detailRow.anomalyDate)}`,
+                                    avatar,
+                                    avatarFallback,
+                                    sectionTitle: '异常说明',
+                                    tags: [
+                                        createDetailTag(getReportTypeText(detailRow.reportType), 'danger'),
+                                        createDetailTag(getTicketStatusText(detailRow.status), getTicketStatusTag(detailRow.status))
+                                    ],
+                                    items: [
+                                        createDetailItem('上报类型', getReportTypeText(detailRow.reportType)),
+                                        createDetailItem('处理状态', getTicketStatusText(detailRow.status)),
+                                        createDetailItem('异常时间', formatDateTimeText(detailRow.anomalyDate), 'muted'),
+                                        createDetailItem('提交时间', formatDateTimeText(detailRow.createTime), 'muted'),
+                                        createDetailItem('异常说明', detailRow.description || detailRow.contentText || '-', 'text', { span: 2 }),
+                                        createDetailItem('补充备注', detailRow.remark || '-', 'muted', { span: 2 }),
+                                        createDetailItem('处理结果', detailRow.processResult || detailRow.replyText || '-', 'muted', { span: 2 }),
+                                        createDetailItem('处理时间', formatDateTimeText(detailRow.processTime), 'muted'),
+                                        ...buildExtraDetailItems(detailRow, usedKeys)
+                                    ]
+                                });
+                                return;
+                            }
+                            const usedKeys = ['title', 'feedbackType', 'content', 'replyContent', 'status', 'createTime', 'replyTime'];
+                            openDetailDialog({
+                                eyebrow: '投诉反馈',
+                                title: detailRow.title || '投诉反馈详情',
+                                subtitle: `${getFeedbackTypeText(detailRow.feedbackType)} · ${formatDateTimeText(detailRow.createTime)}`,
+                                avatar,
+                                avatarFallback,
+                                sectionTitle: '反馈处理',
+                                tags: [
+                                    createDetailTag(getFeedbackTypeText(detailRow.feedbackType), 'warning'),
+                                    createDetailTag(getTicketStatusText(detailRow.status), getTicketStatusTag(detailRow.status))
+                                ],
+                                items: [
+                                    createDetailItem('反馈类型', getFeedbackTypeText(detailRow.feedbackType)),
+                                    createDetailItem('处理状态', getTicketStatusText(detailRow.status)),
+                                    createDetailItem('投诉标题', detailRow.title || '-', 'text', { span: 2 }),
+                                    createDetailItem('反馈内容', detailRow.content || detailRow.contentText || '-', 'text', { span: 2 }),
+                                    createDetailItem('官方回复', detailRow.replyContent || detailRow.replyText || '-', 'muted', { span: 2 }),
+                                    createDetailItem('提交时间', formatDateTimeText(detailRow.createTime), 'muted'),
+                                    createDetailItem('回复时间', formatDateTimeText(detailRow.replyTime), 'muted'),
+                                    ...buildExtraDetailItems(detailRow, usedKeys)
+                                ]
+                            });
+                            return;
+                        }
+                        if (type === 'tax') {
+                            const taxSnapshot = resolveEmployeeTaxSnapshot(detailRow);
+                            const usedKeys = ['taxYear', 'yearMonth', 'salaryRecordId', 'totalIncome', 'totalTaxFree', 'totalSocialSecurity', 'totalSpecialDeduct', 'accumulatedTaxable', 'taxPaid', 'monthSpecialDeduct', 'monthSocialSecurity', 'monthFund', 'monthTax', 'monthTaxableIncome', 'accumGross', 'accumTax', 'accumTaxableIncome', 'accumSocialSecurity', 'accumSpecialDeduct', 'baseSalary', 'housingFund', 'medicalInsurance', 'pensionInsurance', 'unemploymentInsurance', 'socialSecurityEmp', 'incomeTax', 'deductDate', 'managerNo', 'managerName'];
+                            openDetailDialog({
+                                width: '900px',
+                                eyebrow: '个税与社保',
+                                title: employeeName,
+                                subtitle: `${detailRow.taxYear || detailRow.yearMonth || '-'} · ${deptName}`,
+                                avatar,
+                                avatarFallback,
+                                sectionTitle: '月度扣缴明细',
+                                tags: [
+                                    createDetailTag(`${detailRow.taxYear || detailRow.yearMonth || '-'} 年度`, 'primary'),
+                                    createDetailTag(`本月个税 ${formatDetailAmount(taxSnapshot.incomeTax)}`, 'danger')
+                                ],
+                                items: [
+                                    createDetailItem('基本工资', formatDetailAmount(taxSnapshot.baseSalary), 'money'),
+                                    createDetailItem('本月公积金', formatDetailAmount(taxSnapshot.housingFund), 'money'),
+                                    createDetailItem('本月医疗保险', formatDetailAmount(taxSnapshot.medicalInsurance), 'money'),
+                                    createDetailItem('本月养老保险', formatDetailAmount(taxSnapshot.pensionInsurance), 'money'),
+                                    createDetailItem('本月失业保险', formatDetailAmount(taxSnapshot.unemploymentInsurance), 'money'),
+                                    createDetailItem('五险一金', formatDetailAmount(taxSnapshot.socialSecurityEmp), 'money'),
+                                    createDetailItem('本月个税', formatDetailAmount(taxSnapshot.incomeTax), 'money'),
+                                    createDetailItem('扣缴日期', taxSnapshot.deductDate || '-', 'muted'),
+                                    createDetailItem('经理工号', taxSnapshot.managerNo || '-', 'muted'),
+                                    createDetailItem('部门经理', taxSnapshot.managerName || '-', 'muted'),
+                                    createDetailItem('累计收入', formatDetailAmount(detailRow.totalIncome), 'money'),
+                                    createDetailItem('累计免税额', formatDetailAmount(detailRow.totalTaxFree), 'money'),
+                                    createDetailItem('累计社保扣除', formatDetailAmount(detailRow.totalSocialSecurity), 'money'),
+                                    createDetailItem('累计专项扣除', formatDetailAmount(detailRow.totalSpecialDeduct), 'money'),
+                                    createDetailItem('累计应纳税所得额', formatDetailAmount(detailRow.accumulatedTaxable), 'money'),
+                                    createDetailItem('已缴个税', formatDetailAmount(detailRow.taxPaid), 'money'),
+                                    createDetailItem('本月专项扣除', formatDetailAmount(detailRow.monthSpecialDeduct), 'money'),
+                                    createDetailItem('本月社保', formatDetailAmount(detailRow.monthSocialSecurity), 'money'),
+                                    createDetailItem('本月公积金', formatDetailAmount(detailRow.monthFund), 'money'),
+                                    createDetailItem('本月个税', formatDetailAmount(detailRow.monthTax), 'money'),
+                                    createDetailItem('本月应纳税所得额', formatDetailAmount(detailRow.monthTaxableIncome), 'money'),
+                                    createDetailItem('年度累计应发工资', formatDetailAmount(detailRow.accumGross), 'money'),
+                                    ...buildExtraDetailItems(detailRow, usedKeys)
+                                ]
+                            });
+                            return;
+                        }
+                        if (type === 'performance') {
+                            const totalScore = detailRow.totalScore ?? detailRow.score ?? 0;
+                            const grade = detailRow.grade || '-';
+                            const remark = detailRow.evaluateRemark ?? detailRow.evalComment ?? '-';
+                            const usedKeys = ['yearMonth', 'workPerformance', 'businessSkill', 'workAttitude', 'bonusDeduct', 'totalScore', 'score', 'grade', 'evaluateRemark', 'evalComment', 'managerName'];
+                            openDetailDialog({
+                                eyebrow: '绩效详情',
+                                title: employeeName,
+                                subtitle: `${detailRow.yearMonth || '-'} · ${deptName}`,
+                                avatar,
+                                avatarFallback,
+                                sectionTitle: '评分明细',
+                                tags: [
+                                    createDetailTag(grade, getGradeTagType(grade, totalScore)),
+                                    createDetailTag(`总分 ${totalScore}`, 'primary')
+                                ],
+                                items: [
+                                    createDetailItem('工作绩效', detailRow.workPerformance ?? '-'),
+                                    createDetailItem('业务技能', detailRow.businessSkill ?? '-'),
+                                    createDetailItem('工作态度', detailRow.workAttitude ?? '-'),
+                                    createDetailItem('员工考勤', detailRow.bonusDeduct ?? 0),
+                                    createDetailItem('总得分', totalScore, 'money'),
+                                    createDetailItem('部门经理', detailRow.managerName || '-', 'muted'),
+                                    createDetailItem('评审评语', remark, 'muted', { span: 2 }),
+                                    ...buildExtraDetailItems(detailRow, usedKeys)
+                                ]
+                            });
+                            return;
+                        }
+                        openDetailDialog({
+                            eyebrow: '记录详情',
+                            title: employeeName,
+                            subtitle: deptName,
+                            avatar,
+                            avatarFallback,
+                            sectionTitle: '详细信息',
+                            items: buildExtraDetailItems(detailRow)
+                        });
+                    };
+                    const formatDetailKey = (key) => {
+                        const map = {
+                            yearMonth: '账期月份', title: '概要标题', content: '明细内容', reason: '相关事由',
+                            applyDate: '涉及日期', status: '处理状态', replyContent: '官方回复', processResult: '最终宣判结果',
+                            reportType: '上报类型', feedbackType: '工单类型', baseSalary: '基准工资',
+                            perfBonus: '绩效奖励', allowance: '综合津贴', overtimePay: '加班薪金', netSalary: '实发总额',
+                            taxYear: '税务年度', totalIncome: '税前累积', totalTaxFree: '免税总计', taxPaid: '已缴个税',
+                            workAttitude: '考勤态度打分', businessSkill: '业务能力评估', workPerformance: '核心工作表现',
+                            bonusDeduct: '全勤奖惩分', totalScore: '综合落位总分', grade: '星级评定', evaluateRemark: '主管述职意见'
+                        };
+                        Object.assign(map, {
+                            attendDays: '出勤天数',
+                            absentDays: '旷工天数',
+                            lateTimes: '迟到天数',
+                            leaveDays: '请假天数',
+                            sickLeaveDays: '病假天数',
+                            overtimeHours: '加班小时',
+                            attendHours: '出勤时长',
+                            fullAttendBonus: '全勤奖金',
+                            otherIncome: '其他收入',
+                            grossSalary: '应发工资',
+                            socialSecurityEmp: '五险一金',
+                            attendDeduct: '考勤扣款',
+                            otherDeduct: '其他扣款',
+                            incomeTax: '个人所得税',
+                            totalDeduct: '扣款合计',
+                            calcStatus: '薪资状态',
+                            accumGross: '年度累计应发工资',
+                            accumTax: '年度累计已缴个税',
+                            accumTaxableIncome: '年度累计应纳税所得额',
+                            accumSocialSecurity: '年度累计社保',
+                            accumSpecialDeduct: '年度累计专项扣除',
+                            monthSpecialDeduct: '本月专项扣除',
+                            monthSocialSecurity: '本月社保',
+                            monthFund: '本月公积金',
+                            monthTax: '本月个税',
+                            totalSocialSecurity: '累计社保抵扣',
+                            totalSpecialDeduct: '累计专项扣除',
+                            accumulatedTaxable: '应纳税所得额',
+                            monthTaxableIncome: '本月应纳税所得额',
+                            typeText: '记录类型',
+                            contentText: '内容',
+                            replyText: '处理/回复',
+                            statusText: '状态',
+                            timeText: '时间',
+                            score: '综合总分',
+                            evalComment: '主管述职评语',
+                            applyType: '申请类型',
+                            attendanceId: '关联考勤记录',
+                            proof: '证明材料',
+                            reviewUserId: '审批人编号',
+                            reviewComment: '审批意见',
+                            reviewTime: '审批时间',
+                            replyUserName: '回复人员',
+                            replyTime: '回复时间',
+                            processTime: '处理时间',
+                            description: '详细描述',
+                            reporterName: '上报人',
+                            processorName: '处理人',
+                            managerId: '经理编号',
+                            managerNo: '经理工号',
+                            managerName: '经理姓名',
+                            perfBonusRatio: '绩效奖金',
+                            qualifiedBonus: '合格奖金',
+                            goodBonus: '良好奖金',
+                            excellentBonus: '优秀奖金',
+                            recordNo: '登记编号',
+                            bankAccount: '银行卡号',
+                            bankCard: '银行卡号',
+                            bankName: '开户银行',
+                            avatar: '头像',
+                            issueFile: '发放文件',
+                            attachment: '附件',
+                            remark: '备注',
+                            pubTime: '发布时间',
+                            pubUserId: '发布人编号',
+                            pubUserName: '发布人',
+                            coverImage: '封面图片',
+                            targetRole: '通知对象',
+                            isTop: '是否置顶',
+                            loginAccount: '登录账号',
+                            loginPassword: '登录密码',
+                            initialPassword: '初始密码',
+                            userRole: '用户角色',
+                            role: '角色',
+                            gender: '性别',
+                            recordDate: '登记日期',
+                            payDate: '发放日期',
+                            slipPublished: '工资条发布状态',
+                            slipPublishTime: '工资条发布时间',
+                            createTime: '创建时间',
+                            updateTime: '更新时间'
+                        });
+                        return map[key] || key;
+                    };
+                    const formatDetailValue = (key, value, row = {}) => {
+                        if (value === null || value === undefined || value === '') return '-';
+                        if (['reviewTime', 'replyTime', 'processTime', 'createTime', 'updateTime', 'recordDate', 'payDate', 'slipPublishTime', 'pubTime'].includes(key)) {
+                            return formatDateTimeText(value);
+                        }
+                        if (key === 'gender') {
+                            return Number(value) === 1 ? '男' : (Number(value) === 0 ? '女' : value);
+                        }
+                        if (key === 'applyType') {
+                            return ['-', '补签', '请假', '加班申请', '考勤异议'][Number(value)] || value;
+                        }
+                        if (key === 'reportType') {
+                            return ['-', '考勤异常', '薪资异常', '系统异常'][Number(value)] || value;
+                        }
+                        if (key === 'feedbackType') {
+                            return ['-', '工资/津贴异议', '绩效/个税异议', '系统/工作问题'][Number(value)] || value;
+                        }
+                        if (key === 'status') {
+                            if (Object.prototype.hasOwnProperty.call(row, 'applyType')) {
+                                return ['审批流转中', '经理已批准', '已驳回'][Number(value)] || value;
+                            }
+                            if (Object.prototype.hasOwnProperty.call(row, 'feedbackType')
+                                || Object.prototype.hasOwnProperty.call(row, 'reportType')) {
+                                return ['待处理', '处理中', '已解决', '已驳回'][Number(value)] || value;
+                            }
+                            if (Object.prototype.hasOwnProperty.call(row, 'grade')) {
+                                return ['待处理', '待确认', '已生效'][Number(value)] || value;
+                            }
+                        }
+                        if (key === 'calcStatus') {
+                            return ['草稿', '待提交', '待审核', '待发放', '已到账'][Number(value)] || value;
+                        }
+                        if (key === 'slipPublished') {
+                            return Number(value) === 1 ? '已发布' : '未发布';
+                        }
+                        if (key === 'targetRole') {
+                            return ['全部角色', '管理员', '部门经理', '员工'][Number(value)] || '全部角色';
+                        }
+                        if (key === 'isTop') {
+                            return Number(value) === 1 ? '是' : '否';
+                        }
+                        if (key === 'role' || key === 'userRole') {
+                            return ['-', '管理员', '部门经理', '员工'][Number(value)] || value;
+                        }
+                        return value;
+                    };
 
-        // --- 表单触发行动 ---
-        const openApplyForm = () => { 
-            Object.assign(applyForm, { applyDate:'', applyType:1, reason:'' }); 
-            applyDialogVisible.value = true; 
-        };
-        const submitApply = () => {
-            if(!applyForm.applyDate) return ElementPlus.ElMessage.warning('日期必须指明');
-            axios.post('/api/attendance-apply', { ...applyForm, empId: userInfo.value.id }).then(r => {
-                if(r.data.code===200) { ElementPlus.ElMessage.success('工单投递成功'); applyDialogVisible.value=false; loadMyData(); }
-            });
-        };
+                    // 密码
+                    const pwdDialogVisible = ref(false);
+                    const pwdForm = reactive({ oldHash: '', newHash: '' });
 
-        const openAnomalyForm = () => {
-            Object.assign(anomalyForm, { yearMonth:'', reportType:1, title:'', description:'' });
-            anomalyDialogVisible.value = true;
-        };
-        const submitAnomaly = () => {
-            if(!anomalyForm.yearMonth) return ElementPlus.ElMessage.warning('请选择故障排查月份');
-            axios.post('/api/anomaly', { ...anomalyForm, empId: userInfo.value.id }).then(r => {
-                if(r.data.code===200) { ElementPlus.ElMessage.success('故障信标发射完毕'); anomalyDialogVisible.value=false; loadMyData(); }
-            });
-        };
+                    // 表单实体
+                    const applyDialogVisible = ref(false);
+                    const applyForm = reactive({ applyDate: '', applyType: 1, reason: '' });
 
-        const openFeedbackForm = () => {
-            Object.assign(feedbackForm, { feedbackType:1, title:'', content:'' });
-            feedbackDialogVisible.value = true;
-        };
-        const submitFeedback = () => {
-            if(!feedbackForm.title) return ElementPlus.ElMessage.warning('诉求概要不许为空');
-            axios.post('/api/feedback', { ...feedbackForm, empId: userInfo.value.id }).then(r => {
-                if(r.data.code===200) { ElementPlus.ElMessage.success('投诉函已发出，薪资庭将会审理'); feedbackDialogVisible.value=false; loadMyData(); }
-            });
-        };
+                    const anomalyDialogVisible = ref(false);
+                    const anomalyForm = reactive({ yearMonth: '', reportType: 1, title: '', description: '' });
 
-        onMounted(() => {
-            initUser();
-            syncWebsiteContent();
-            loadNotices();
-        });
+                    const feedbackDialogVisible = ref(false);
+                    const feedbackForm = reactive({ feedbackType: 3, title: '', content: '' });
+                    const salaryFeedbackDialogVisible = ref(false);
+                    const salaryFeedbackForm = reactive({ feedbackType: 1, title: '', content: '', salaryRecordId: '', yearMonth: '' });
 
-        return {
-            userInfo, currentMenu, websiteContent, noticeList, noticeVisible, currentUserNotice,
-            empProfile, empEditForm, saveEmpProfile,
-            myAttendances, myApplies, mySalaries, myAnomalies, myFeedbacks,
-            pwdDialogVisible, pwdForm,
-            applyDialogVisible, applyForm,
-            anomalyDialogVisible, anomalyForm,
-            feedbackDialogVisible, feedbackForm,
-            handleSelect, handleCommand, viewNotice, changePwd,
-            openApplyForm, submitApply, openAnomalyForm, submitAnomaly, openFeedbackForm, submitFeedback
-        };
-    }
-}).use(ElementPlus).mount('#app');
-</script>
+                    // 修改个人信息弹窗
+                    const empEditDialogVisible = ref(false);
+
+                    // 员工个人详细档案（从后端拉完整信息）
+                    const empProfile = reactive({ id: '', empId: '', empNo: '', realName: '', gender: '', phone: '', idCard: '', deptName: '', positionName: '', position: '', baseSalary: null, bankCard: '', hireDate: '', managerNo: '', managerName: '', avatar: '' });
+                    const empEditForm = reactive({ phone: '', bankCard: '', realName: '', gender: null, idCard: '' });
+                    const loadSelfProfile = () => {
+                        return axios.get('/api/auth/me').then(r => {
+                            if (r.data.code === 200 && r.data.data) {
+                                Object.assign(empProfile, r.data.data);
+                                syncEmployeeUserInfo({
+                                    id: r.data.data.id || r.data.data.empId || '',
+                                    empId: r.data.data.empId || r.data.data.id || '',
+                                    empNo: r.data.data.empNo || userInfo.value.empNo || '',
+                                    deptName: r.data.data.deptName || userInfo.value.deptName || '',
+                                    avatar: r.data.data.avatar || userInfo.value.avatar || ''
+                                });
+                                empEditForm.phone = empProfile.phone || '';
+                                empEditForm.bankCard = empProfile.bankCard || '';
+                                empEditForm.realName = empProfile.realName || '';
+                                empEditForm.gender = empProfile.gender;
+                                empEditForm.idCard = empProfile.idCard || '';
+                                return;
+                            }
+                            return fallbackLoadSelf();
+                        }).catch(() => fallbackLoadSelf());
+                    };
+                    const fallbackLoadSelf = () => {
+                        const empNo = userInfo.value.empNo || userInfo.value.username;
+                        if (!empNo) return Promise.resolve();
+                        return axios.get('/api/employee/page', { params: { empNo, size: 5 } }).then(r => {
+                            const row = r.data.data?.records?.[0] || r.data.data?.[0];
+                            if (row) {
+                                Object.assign(empProfile, row);
+                                syncEmployeeUserInfo({
+                                    id: row.id || '',
+                                    empId: row.id || '',
+                                    empNo: row.empNo || userInfo.value.empNo || '',
+                                    deptName: row.deptName || userInfo.value.deptName || '',
+                                    avatar: row.avatar || userInfo.value.avatar || ''
+                                });
+                                empEditForm.phone = empProfile.phone || '';
+                                empEditForm.bankCard = empProfile.bankCard || '';
+                                empEditForm.realName = empProfile.realName || '';
+                                empEditForm.gender = empProfile.gender;
+                                empEditForm.idCard = empProfile.idCard || '';
+                            }
+                        }).catch(() => { });
+                    };
+                    const saveEmpProfile = () => {
+                        const eid = empProfile.empId || empProfile.id;
+                        if (!eid) return ElementPlus.ElMessage.warning('未获取到员工ID，无法保存');
+                        const payload = {
+                            id: eid,
+                            phone: empEditForm.phone,
+                            bankCard: empEditForm.bankCard,
+                            realName: empEditForm.realName,
+                            gender: empEditForm.gender,
+                            idCard: empEditForm.idCard
+                        };
+                        axios.put('/api/employee', payload).then(r => {
+                            if (r.data.code === 200) {
+                                ElementPlus.ElMessage.success('保存成功');
+                                empProfile.phone = empEditForm.phone;
+                                empProfile.bankCard = empEditForm.bankCard;
+                                empProfile.realName = empEditForm.realName;
+                                empProfile.gender = empEditForm.gender;
+                                empProfile.idCard = empEditForm.idCard;
+                                empEditDialogVisible.value = false;
+                                loadSelfProfile();
+                            } else ElementPlus.ElMessage.error(r.data.message || '保存失败');
+                        });
+                    };
+
+                    // --- 初始化操作 ---
+                    const initUser = async () => {
+                        migrateLegacyAuth();
+                        const token = getEmployeeToken();
+                        if (!token) {
+                            if (getAdminToken()) {
+                                window.location.href = '/api/admin/index.html';
+                                return;
+                            }
+                            window.location.href = '/api/login.html';
+                            return;
+                        }
+                        Object.assign(userInfo.value, getEmployeeUserInfo());
+                        let authInfo = null;
+                        try {
+                            const meRes = await axios.get('/api/auth/me');
+                            authInfo = meRes.data?.data || {};
+                        } catch (error) {
+                            clearEmployeeAuth();
+                            window.location.href = '/api/login.html';
+                            return;
+                        }
+                        const actualRole = Number(authInfo.role || userInfo.value.role || 0);
+                        if (actualRole === 1 || actualRole === 2) {
+                            clearEmployeeAuth();
+                            saveAdminAuth(token, { ...authInfo, role: actualRole });
+                            window.location.href = '/api/admin/index.html';
+                            return;
+                        }
+                        if (actualRole !== 3) {
+                            clearEmployeeAuth();
+                            window.location.href = '/api/login.html';
+                            return;
+                        }
+                        syncEmployeeUserInfo({
+                            ...authInfo,
+                            role: actualRole,
+                            id: authInfo.id || authInfo.empId || authInfo.userId || userInfo.value.id || '',
+                            empId: authInfo.empId || authInfo.id || userInfo.value.empId || '',
+                            empNo: authInfo.empNo || userInfo.value.empNo || '',
+                            username: authInfo.username || userInfo.value.username || '',
+                            realName: authInfo.realName || userInfo.value.realName || '',
+                            avatar: authInfo.avatar || userInfo.value.avatar || ''
+                        });
+                        normalizeUserRole();
+                        await loadSelfProfile();
+                        loadMyData();
+                    };
+
+                    const loadNotices = () => {
+                        axios.get('/api/announcement/list', { params: { page: 1, size: 6, status: 1 } }).then(r => {
+                            if (r.data.code === 200) noticeList.value = (r.data.data?.records || r.data.data || []).slice(0, 6);
+                        });
+                    };
+                    const loadNoticeCenter = (page = noticeCurrent.value) => {
+                        noticeCurrent.value = page;
+                        return axios.get('/api/announcement/list', {
+                            params: {
+                                page: noticeCurrent.value,
+                                size: noticeSize.value,
+                                title: noticeSearch.title || undefined,
+                                status: 1
+                            }
+                        }).then(r => {
+                            if (r.data.code === 200) {
+                                noticeCenterList.value = r.data.data?.records || r.data.data || [];
+                                noticeTotal.value = r.data.data?.total || 0;
+                            } else {
+                                noticeCenterList.value = [];
+                                noticeTotal.value = 0;
+                            }
+                        });
+                    };
+                    const loadNoticeDetail = (id, source = 'notice') => {
+                        if (!id) return Promise.resolve();
+                        noticeDetailLoading.value = true;
+                        noticeDetailSource.value = source;
+                        return axios.get(`/api/announcement/${id}`).then(r => {
+                            if (r.data?.code === 200 && r.data.data) {
+                                Object.assign(noticeDetail, {
+                                    id: r.data.data.id || '',
+                                    title: r.data.data.title || '',
+                                    content: r.data.data.content || '',
+                                    coverImage: r.data.data.coverImage || '',
+                                    pubTime: r.data.data.pubTime || '',
+                                    pubUserName: r.data.data.pubUserName || ''
+                                });
+                                currentMenu.value = 'notice-detail';
+                            } else {
+                                ElementPlus.ElMessage.warning(r.data?.message || '公告详情加载失败');
+                            }
+                        }).catch(() => {
+                            ElementPlus.ElMessage.error('公告详情加载失败');
+                        }).finally(() => {
+                            noticeDetailLoading.value = false;
+                        });
+                    };
+                    const openNoticeDetail = (row, source = 'notice') => loadNoticeDetail(row?.id, source);
+                    const backFromNoticeDetail = () => {
+                        currentMenu.value = noticeDetailSource.value === 'home' ? 'home' : 'notice';
+                        if (currentMenu.value === 'notice') {
+                            loadNoticeCenter(noticeCurrent.value);
+                        }
+                    };
+
+                    const tablePaging = reactive({
+                        attendance: { current: 1, size: 10, total: 0 },
+                        apply: { current: 1, size: 10, total: 0 },
+                        salary: { current: 1, size: 10, total: 0 },
+                        salaryFeedback: { current: 1, size: 10, total: 0 },
+                        tax: { current: 1, size: 10, total: 0 },
+                        performance: { current: 1, size: 10, total: 0 }
+                    });
+                    const complaintTotal = computed(() => complaintRows.value.length);
+                    const complaintPageRows = computed(() => complaintRows.value.slice(
+                        (complaintCurrent.value - 1) * complaintSize.value,
+                        complaintCurrent.value * complaintSize.value
+                    ));
+                    const salaryDisplayRows = computed(() => mySalaries.value.map(row => ({
+                        ...row,
+                        empNo: row.empNo || empProfile.empNo || userInfo.value.empNo || userInfo.value.username || '-',
+                        empName: row.empName || empProfile.realName || userInfo.value.realName || '-',
+                        deptName: row.deptName || empProfile.deptName || userInfo.value.deptName || '-',
+                        bankCard: row.bankCard || row.bankAccount || empProfile.bankCard || '-',
+                        managerNo: row.managerNo || empProfile.managerNo || '-',
+                        managerName: row.managerName || empProfile.managerName || '-',
+                        baseSalary: resolveEmployeeSalaryBaseSalary(row),
+                        grossSalary: resolveEmployeeGrossSalary(row),
+                        deductAmount: row.totalDeduct ?? ((Number(row.socialSecurityEmp || 0)
+                            + Number(row.incomeTax || 0)
+                            + Number(row.attendDeduct || 0)
+                            + Number(row.otherDeduct || 0)) || 0)
+                    })));
+                    const taxDisplayRows = computed(() => myTaxes.value.map(row => ({
+                        ...row,
+                        totalIncome: row.totalIncome ?? row.accumGross ?? 0,
+                        totalTaxFree: row.totalTaxFree ?? ((String(row.yearMonth || '').split('-')[1] ? Number(String(row.yearMonth).split('-')[1]) : 0) * 5000),
+                        totalSocialSecurity: row.totalSocialSecurity ?? row.accumSocialSecurity ?? 0,
+                        totalSpecialDeduct: row.totalSpecialDeduct ?? row.accumSpecialDeduct ?? 0,
+                        accumulatedTaxable: row.accumulatedTaxable ?? row.accumTaxableIncome ?? 0,
+                        taxPaid: row.taxPaid ?? row.accumTax ?? row.monthTax ?? 0
+                    })));
+                    const performanceDisplayRows = computed(() => myPerformances.value.map(row => ({
+                        ...row,
+                        totalScore: row.totalScore ?? row.score ?? 0,
+                        evaluateRemark: row.evaluateRemark ?? row.evalComment ?? '-'
+                    })));
+                    const getComplaintStatusText = (status) => ['待处理', '处理中', '已解决', '已驳回'][Number(status)] || '待处理';
+                    const getComplaintStatusTag = (status) => {
+                        if (Number(status) === 2) return 'success';
+                        if (Number(status) === 3) return 'info';
+                        if (Number(status) === 1) return 'warning';
+                        return 'danger';
+                    };
+                    const formatNegativeAmount = (value) => {
+                        const amount = Number(value || 0);
+                        if (!Number.isFinite(amount)) return value;
+                        return amount > 0 ? `-${amount}` : `${amount}`;
+                    };
+                    const mapComplaintAnomaly = (row) => ({
+                        ...row,
+                        sourceType: 'anomaly',
+                        typeText: ['', '考勤异常', '薪资异常', '系统异常'][Number(row.reportType)] || '异常上报',
+                        contentText: row.description || '-',
+                        replyText: row.processResult || '-',
+                        statusText: getComplaintStatusText(row.status),
+                        statusTag: getComplaintStatusTag(row.status),
+                        timeText: formatDateTimeText(row.createTime || row.processTime || row.yearMonth || '-')
+                    });
+                    const mapComplaintFeedback = (row) => ({
+                        ...row,
+                        sourceType: 'feedback',
+                        typeText: ['-', '工资/津贴异议', '绩效/个税异议', '系统/工作问题'][Number(row.feedbackType)] || '投诉反馈',
+                        contentText: row.content || '-',
+                        replyText: row.replyContent || '-',
+                        statusText: getComplaintStatusText(row.status),
+                        statusTag: getComplaintStatusTag(row.status),
+                        timeText: formatDateTimeText(row.createTime || row.replyTime || '-')
+                    });
+
+                    const loadAttendances = () => {
+                        const p = tablePaging.attendance;
+                        axios.get('/api/attendance/my', { params: { current: p.current, size: p.size } })
+                            .then(r => { myAttendances.value = r.data?.data?.records || []; p.total = r.data?.data?.total || 0; });
+                    };
+                    const loadApplies = () => {
+                        const p = tablePaging.apply;
+                        axios.get('/api/attendance-apply/my', { params: { current: p.current, size: p.size } })
+                            .then(r => {
+                                myApplies.value = (r.data?.data?.records || []).map(row => ({
+                                    ...row,
+                                    createTime: formatDateTimeText(row.createTime),
+                                    reviewTime: formatDateTimeText(row.reviewTime)
+                                }));
+                                p.total = r.data?.data?.total || 0;
+                            });
+                    };
+                    const loadSalaries = () => {
+                        const p = tablePaging.salary;
+                        axios.get('/api/salary/my/history', { params: { current: p.current, size: p.size } })
+                            .then(r => { mySalaries.value = r.data?.data?.records || []; p.total = r.data?.data?.total || 0; });
+                    };
+                    const loadComplaintRecords = (page = complaintCurrent.value) => {
+                        complaintCurrent.value = page;
+                        return Promise.all([
+                            axios.get('/api/anomaly/page', { params: { current: 1, size: 300 } }),
+                            axios.get('/api/feedback/my', { params: { current: 1, size: 300, types: '3' } })
+                        ]).then(([anomalyRes, feedbackRes]) => {
+                            myAnomalies.value = anomalyRes.data?.data?.records || [];
+                            myFeedbacks.value = feedbackRes.data?.data?.records || [];
+                            complaintRows.value = [
+                                ...myAnomalies.value.map(mapComplaintAnomaly),
+                                ...myFeedbacks.value.map(mapComplaintFeedback)
+                            ].sort((a, b) => String(b.createTime || b.replyTime || b.timeText || '').localeCompare(String(a.createTime || a.replyTime || a.timeText || '')));
+                        });
+                    };
+                    const loadAnomalies = () => {
+                        return loadComplaintRecords();
+                    };
+                    const loadFeedbacks = () => {
+                        return loadComplaintRecords();
+                    };
+                    const loadSalaryFeedbacks = () => {
+                        const p = tablePaging.salaryFeedback;
+                        axios.get('/api/feedback/salary-page', { params: { current: p.current, size: p.size } })
+                            .then(r => {
+                                mySalaryFeedbacks.value = (r.data?.data?.records || []).map(row => ({
+                                    ...row,
+                                    createTime: formatDateTimeText(row.createTime),
+                                    replyTime: formatDateTimeText(row.replyTime)
+                                }));
+                                p.total = r.data?.data?.total || 0;
+                            });
+                    };
+                    const loadTaxes = () => {
+                        const p = tablePaging.tax;
+                        axios.get('/api/tax/page', { params: { current: p.current, size: p.size } })
+                            .then(r => { myTaxes.value = r.data?.data?.records || []; p.total = r.data?.data?.total || 0; });
+                    };
+                    const loadPerformances = () => {
+                        const p = tablePaging.performance;
+                        axios.get('/api/performance/my/history', { params: { current: p.current, size: p.size } })
+                            .then(r => { myPerformances.value = r.data?.data?.records || []; p.total = r.data?.data?.total || 0; });
+                    };
+
+                    const loadMyData = () => {
+                        loadAttendances();
+                        loadApplies();
+                        loadSalaries();
+                        loadComplaintRecords(1);
+                        loadSalaryFeedbacks();
+                        loadTaxes();
+                        loadPerformances();
+                    };
+
+                    const handleSelect = (key) => {
+                        currentMenu.value = key;
+                        if (key === 'profile') loadSelfProfile();
+                        if (key === 'notice') loadNoticeCenter(1);
+                    };
+                    const printAttendances = () => {
+                        const rows = myAttendances.value || [];
+                        const printWindow = window.open('', '_blank', 'width=900,height=700');
+                        if (!printWindow) {
+                            ElementPlus.ElMessage.warning('浏览器阻止了打印窗口，请允许弹窗后重试');
+                            return;
+                        }
+                        const tableRows = rows.map(row => `
+                            <tr>
+                                <td>${row.yearMonth || '-'}</td>
+                                <td>${row.attendDays ?? 0}</td>
+                                <td>${row.absentDays ?? 0}</td>
+                                <td>${row.lateTimes ?? 0}</td>
+                                <td>${row.leaveDays ?? 0}</td>
+                                <td>${row.overtimeHours ?? 0}</td>
+                                <td>${row.status === 1 ? '正常' : (row.status === 2 ? '异常' : '待定')}</td>
+                            </tr>
+                        `).join('');
+                        printWindow.document.write(`
+                            <!DOCTYPE html>
+                            <html lang="zh-CN">
+                            <head>
+                                <meta charset="UTF-8">
+                                <title>员工考勤打印</title>
+                                <style>
+                                    body { font-family: "Microsoft YaHei", sans-serif; padding: 24px; color: #333; }
+                                    h2 { margin: 0 0 8px; }
+                                    p { margin: 0 0 18px; color: #666; }
+                                    table { width: 100%; border-collapse: collapse; }
+                                    th, td { border: 1px solid #dcdfe6; padding: 10px 12px; text-align: center; }
+                                    th { background: #f5f7fa; }
+                                </style>
+                            </head>
+                            <body>
+                                <h2>员工考勤明细</h2>
+                                <p>员工：${userInfo.value.realName || userInfo.value.username || '-'}　工号：${userInfo.value.empNo || '-'}</p>
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>月份</th>
+                                            <th>出勤天数</th>
+                                            <th>旷工天数</th>
+                                            <th>迟到天数</th>
+                                            <th>请假天数</th>
+                                            <th>加班小时</th>
+                                            <th>考勤状态</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>${tableRows || '<tr><td colspan="7">暂无可打印数据</td></tr>'}</tbody>
+                                </table>
+                            </body>
+                            </html>
+                        `);
+                        printWindow.document.close();
+                        printWindow.focus();
+                        printWindow.print();
+                    };
+
+                    const handleCommand = (cmd) => {
+                        if (cmd === 'admin') window.location.href = '/api/admin/index.html';
+                        if (cmd === 'logout') {
+                            clearEmployeeAuth();
+                            window.location.href = '/api/login.html';
+                        }
+                    };
+
+                    const viewNotice = (n) => {
+                        currentUserNotice.value = n;
+                        noticeVisible.value = true;
+                    };
+
+                    const changePwd = () => {
+                        if (!pwdForm.oldHash || !pwdForm.newHash) return ElementPlus.ElMessage.warning('密码不能为空');
+                        axios.put('/api/auth/change-password', null, { params: { oldPassword: pwdForm.oldHash, newPassword: pwdForm.newHash } }).then(r => {
+                            if (r.data.code === 200) {
+                                ElementPlus.ElMessage.success('密码重新上锁成功，请牢记新密码！');
+                                pwdDialogVisible.value = false;
+                            } else ElementPlus.ElMessage.error(r.data.message);
+                        });
+                    };
+
+                    // --- 表单触发行动 ---
+                    const openApplyForm = () => {
+                        Object.assign(applyForm, { applyDate: '', applyType: 1, reason: '' });
+                        applyDialogVisible.value = true;
+                    };
+                    const submitApply = () => {
+                        if (!applyForm.applyDate) return ElementPlus.ElMessage.warning('日期必须指明');
+                        axios.post('/api/attendance-apply', { ...applyForm, empId: userInfo.value.id }).then(r => {
+                            if (r.data.code === 200) {
+                                ElementPlus.ElMessage.success('工单投递成功'); applyDialogVisible.value = false; loadMyData();
+                            }
+                        });
+                    };
+
+                    const openAnomalyForm = () => {
+                        Object.assign(anomalyForm, { yearMonth: '', reportType: 1, title: '', description: '' });
+                        anomalyDialogVisible.value = true;
+                    };
+                    const submitAnomaly = () => {
+                        if (!anomalyForm.yearMonth) return ElementPlus.ElMessage.warning('请选择故障排查月份');
+                        axios.post('/api/anomaly', { ...anomalyForm, empId: userInfo.value.id }).then(r => {
+                            if (r.data.code === 200) { ElementPlus.ElMessage.success('故障信标发射完毕'); anomalyDialogVisible.value = false; loadMyData(); }
+                        });
+                    };
+
+                    const openFeedbackForm = () => {
+                        Object.assign(feedbackForm, { feedbackType: 3, title: '', content: '' });
+                        feedbackDialogVisible.value = true;
+                    };
+                    const submitFeedback = () => {
+                        if (!feedbackForm.title) return ElementPlus.ElMessage.warning('诉求概要不许为空');
+                        axios.post('/api/feedback', { ...feedbackForm, empId: userInfo.value.id }).then(r => {
+                            if (r.data.code === 200) { ElementPlus.ElMessage.success('投诉函已发出，薪资庭将会审理'); feedbackDialogVisible.value = false; loadMyData(); }
+                        });
+                    };
+                    const openSalaryFeedbackForm = (row) => {
+                        Object.assign(salaryFeedbackForm, {
+                            feedbackType: 1,
+                            title: `${row.yearMonth || ''} 薪资核算异议`,
+                            content: '',
+                            salaryRecordId: row.id || '',
+                            yearMonth: row.yearMonth || ''
+                        });
+                        salaryFeedbackDialogVisible.value = true;
+                    };
+                    const submitSalaryFeedback = () => {
+                        if (!salaryFeedbackForm.title) return ElementPlus.ElMessage.warning('反馈标题不能为空');
+                        if (!salaryFeedbackForm.content) return ElementPlus.ElMessage.warning('请填写详细说明');
+                        axios.post('/api/feedback', { ...salaryFeedbackForm, empId: userInfo.value.id }).then(r => {
+                            if (r.data.code === 200) { ElementPlus.ElMessage.success('薪资反馈已提交'); salaryFeedbackDialogVisible.value = false; loadMyData(); }
+                        });
+                    };
+
+                    onMounted(() => {
+                        initUser();
+                        syncWebsiteContent();
+                        loadNotices();
+                        loadNoticeCenter(1);
+                    });
+
+                    return {
+                        userInfo, currentMenu, websiteContent, noticeList, noticeCenterList, noticeVisible, currentUserNotice, noticeSearch, noticeCurrent, noticeSize, noticeTotal, noticeDetailLoading, noticeDetail,
+                        empProfile, empEditForm, saveEmpProfile, empEditDialogVisible,
+                        myAttendances, myApplies, mySalaries, myAnomalies, myFeedbacks, mySalaryFeedbacks, myTaxes, myPerformances,
+                        complaintCurrent, complaintSize, complaintTotal, complaintPageRows, loadComplaintRecords, salaryDisplayRows, taxDisplayRows, performanceDisplayRows,
+                        tablePaging, loadAttendances, loadApplies, loadSalaries, loadAnomalies, loadFeedbacks, loadSalaryFeedbacks, loadTaxes, loadPerformances, loadNoticeCenter, openNoticeDetail, backFromNoticeDetail, formatDateTimeText,
+                        detailDialogVisible, detailDialog, viewDetails,
+                        pwdDialogVisible, pwdForm,
+                        applyDialogVisible, applyForm,
+                        anomalyDialogVisible, anomalyForm,
+                        feedbackDialogVisible, feedbackForm, salaryFeedbackDialogVisible, salaryFeedbackForm,
+                        handleSelect, handleCommand, viewNotice, changePwd, formatNegativeAmount,
+                        openApplyForm, submitApply, openAnomalyForm, submitAnomaly, openFeedbackForm, submitFeedback, openSalaryFeedbackForm, submitSalaryFeedback, printAttendances
+                    };
+                }
+            }).use(ElementPlus).mount('#app');
+        </script>
 </body>
+
 </html>

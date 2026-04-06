@@ -4,7 +4,10 @@ import com.salary.common.PageResult;
 import com.salary.common.Result;
 import com.salary.dto.AttendanceSummaryDTO;
 import com.salary.entity.AttendanceRecord;
+import com.salary.entity.Employee;
+import com.salary.mapper.EmployeeMapper;
 import com.salary.service.AttendanceService;
+import com.salary.service.SysLogService;
 import com.salary.util.JwtUtil;
 import io.jsonwebtoken.Claims;
 import io.swagger.annotations.Api;
@@ -25,6 +28,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
 /**
  * Attendance Controller
@@ -44,7 +48,9 @@ import java.util.List;
 public class AttendanceController {
 
     private final AttendanceService attendanceService;
+    private final SysLogService sysLogService;
     private final JwtUtil jwtUtil;
+    private final EmployeeMapper employeeMapper;
 
     @ApiOperation("Page query attendance records (admin=all, manager=own dept)")
     @GetMapping("/page")
@@ -88,7 +94,11 @@ public class AttendanceController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String yearMonth,
             HttpServletRequest request) {
-        Long empId = Long.valueOf(claims(request).get("userId").toString());
+        Employee employee = employeeMapper.selectByUserId(Long.valueOf(claims(request).get("userId").toString()));
+        if (employee == null) {
+            return Result.success(PageResult.of(new Page<>(current, size)));
+        }
+        Long empId = employee.getId();
         return Result.success(attendanceService.getMyAttendance(current, size, empId, yearMonth));
     }
 
@@ -111,8 +121,21 @@ public class AttendanceController {
 
     @ApiOperation("Delete attendance record (blocked if linked to salary)")
     @DeleteMapping("/{id}")
-    public Result<Void> delete(@PathVariable Long id) {
+    public Result<Void> delete(@PathVariable Long id, HttpServletRequest request) {
+        AttendanceRecord record = attendanceService.getById(id);
         attendanceService.deleteRecord(id);
+        Claims claims = claims(request);
+        String recordLabel = record == null
+                ? "ID=" + id
+                : String.format("%s/%s/%s",
+                record.getRecordNo() == null ? "-" : record.getRecordNo(),
+                record.getEmpName() == null ? "-" : record.getEmpName(),
+                record.getYearMonth() == null ? "-" : record.getYearMonth());
+        sysLogService.recordOperation(
+                claims.get("username") != null ? claims.get("username").toString() : claims.getSubject(),
+                claims.get("role") == null ? null : Integer.valueOf(claims.get("role").toString()),
+                "考勤数据",
+                "删除考勤记录[" + recordLabel + "]");
         return Result.successMsg("Deleted");
     }
 

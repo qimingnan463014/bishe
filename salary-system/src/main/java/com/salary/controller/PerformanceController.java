@@ -2,13 +2,17 @@ package com.salary.controller;
 
 import com.salary.common.PageResult;
 import com.salary.common.Result;
+import com.salary.entity.Employee;
 import com.salary.entity.Performance;
+import com.salary.mapper.EmployeeMapper;
 import com.salary.service.PerformanceService;
+import com.salary.service.SysLogService;
 import com.salary.util.JwtUtil;
 import io.jsonwebtoken.Claims;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -19,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.servlet.http.HttpServletRequest;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
 /**
  * Performance Controller
@@ -39,7 +44,9 @@ import javax.servlet.http.HttpServletRequest;
 public class PerformanceController {
 
     private final PerformanceService performanceService;
+    private final SysLogService sysLogService;
     private final JwtUtil jwtUtil;
+    private final EmployeeMapper employeeMapper;
 
     @ApiOperation("Page query performance records (admin=all, manager=own dept)")
     @GetMapping("/page")
@@ -68,7 +75,11 @@ public class PerformanceController {
             @RequestParam(defaultValue = "1") int current,
             @RequestParam(defaultValue = "10") int size,
             HttpServletRequest request) {
-        Long empId = Long.valueOf(claims(request).get("userId").toString());
+        Employee employee = employeeMapper.selectByUserId(Long.valueOf(claims(request).get("userId").toString()));
+        if (employee == null) {
+            return Result.success(PageResult.of(new Page<>(current, size)));
+        }
+        Long empId = employee.getId();
         return Result.success(performanceService.getMyPerformance(current, size, empId));
     }
 
@@ -108,6 +119,24 @@ public class PerformanceController {
     public Result<Void> confirm(@PathVariable Long id) {
         performanceService.confirm(id);
         return Result.successMsg("Confirmed");
+    }
+
+    @ApiOperation("Delete performance")
+    @DeleteMapping("/{id}")
+    public Result<Void> delete(@PathVariable Long id, HttpServletRequest request) {
+        Performance performance = performanceService.getById(id);
+        if (performance == null) {
+            return Result.error("绩效记录不存在");
+        }
+        performanceService.removeById(id);
+        Claims claims = claims(request);
+        sysLogService.recordOperation(
+                claims.get("username") != null ? claims.get("username").toString() : claims.getSubject(),
+                claims.get("role") == null ? null : Integer.valueOf(claims.get("role").toString()),
+                "绩效评分",
+                "删除绩效记录[" + (performance.getEmpName() == null ? "-" : performance.getEmpName()) + "/" +
+                        (performance.getYearMonth() == null ? "-" : performance.getYearMonth()) + "]");
+        return Result.successMsg("Deleted");
     }
 
     private Claims claims(HttpServletRequest req) {

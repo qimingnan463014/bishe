@@ -3,7 +3,10 @@ package com.salary.controller;
 import com.salary.common.PageResult;
 import com.salary.common.Result;
 import com.salary.entity.AnomalyReport;
+import com.salary.entity.Employee;
+import com.salary.mapper.EmployeeMapper;
 import com.salary.service.AnomalyReportService;
+import com.salary.service.SysLogService;
 import com.salary.util.JwtUtil;
 import io.jsonwebtoken.Claims;
 import io.swagger.annotations.Api;
@@ -19,7 +22,9 @@ import javax.servlet.http.HttpServletRequest;
 public class AnomalyReportController {
 
     private final AnomalyReportService anomalyService;
+    private final SysLogService sysLogService;
     private final JwtUtil jwtUtil;
+    private final EmployeeMapper employeeMapper;
 
     @ApiOperation("Page list anomaly reports")
     @GetMapping("/page")
@@ -31,15 +36,27 @@ public class AnomalyReportController {
             HttpServletRequest request) {
         Claims c = claims(request);
         Integer role = Integer.valueOf(c.get("role").toString());
-        Long reporterId = role == 2 ? Long.valueOf(c.get("userId").toString()) : null; // admin(1) sees all, manager(2) sees own
-        return Result.success(anomalyService.page(current, size, reportType, status, reporterId));
+        Long currentUserId = Long.valueOf(c.get("userId").toString());
+        Long reporterId = null;
+        Long empId = null;
+        if (role == 2) {
+            reporterId = currentUserId;
+        } else if (role == 3) {
+            Employee employee = employeeMapper.selectByUserId(currentUserId);
+            empId = employee != null ? employee.getId() : -1L;
+        }
+        return Result.success(anomalyService.page(current, size, reportType, status, reporterId, empId));
     }
 
     @ApiOperation("Submit an anomaly report")
     @PostMapping
     public Result<Void> submit(@RequestBody AnomalyReport report, HttpServletRequest request) {
         Long reporterId = Long.valueOf(claims(request).get("userId").toString());
+        Employee employee = employeeMapper.selectByUserId(reporterId);
         report.setReporterId(reporterId);
+        if (employee != null) {
+            report.setEmpId(employee.getId());
+        }
         report.setStatus(0);
         anomalyService.save(report);
         return Result.successMsg("Submitted");
@@ -55,6 +72,24 @@ public class AnomalyReportController {
         Long processorId = Long.valueOf(claims(request).get("userId").toString());
         anomalyService.processReport(id, status, processResult, processorId);
         return Result.successMsg("Processed");
+    }
+
+    @ApiOperation("Delete an anomaly report")
+    @DeleteMapping("/{id}")
+    public Result<Void> delete(@PathVariable Long id, HttpServletRequest request) {
+        AnomalyReport report = anomalyService.getById(id);
+        if (report == null) {
+            return Result.error("异常记录不存在");
+        }
+        anomalyService.removeById(id);
+        Claims claims = claims(request);
+        sysLogService.recordOperation(
+                claims.get("username") != null ? claims.get("username").toString() : claims.getSubject(),
+                claims.get("role") == null ? null : Integer.valueOf(claims.get("role").toString()),
+                "异常上报",
+                "删除异常上报[" + (report.getTitle() == null ? "ID=" + id : report.getTitle()) + "/" +
+                        (report.getYearMonth() == null ? "-" : report.getYearMonth()) + "]");
+        return Result.successMsg("Deleted");
     }
 
     private Claims claims(HttpServletRequest req) {

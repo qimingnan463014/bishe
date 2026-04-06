@@ -4,10 +4,14 @@ import com.salary.common.PageResult;
 import com.salary.common.Result;
 import com.salary.entity.SocialSecurityConfig;
 import com.salary.service.SocialSecurityConfigService;
+import com.salary.service.SysLogService;
+import com.salary.util.JwtUtil;
+import io.jsonwebtoken.Claims;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import javax.servlet.http.HttpServletRequest;
 
 @Api(tags = "Social Security Config")
 @RestController
@@ -16,6 +20,8 @@ import org.springframework.web.bind.annotation.*;
 public class SocialSecurityConfigController {
 
     private final SocialSecurityConfigService configService;
+    private final SysLogService sysLogService;
+    private final JwtUtil jwtUtil;
 
     @ApiOperation("Page list configs")
     @GetMapping("/page")
@@ -42,8 +48,19 @@ public class SocialSecurityConfigController {
 
     @ApiOperation("Delete config")
     @DeleteMapping("/{id}")
-    public Result<Void> delete(@PathVariable Long id) {
+    public Result<Void> delete(@PathVariable Long id, HttpServletRequest request) {
+        SocialSecurityConfig config = configService.getById(id);
         configService.removeById(id);
+        Claims claims = claims(request);
+        sysLogService.recordOperation(
+                claims.get("username") != null ? claims.get("username").toString() : claims.getSubject(),
+                claims.get("role") == null ? null : Integer.valueOf(claims.get("role").toString()),
+                "社保配置",
+                "删除社保配置[" + (config != null ? config.getConfigName() : "ID=" + id) + "]");
         return Result.successMsg("Deleted");
+    }
+
+    private Claims claims(HttpServletRequest request) {
+        return jwtUtil.parseToken(jwtUtil.extractToken(request.getHeader("Authorization")));
     }
 }

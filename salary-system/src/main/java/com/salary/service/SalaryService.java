@@ -14,7 +14,8 @@ public interface SalaryService extends IService<SalaryRecord> {
     /** 分页查询薪资核算列表 */
     PageResult<SalaryRecord> page(int current, int size,
                                    String yearMonth, String empNo, String realName,
-                                   Long deptId, Integer calcStatus, Long managerId);
+                                   Long deptId, Integer calcStatus, Long managerId,
+                                   String excludeEmpNo, Boolean excludeDraft);
 
     /** 为指定员工的指定月份自动计算薪资（核心业务） */
     SalaryRecord calculateSalary(Long empId, String yearMonth);
@@ -77,6 +78,12 @@ public interface SalaryService extends IService<SalaryRecord> {
      */
     void payBatch(List<Long> ids, Long operatorId, Integer role);
 
+    /** 工资条发布：已发放(4) -> 仅开放给员工/经理查看，不改变 calcStatus */
+    void publishSalarySlip(Long salaryId, Long operatorId, String operatorName);
+
+    /** 批量发布工资条 */
+    void publishSalarySlips(List<Long> ids, Long operatorId, String operatorName);
+
     /** 查询薪资详情 */
     SalaryRecord getDetail(Long id);
 
@@ -89,12 +96,15 @@ public interface SalaryService extends IService<SalaryRecord> {
     /** 手动修改薪资记录 */
     void manualUpdate(SalaryRecord record);
 
-    /** 获取月度总薪资走势（近12个月） */
-    List<java.util.Map<String, Object>> getMonthlyTrend();
+    /** 更新薪资发放附件 */
+    void updateIssueFile(Long salaryId, String issueFile, Integer role);
+
+    /** 获取月度总薪资走势（以指定月份为右边界的近12个月） */
+    List<java.util.Map<String, Object>> getMonthlyTrend(String yearMonth);
 
     /** 获取指定月份的薪资构成（基本、加班、绩效、补助、扣减） */
     java.util.Map<String, Object> getSalaryStructure(String yearMonth);
 
-    /** 获取各部门平均薪资对比 */
-    List<java.util.Map<String, Object>> getDeptAvgSalary();
+    /** 获取指定月份的各部门平均薪资对比 */
+    List<java.util.Map<String, Object>> getDeptAvgSalary(String yearMonth);
 }

@@ -31,7 +31,9 @@ public interface SalaryRecordMapper extends BaseMapper<SalaryRecord> {
                                                @Param("realName") String realName,
                                                @Param("deptId") Long deptId,
                                                @Param("calcStatus") Integer calcStatus,
-                                               @Param("managerId") Long managerId);
+                                               @Param("managerId") Long managerId,
+                                               @Param("excludeEmpNo") String excludeEmpNo,
+                                               @Param("excludeDraft") Boolean excludeDraft);
 
     /**
      * 查询员工某年月的薪资记录（员工自助查询）
@@ -49,7 +51,7 @@ public interface SalaryRecordMapper extends BaseMapper<SalaryRecord> {
     /**
      * 统计月度实发工资总额趋势（近12个月）
      */
-    List<java.util.Map<String, Object>> countMonthlyTrend();
+    List<java.util.Map<String, Object>> countMonthlyTrend(@Param("anchorYearMonth") String anchorYearMonth);
 
     /**
      * 统计当月薪资构成（基本、加班、绩效、补助、扣除）
@@ -59,5 +61,5 @@ public interface SalaryRecordMapper extends BaseMapper<SalaryRecord> {
     /**
      * 各部门人均薪资对比
      */
-    List<java.util.Map<String, Object>> avgSalaryByDepartment();
+    List<java.util.Map<String, Object>> avgSalaryByDepartment(@Param("yearMonth") String yearMonth);
 }

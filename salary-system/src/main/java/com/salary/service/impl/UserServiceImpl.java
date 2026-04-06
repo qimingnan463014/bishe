@@ -5,6 +5,7 @@ import com.salary.entity.Employee;
 import com.salary.entity.User;
 import com.salary.mapper.EmployeeMapper;
 import com.salary.mapper.UserMapper;
+import com.salary.service.SysLogService;
 import com.salary.service.UserService;
 import com.salary.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     private final EmployeeMapper   employeeMapper;
     private final PasswordEncoder  passwordEncoder;
     private final JwtUtil          jwtUtil;
+    private final SysLogService    sysLogService;
     
     // 使用本地缓存替代 Redis存储验证码（方便本地启动，无需配置 Redis 节点）
     private static final Map<String, String> CAPTCHA_STORE = new ConcurrentHashMap<>();
@@ -85,6 +87,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         result.put("realName", user.getRealName());
         result.put("role",     user.getRole());
         result.put("avatar",   user.getAvatar());
+        sysLogService.recordOperation(username, user.getRole(), "认证中心", "登录系统");
 
         log.info("管理端登录成功：username={} role={}", username, user.getRole());
         return result;
@@ -125,6 +128,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         result.put("empId",    emp != null ? emp.getId() : null);
         result.put("deptName", emp != null ? emp.getDeptName() : null);
         result.put("avatar",   user.getAvatar());
+        sysLogService.recordOperation(username, user.getRole(), "认证中心", "登录系统");
 
         log.info("员工端登录成功：username={}", username);
         return result;
@@ -173,16 +177,31 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         info.put("avatar",   user.getAvatar());
         info.put("lastLoginTime", user.getLastLoginTime());
 
-        // 若是员工，附加员工档案信息
-        if (user.getRole() != null && user.getRole() == 3) {
+        // 员工(role=3)和经理(role=2)都附加员工档案信息
+        if (user.getRole() != null && (user.getRole() == 3 || user.getRole() == 2)) {
             Employee emp = employeeMapper.selectByUserId(userId);
             if (emp != null) {
-                info.put("empNo",     emp.getEmpNo());
-                info.put("empId",     emp.getId());
-                info.put("deptName",  emp.getDeptName());
-                info.put("phone",     emp.getPhone());
-                info.put("hireDate",  emp.getHireDate());
+                info.put("empNo",       emp.getEmpNo());
+                info.put("empId",       emp.getId());
+                info.put("id",          emp.getId());
+                info.put("deptId",      emp.getDeptId());
+                info.put("deptName",    emp.getDeptName());
+                info.put("phone",       emp.getPhone());
+                info.put("hireDate",    emp.getHireDate());
                 info.put("bankAccount", emp.getBankAccount());
+                info.put("bankCard",    emp.getBankAccount());
+                info.put("gender",      emp.getGender());
+                info.put("idCard",      emp.getIdCard());
+                info.put("baseSalary",  emp.getBaseSalary());
+                info.put("positionName", emp.getPositionName());
+                info.put("position",    emp.getPositionName());
+                info.put("managerNo",   emp.getManagerNo());
+                info.put("managerName", emp.getManagerName());
+                info.put("status",      emp.getStatus());
+                // 头像优先用员工档案的，兜底用用户表的
+                if (emp.getAvatar() != null && !emp.getAvatar().isEmpty()) {
+                    info.put("avatar", emp.getAvatar());
+                }
             }
         }
         return info;

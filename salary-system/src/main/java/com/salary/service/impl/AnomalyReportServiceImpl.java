@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
 public class AnomalyReportServiceImpl extends ServiceImpl<AnomalyReportMapper, AnomalyReport> implements AnomalyReportService {
 
     @Override
-    public PageResult<AnomalyReport> page(int current, int size, Integer reportType, Integer status, Long reporterId) {
+    public PageResult<AnomalyReport> page(int current, int size, Integer reportType, Integer status, Long reporterId, Long empId) {
         Page<AnomalyReport> page = new Page<>(current, size);
         LambdaQueryWrapper<AnomalyReport> qw = new LambdaQueryWrapper<>();
         if (reportType != null) {
@@ -27,6 +27,9 @@ public class AnomalyReportServiceImpl extends ServiceImpl<AnomalyReportMapper, A
         }
         if (reporterId != null) {
             qw.eq(AnomalyReport::getReporterId, reporterId);
+        }
+        if (empId != null) {
+            qw.eq(AnomalyReport::getEmpId, empId);
         }
         qw.orderByDesc(AnomalyReport::getCreateTime);
         this.page(page, qw);

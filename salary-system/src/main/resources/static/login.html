@@ -182,6 +182,12 @@
         baseURL: '/api', // 后端配置了 context-path /api
         timeout: 5000
     });
+    const ADMIN_TOKEN_KEY = 'adminToken';
+    const ADMIN_USER_KEY = 'adminUserInfo';
+    const EMPLOYEE_TOKEN_KEY = 'employeeToken';
+    const EMPLOYEE_USER_KEY = 'employeeUserInfo';
+    const LEGACY_TOKEN_KEY = 'token';
+    const LEGACY_USER_KEY = 'userInfo';
 
     const app = createApp({
         setup() {
@@ -195,6 +201,17 @@
             const captchaImg = ref('');
             const loading = ref(false);
             const showPassword = ref(false);
+            const saveScopedAuth = (role, token, userPayload) => {
+                if (role === 1 || role === 2) {
+                    localStorage.setItem(ADMIN_TOKEN_KEY, token);
+                    localStorage.setItem(ADMIN_USER_KEY, JSON.stringify(userPayload));
+                } else if (role === 3) {
+                    localStorage.setItem(EMPLOYEE_TOKEN_KEY, token);
+                    localStorage.setItem(EMPLOYEE_USER_KEY, JSON.stringify(userPayload));
+                }
+                localStorage.removeItem(LEGACY_TOKEN_KEY);
+                localStorage.removeItem(LEGACY_USER_KEY);
+            };
 
             // 从后端获取验证码
             const getCaptcha = async () => {
@@ -230,15 +247,13 @@
                     if (res.data.code === 200) {
                         ElMessage.success('登录成功！');
                         const token = res.data.data.token;
-                        const role = res.data.data.role;
+                        const role = Number(res.data.data.role || 0);
                         const resInfo = res.data.data;
-                        
-                        localStorage.setItem('token', token);
-                        localStorage.setItem('userInfo', JSON.stringify({
-                            username: loginForm.username,
+                        saveScopedAuth(role, token, {
+                            username: resInfo.username || loginForm.username,
                             realName: resInfo.realName || resInfo.name || loginForm.username,
                             role: role
-                        }));
+                        });
                         
                         // 路由分发
                         setTimeout(() => {

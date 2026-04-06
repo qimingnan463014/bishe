@@ -9,6 +9,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.salary.common.PageResult;
 import com.salary.dto.EmployeeImportDTO;
 import com.salary.entity.Employee;
+import com.salary.entity.Department;
 import com.salary.entity.User;
 import com.salary.mapper.DepartmentMapper;
 import com.salary.mapper.EmployeeMapper;
@@ -26,6 +27,7 @@ import org.springframework.web.multipart.MultipartFile;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.net.URLEncoder;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -82,23 +84,37 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee>
         long empCount = lambdaQuery().eq(Employee::getEmpNo, employee.getEmpNo()).count();
         if (empCount > 0) throw new RuntimeException("工号已存在：" + employee.getEmpNo());
 
+        int targetRole = isManagerEmployee(employee, null) ? 2 : 3;
+
         // 1. 创建系统账户（username = empNo）
         User user = new User();
         user.setUsername(employee.getEmpNo());
         user.setPassword(passwordEncoder.encode(initialPassword));
         user.setRealName(employee.getRealName());
-        user.setRole(3); // 默认员工角色
+        user.setRole(targetRole);
         user.setStatus(1);
         userMapper.insert(user);
 
         // 2. 绑定 userId 保存员工档案
         employee.setUserId(user.getId());
+        syncBaseSalaryWithDepartment(employee);
         save(employee);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateEmployee(Employee employee) {
+        Employee exist = getById(employee.getId());
+        if (exist == null) {
+            throw new RuntimeException("员工不存在：" + employee.getId());
+        }
+        if (employee.getUserId() == null) {
+            employee.setUserId(exist.getUserId());
+        }
+        if (employee.getDeptId() == null) {
+            employee.setDeptId(exist.getDeptId());
+        }
+        syncBaseSalaryWithDepartment(employee);
         updateById(employee);
     }
 
@@ -193,7 +209,9 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee>
                 emp.setDeptId(deptNameToId.get(dto.getDeptName()));
                 emp.setPositionId(posNameToId.get(dto.getPositionName()));
                 emp.setHireDate(parseDate(dto.getHireDate()));
-                emp.setBaseSalary(parseMoney(dto.getBaseSalary()));
+                emp.setRole(role);
+                emp.setPositionName(dto.getPositionName());
+                syncBaseSalaryWithDepartment(emp);
                 emp.setBankAccount(dto.getBankAccount());
                 emp.setBankName(dto.getBankName());
                 emp.setStatus(1); // 在职
@@ -261,6 +279,40 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee>
         u.setStatus(1);
         userMapper.insert(u);
         return u.getId();
+    }
+
+    private void syncBaseSalaryWithDepartment(Employee employee) {
+        if (employee == null || employee.getDeptId() == null) {
+            return;
+        }
+        Department dept = deptMapper.selectById(employee.getDeptId());
+        if (dept == null) {
+            return;
+        }
+        BigDecimal baseSalary = dept.getBaseSalary() != null ? dept.getBaseSalary() : BigDecimal.ZERO;
+        if (isManagerEmployee(employee, dept)) {
+            baseSalary = baseSalary.add(dept.getPositionSalary() != null ? dept.getPositionSalary() : BigDecimal.ZERO);
+        }
+        employee.setBaseSalary(baseSalary.setScale(2, RoundingMode.HALF_UP));
+    }
+
+    private boolean isManagerEmployee(Employee employee, Department dept) {
+        if (employee == null) {
+            return false;
+        }
+        if (employee.getRole() != null && employee.getRole() == 2) {
+            return true;
+        }
+        if (employee.getUserRole() != null && employee.getUserRole() == 2) {
+            return true;
+        }
+        if (StringUtils.hasText(employee.getPositionName()) && employee.getPositionName().contains("经理")) {
+            return true;
+        }
+        return employee.getUserId() != null
+                && dept != null
+                && dept.getManagerId() != null
+                && dept.getManagerId().equals(employee.getUserId());
     }
 
     private Map<String, Long> buildDeptNameMap() {

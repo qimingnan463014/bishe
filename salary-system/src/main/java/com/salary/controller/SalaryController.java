@@ -12,6 +12,8 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,9 +22,19 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletRequest;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * Salary Controller
@@ -37,7 +49,14 @@ import java.util.List;
 @RestController
 @RequestMapping("/salary")
 @RequiredArgsConstructor
+@Slf4j
 public class SalaryController {
+
+    private static final Path ISSUE_FILE_UPLOAD_DIR = Paths.get(System.getProperty("user.dir"), "uploads", "salary-issue")
+            .toAbsolutePath().normalize();
+    private static final Set<String> ALLOWED_ISSUE_FILE_EXTENSIONS = new HashSet<>(Arrays.asList(
+            "pdf", "doc", "docx", "xls", "xlsx", "png", "jpg", "jpeg", "zip"
+    ));
 
     private final SalaryService salaryService;
     private final JwtUtil jwtUtil;
@@ -54,9 +73,12 @@ public class SalaryController {
             @RequestParam(required = false) Long deptId,
             @RequestParam(required = false) Integer calcStatus,
             HttpServletRequest request) {
-        Long managerId = getRole(request) == 2 ? getUserId(request) : null;
+        Integer role = getRole(request);
+        Long managerId = role == 2 ? getUserId(request) : null;
+        String excludeEmpNo = role == 2 ? getUsername(request) : null;
+        Boolean excludeDraft = role == 1;
         return Result.success(salaryService.page(
-                current, size, yearMonth, empNo, realName, deptId, calcStatus, managerId));
+                current, size, yearMonth, empNo, realName, deptId, calcStatus, managerId, excludeEmpNo, excludeDraft));
     }
 
     @ApiOperation("获取记录总数")
@@ -67,8 +89,9 @@ public class SalaryController {
 
     @ApiOperation("获取月度总薪资走势（近12个月）")
     @GetMapping("/stat/trend")
-    public Result<java.util.List<java.util.Map<String, Object>>> getTrend() {
-        return Result.success(salaryService.getMonthlyTrend());
+    public Result<java.util.List<java.util.Map<String, Object>>> getTrend(
+            @RequestParam(required = false) String yearMonth) {
+        return Result.success(salaryService.getMonthlyTrend(yearMonth));
     }
 
     @ApiOperation("获取指定月份的薪资构成（雷达图/饼图用）")
@@ -79,8 +102,9 @@ public class SalaryController {
 
     @ApiOperation("获取各部门平均薪资对比")
     @GetMapping("/stat/dept-avg")
-    public Result<java.util.List<java.util.Map<String, Object>>> getDeptAvg() {
-        return Result.success(salaryService.getDeptAvgSalary());
+    public Result<java.util.List<java.util.Map<String, Object>>> getDeptAvg(
+            @RequestParam(required = false) String yearMonth) {
+        return Result.success(salaryService.getDeptAvgSalary(yearMonth));
     }
 
     @ApiOperation("Get salary detail by id")
@@ -95,7 +119,11 @@ public class SalaryController {
             @RequestParam(defaultValue = "1") int current,
             @RequestParam(defaultValue = "10") int size,
             HttpServletRequest request) {
-        return Result.success(salaryService.getMyHistory(current, size, getUserId(request)));
+        Employee employee = employeeMapper.selectByUserId(getUserId(request));
+        if (employee == null) {
+            return Result.success(PageResult.of(new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(current, size)));
+        }
+        return Result.success(salaryService.getMyHistory(current, size, employee.getId()));
     }
 
     @ApiOperation("Employee: get salary slip for a specific month YYYY-MM")
@@ -103,7 +131,11 @@ public class SalaryController {
     public Result<SalaryRecord> myMonthSalary(
             @ApiParam("YYYY-MM") @RequestParam String yearMonth,
             HttpServletRequest request) {
-        return Result.success(salaryService.getByEmpAndMonth(getUserId(request), yearMonth));
+        Employee employee = employeeMapper.selectByUserId(getUserId(request));
+        if (employee == null) {
+            return Result.success(null);
+        }
+        return Result.success(salaryService.getByEmpAndMonth(employee.getId(), yearMonth));
     }
 
     @ApiOperation("Calculate salary for one employee")
@@ -175,12 +207,62 @@ public class SalaryController {
         return Result.successMsg("Batch payment done");
     }
 
+    @ApiOperation("Publish salary slips after payment. ADMIN ONLY.")
+    @PutMapping("/{id:[0-9]+}/publish-slip")
+    public Result<Void> publishSlip(@PathVariable Long id, HttpServletRequest request) {
+        if (getRole(request) != 1) {
+            return Result.error("只有管理员才能发布工资条");
+        }
+        salaryService.publishSalarySlip(id, getUserId(request), getUsername(request));
+        return Result.successMsg("Salary slip published");
+    }
+
+    @ApiOperation("Batch publish salary slips after payment. ADMIN ONLY.")
+    @PutMapping("/batch-publish-slip")
+    public Result<Void> batchPublishSlip(@RequestBody List<Long> ids, HttpServletRequest request) {
+        if (getRole(request) != 1) {
+            return Result.error("只有管理员才能批量发布工资条");
+        }
+        salaryService.publishSalarySlips(ids, getUserId(request), getUsername(request));
+        return Result.successMsg("Batch salary slips published");
+    }
+
 
     @ApiOperation("Manual update salary record (auto-recalculates gross and net pay)")
     @PutMapping("/manual-update")
     public Result<Void> manualUpdate(@RequestBody SalaryRecord record) {
         salaryService.manualUpdate(record);
         return Result.successMsg("Updated");
+    }
+
+    @ApiOperation("上传薪资发放文件（管理员）")
+    @PostMapping("/{id:[0-9]+}/issue-file")
+    public Result<String> uploadIssueFile(@PathVariable Long id,
+                                          @RequestParam("file") MultipartFile file,
+                                          HttpServletRequest request) {
+        if (getRole(request) != 1) {
+            return Result.forbidden("只有管理员才能上传发放文件");
+        }
+        if (file == null || file.isEmpty()) {
+            return Result.error("请选择发放文件后再上传");
+        }
+        String extension = StringUtils.getFilenameExtension(file.getOriginalFilename());
+        String normalizedExtension = extension == null ? "" : extension.toLowerCase(Locale.ROOT);
+        if (!ALLOWED_ISSUE_FILE_EXTENSIONS.contains(normalizedExtension)) {
+            return Result.error("仅支持 pdf、doc、docx、xls、xlsx、png、jpg、jpeg、zip 格式");
+        }
+        try {
+            Files.createDirectories(ISSUE_FILE_UPLOAD_DIR);
+            String fileName = id + "_" + UUID.randomUUID().toString().replace("-", "") + "." + normalizedExtension;
+            Path targetPath = ISSUE_FILE_UPLOAD_DIR.resolve(fileName);
+            Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
+            String issueFileUrl = "/api/uploads/salary-issue/" + fileName;
+            salaryService.updateIssueFile(id, issueFileUrl, getRole(request));
+            return Result.success("上传成功", issueFileUrl);
+        } catch (Exception e) {
+            log.error("上传薪资发放文件失败, salaryId={}", id, e);
+            return Result.error("上传发放文件失败：" + e.getMessage());
+        }
     }
 
     private Long getUserId(HttpServletRequest req) {
@@ -191,5 +273,10 @@ public class SalaryController {
     private Integer getRole(HttpServletRequest req) {
         Claims c = jwtUtil.parseToken(jwtUtil.extractToken(req.getHeader("Authorization")));
         return Integer.valueOf(c.get("role").toString());
+    }
+
+    private String getUsername(HttpServletRequest req) {
+        Claims c = jwtUtil.parseToken(jwtUtil.extractToken(req.getHeader("Authorization")));
+        return String.valueOf(c.get("username"));
     }
 }

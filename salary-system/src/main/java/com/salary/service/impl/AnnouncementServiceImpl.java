@@ -14,13 +14,18 @@ import org.springframework.util.StringUtils;
 public class AnnouncementServiceImpl extends ServiceImpl<AnnouncementMapper, Announcement> implements AnnouncementService {
 
     @Override
-    public PageResult<Announcement> page(int current, int size, String title) {
+    public PageResult<Announcement> page(int current, int size, String title, Integer status) {
         Page<Announcement> page = new Page<>(current, size);
         LambdaQueryWrapper<Announcement> qw = new LambdaQueryWrapper<>();
-        if(StringUtils.hasText(title)) {
+        if (StringUtils.hasText(title)) {
             qw.like(Announcement::getTitle, title);
         }
-        qw.orderByDesc(Announcement::getCreateTime);
+        if (status != null) {
+            qw.eq(Announcement::getStatus, status);
+        }
+        qw.orderByDesc(Announcement::getIsTop)
+                .orderByDesc(Announcement::getPubTime)
+                .orderByDesc(Announcement::getCreateTime);
         this.page(page, qw);
         return PageResult.of(page);
     }

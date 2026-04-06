@@ -4,13 +4,13 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.salary.common.PageResult;
-import com.salary.entity.Department;
 import com.salary.entity.Employee;
 import com.salary.entity.Performance;
 import com.salary.entity.SalaryRecord;
 import com.salary.entity.User;
 import com.salary.mapper.*;
 import com.salary.service.PerformanceService;
+import com.salary.service.SalaryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,9 +24,9 @@ import java.math.RoundingMode;
  * <p>
  * 核心逻辑：
  * 1. 经理填写四个子分项（工作态度/业务技能/工作绩效/奖惩加减分）
- * 2. 系统自动计算总得分 = (workAttitude + businessSkill + workPerformance) / 3 + bonusDeduct
- * 3. 根据总得分自动映射评价等级：≥90优秀 / ≥80良好 / ≥60一般 / <60差
- * 4. 自动联动更新该员工当月薪资记录中的绩效奖金字段
+ * 2. 系统自动计算总得分 = workAttitude + businessSkill + workPerformance + bonusDeduct
+ * 3. 根据总得分自动映射评价等级与绝对奖金金额
+ * 4. 自动联动重算该员工当月薪资记录，保证绩效奖金、个税与实发同步
  */
 @Slf4j
 @Service
@@ -39,9 +39,9 @@ public class PerformanceServiceImpl extends ServiceImpl<PerformanceMapper, Perfo
 
     private final PerformanceMapper    performanceMapper;
     private final EmployeeMapper       employeeMapper;
-    private final DepartmentMapper     departmentMapper;
     private final SalaryRecordMapper   salaryRecordMapper;
     private final UserMapper           userMapper;
+    private final SalaryService        salaryService;
 
     // ====================================================
     //  分页查询
@@ -211,8 +211,8 @@ public class PerformanceServiceImpl extends ServiceImpl<PerformanceMapper, Perfo
     /**
      * 将绩效评分结果同步到当月薪资草稿记录（如果该记录已存在）
      * <p>
-     * 当月薪资记录中的 perfBonus 将被更新为：
-     *   绩效奖金 = 部门基数 × 20% × 绩效系数（perfBonusRatio）
+     * 不直接做“增量修补”，而是触发整单重算，确保绩效奖金变动后
+     * 应发、个税、扣款合计和实发工资保持一致。
      */
     private void syncPerfBonusToSalary(Performance perf) {
         // 查询当月薪资记录是否存在（可能还未核算，则不做联动）
@@ -224,32 +224,9 @@ public class PerformanceServiceImpl extends ServiceImpl<PerformanceMapper, Perfo
             return;
         }
 
-        // 读取部门基数
-        Employee emp = employeeMapper.selectById(perf.getEmpId());
-        if (emp == null) return;
-        Department dept = departmentMapper.selectById(emp.getDeptId());
-        if (dept == null || dept.getBaseSalary() == null) return;
-        // 绩效奖金 = perfBonusRatio 中保存的管理员设置的绝对金额
-        BigDecimal perfBonus = nvl(perf.getPerfBonusRatio());
-
-        // 更新薪资记录的绩效奖金字段（同时重算应发和实发）
-        SalaryRecord update = new SalaryRecord();
-        update.setId(salaryRecord.getId());
-        update.setPerfBonus(perfBonus);
-
-        // 重算应发 = 原应发 - 原绩效奖金 + 新绩效奖金
-        BigDecimal oldPerfBonus = nvl(salaryRecord.getPerfBonus());
-        BigDecimal deltaPerf    = perfBonus.subtract(oldPerfBonus);
-        BigDecimal newGross     = nvl(salaryRecord.getGrossSalary()).add(deltaPerf);
-        BigDecimal newNet       = nvl(salaryRecord.getNetSalary()).add(deltaPerf);
-
-        update.setGrossSalary(newGross.setScale(2, RoundingMode.HALF_UP));
-        update.setNetSalary(newNet.setScale(2, RoundingMode.HALF_UP));
-
-        salaryRecordMapper.updateById(update);
-
-        log.info("联动更新绩效奖金：empNo={} yearMonth={} perfBonus={}→{}",
-                perf.getEmpNo(), perf.getYearMonth(), oldPerfBonus, perfBonus);
+        salaryService.calculateSalary(perf.getEmpId(), perf.getYearMonth());
+        log.info("联动重算薪资：empNo={} yearMonth={} perfBonus={}",
+                perf.getEmpNo(), perf.getYearMonth(), nvl(perf.getPerfBonusRatio()));
     }
 
     private BigDecimal nvl(BigDecimal v) {
