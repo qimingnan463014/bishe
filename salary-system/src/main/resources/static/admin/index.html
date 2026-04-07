@@ -2203,8 +2203,9 @@
                                 </div>
                             </template>
                         </el-table-column>
-                        <el-table-column label="操作" width="120">
+                        <el-table-column label="操作" width="160">
                             <template #default>
+                                <el-button link type="primary" size="small" @click="openAboutDialog('detail')">详情</el-button>
                                 <el-button link type="warning" size="small" @click="openAboutEditor">修改</el-button>
                             </template>
                         </el-table-column>
@@ -5623,6 +5624,13 @@
                     const list = Array.isArray(images) ? images.filter(item => !!item) : [];
                     return list.length ? list : [...fallback];
                 };
+                const normalizeWebsiteText = (value, fallback = '') => {
+                    if (typeof value === 'string') {
+                        const trimmed = value.trim();
+                        return trimmed || fallback;
+                    }
+                    return value == null ? fallback : value;
+                };
                 const createDefaultWebsiteContent = () => ({
                     portalTitle: '基于Java的员工薪资管理系统设计与实现',
                     aboutTitle: '关于我们',
@@ -5643,18 +5651,33 @@
                         '/api/front_assets/aboutus_picture3.jpg'
                     ]
                 });
+                const buildWebsiteContentState = (stored = {}, defaults = createDefaultWebsiteContent()) => {
+                    const normalized = { ...defaults, ...stored };
+                    normalized.portalTitle = normalizeWebsiteText(stored.portalTitle, defaults.portalTitle);
+                    normalized.noticeSectionTitle = normalizeWebsiteText(stored.noticeSectionTitle, defaults.noticeSectionTitle);
+                    normalized.aboutTitle = normalizeWebsiteText(stored.aboutTitle, defaults.aboutTitle);
+                    normalized.aboutSubtitle = typeof stored.aboutSubtitle === 'string' ? stored.aboutSubtitle : defaults.aboutSubtitle;
+                    normalized.aboutContent = normalizeWebsiteText(stored.aboutContent, defaults.aboutContent);
+                    normalized.systemIntroTitle = normalizeWebsiteText(stored.systemIntroTitle, defaults.systemIntroTitle);
+                    normalized.systemIntroContent = normalizeWebsiteText(stored.systemIntroContent, defaults.systemIntroContent);
+                    normalized.carouselImages = normalizeFilledImages(stored.carouselImages, defaults.carouselImages);
+                    normalized.aboutImages = normalizeFilledImages(stored.aboutImages, defaults.aboutImages);
+                    normalized.systemIntroImage = normalizeWebsiteText(stored.systemIntroImage, defaults.systemIntroImage);
+                    return normalized;
+                };
                 const websiteForm = reactive(createDefaultWebsiteContent());
                 const loadWebsiteContent = () => {
                     const defaults = createDefaultWebsiteContent();
                     aboutCurrent.value = 1;
                     const applyWebsiteContent = (stored = {}) => {
-                        Object.assign(websiteForm, defaults, stored);
-                        websiteForm.carouselImages = normalizeFilledImages(stored.carouselImages, defaults.carouselImages);
-                        websiteForm.aboutImages = normalizeFilledImages(stored.aboutImages, defaults.aboutImages);
-                        websiteForm.systemIntroImage = stored.systemIntroImage || defaults.systemIntroImage;
+                        Object.assign(websiteForm, buildWebsiteContentState(stored, defaults));
+                    };
+                    const syncLocalConfigToServer = (localStored) => {
+                        const jsonValue = JSON.stringify(buildWebsiteContentState(localStored, defaults));
+                        axios.post('/api/sys-config/save', { key: 'website_content', value: jsonValue }).catch(() => { });
                     };
 
-                    // 优先从数据库加载
+                    // 服务端为主；若旧版本只保存在本地，则在管理端自动补同步一次
                     axios.get('/api/sys-config/website_content').then(r => {
                         if (r.data.code === 200 && r.data.data) {
                             try {
@@ -5663,13 +5686,21 @@
                                 return;
                             } catch (e) { console.error('Parse database config error', e); }
                         }
-                        // 降级：从 localStorage 加载
                         const localStored = JSON.parse(localStorage.getItem(WEBSITE_CONTENT_STORAGE_KEY) || '{}');
-                        applyWebsiteContent(localStored);
+                        if (Object.keys(localStored).length) {
+                            applyWebsiteContent(localStored);
+                            syncLocalConfigToServer(localStored);
+                            return;
+                        }
+                        applyWebsiteContent({});
                     }).catch(() => {
-                        // 接口报错则强制使用 local
                         const localStored = JSON.parse(localStorage.getItem(WEBSITE_CONTENT_STORAGE_KEY) || '{}');
-                        applyWebsiteContent(localStored);
+                        if (Object.keys(localStored).length) {
+                            applyWebsiteContent(localStored);
+                            syncLocalConfigToServer(localStored);
+                            return;
+                        }
+                        applyWebsiteContent({});
                     });
                 };
                 const saveWebsiteContent = () => {
@@ -5689,13 +5720,13 @@
                     };
                     const jsonValue = JSON.stringify(configData);
 
-                    // 同步到数据库
+                    // 同步到服务端配置
                     axios.post('/api/sys-config/save', { key: 'website_content', value: jsonValue }).then(r => {
                         if (r.data.code === 200) {
-                            ElementPlus.ElMessage.success('成功同步到数据库');
+                            ElementPlus.ElMessage.success('成功同步到系统配置');
                         }
                     }).catch(() => {
-                        ElementPlus.ElMessage.warning('数据库保存失败，已临时保存到本地');
+                        ElementPlus.ElMessage.warning('服务端保存失败，已临时保存到本地');
                     });
 
                     // 备份到本地
