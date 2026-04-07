@@ -31,8 +31,10 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -154,9 +156,23 @@ public class SalaryController {
             HttpServletRequest request) {
         Integer role = getRole(request);
         if (role == 2) {
-            Long managerId = getUserId(request);
-            java.util.List<Employee> team = employeeMapper.selectByManagerId(managerId);
+            Long managerUserId = getUserId(request);
+            Map<Long, Employee> targets = new LinkedHashMap<>();
+
+            Employee self = employeeMapper.selectByUserId(managerUserId);
+            if (self != null && self.getId() != null) {
+                targets.put(self.getId(), self);
+            }
+
+            java.util.List<Employee> team = employeeMapper.selectByManagerId(managerUserId);
             for (Employee emp : team) {
+                if (emp == null || emp.getId() == null) {
+                    continue;
+                }
+                targets.put(emp.getId(), emp);
+            }
+
+            for (Employee emp : targets.values()) {
                 salaryService.calculateSalary(emp.getId(), yearMonth);
             }
             return Result.successMsg("Manager batch calculate done");

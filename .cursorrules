@@ -46,3 +46,7 @@
   代码验证无误后，你必须**主动且独立地**调用文件写入能力，更新两个状态文件：
   1. 在 `DEV_PLAN.md` 中找到对应任务，将 `[ ]` 修改为 `[x]`。
   2. 在 `CHANGELOG.md` 顶部按日期追加本次修改的详细记录（要求：列出修改的文件、核心逻辑的变动、解决的具体问题）。
+  ## File Encoding & Format Rules (CRITICAL)
+- ALWAYS read and write files strictly in pure `UTF-8` encoding.
+- NEVER use `GBK`, `GB2312`, or `UTF-8 with BOM`.
+- If modifying an existing `.html`, `.java`, or `.md` file with Chinese characters, double-check that your output does not corrupt the encoding.

@@ -1699,7 +1699,7 @@
                         <el-dropdown-menu>
                             <el-dropdown-item command="home">首页</el-dropdown-item>
                             <el-dropdown-item command="personal">个人中心</el-dropdown-item>
-                            <el-dropdown-item command="backup">数据备份</el-dropdown-item>
+                            <el-dropdown-item v-if="userInfo.role === 1" command="backup">数据备份</el-dropdown-item>
                             <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
                         </el-dropdown-menu>
                     </template>
@@ -1962,6 +1962,7 @@
                             <el-descriptions-item label="性别">{{ selfInfo.gender === 1 ? '男' : selfInfo.gender === 2
                                 ? '女' : '-' }}</el-descriptions-item>
                             <el-descriptions-item label="手机">{{ selfInfo.phone || '-' }}</el-descriptions-item>
+                            <el-descriptions-item label="身份证号">{{ selfInfo.idCard || '-' }}</el-descriptions-item>
                             <el-descriptions-item label="部门">{{ selfInfo.deptName || '-' }}</el-descriptions-item>
                             <el-descriptions-item label="基本工资">{{ selfInfo.baseSalary != null ? ('￥' +
                                 selfInfo.baseSalary) : '-' }}</el-descriptions-item>
@@ -1969,6 +1970,7 @@
                             <el-descriptions-item label="岗位">{{ selfInfo.positionName || selfInfo.position || '-'
                                 }}</el-descriptions-item>
                             <el-descriptions-item label="入职时间">{{ selfInfo.hireDate || '-' }}</el-descriptions-item>
+                            <el-descriptions-item label="部门经理">{{ selfInfo.managerName || '-' }}</el-descriptions-item>
                         </el-descriptions>
                     </el-card>
                     <el-card shadow="hover" style="border-radius:18px;">
@@ -3112,9 +3114,16 @@
                 <div class="action-bar">
                     <el-button type="warning" @click="batchCalcSalary"
                         v-if="userInfo.role===2">核算</el-button>
-                    <el-button type="success" plain @click="batchPublishSalary"
+                    <el-button type="primary" @click="generateSalaryDrafts"
                         v-if="userInfo.role===2"
-                        title="将草稿账单提交到审核队列，进入待审核状态">提交审核</el-button>
+                        title="按当前选中月份为经理本人及名下员工生成工资草稿">生成草稿</el-button>
+                    <el-button @click="openSalaryDraftDialog"
+                        v-if="userInfo.role===2"
+                        title="单独补一条工资草稿，适合误删后重新添加">添加草稿</el-button>
+                    <el-button type="success" @click="batchPublishSalary"
+                        v-if="userInfo.role===2"
+                        title="将草稿账单提交到审核队列，进入待审核状态"
+                        style="font-weight:600;">提交审核</el-button>
                     <el-button type="primary" @click="batchAuditSalary" v-if="userInfo.role===1"
                         title="将待审核的薪资账单批量审核为可发放状态">批量审核</el-button>
                     <el-button type="danger" @click="batchDeleteSalaryRecords">删除</el-button>
@@ -3166,7 +3175,7 @@
                             <template #default="{row}">
                                 <div class="inline-actions">
                                     <el-button v-if="(userInfo.role===1 || userInfo.role===2) && row.calcStatus===1"
-                                        link type="warning" size="small" @click="saveAllowance(row)">修改(草稿)</el-button>
+                                        link type="warning" size="small" @click="openSalaryEditDialog(row)">编辑草稿</el-button>
                                     <el-button v-if="userInfo.role===1 && row.calcStatus===2" link type="success"
                                         size="small" @click="auditSalaryRecord(row)">单笔审核</el-button>
                                     <el-button v-if="canSubmitSalaryFeedbackForRow(row)" link type="warning"
@@ -3570,10 +3579,23 @@
                 </div>
                 <div>
                     <div class="dialog-title-text">修改个人信息</div>
-                    <div class="dialog-title-sub">维护个人通讯资料与发薪账户信息</div>
+                    <div class="dialog-title-sub">维护个人通讯资料与发薪账户信息，职务与薪资如需变更请联系人事</div>
                 </div>
             </div>
             <div class="dialog-body-padding">
+                <el-card shadow="never" class="detail-panel" style="margin-bottom:16px;">
+                    <template #header>
+                        <div class="detail-panel__title">只读信息</div>
+                    </template>
+                    <el-form label-position="top" class="detail-form">
+                        <el-row :gutter="20">
+                            <el-col :span="12"><el-form-item label="工号"><el-input v-model="selfInfo.empNo" disabled></el-input></el-form-item></el-col>
+                            <el-col :span="12"><el-form-item label="所在部门"><el-input v-model="selfInfo.deptName" disabled></el-input></el-form-item></el-col>
+                            <el-col :span="12"><el-form-item label="当前岗位"><el-input :model-value="selfInfo.positionName || selfInfo.position" disabled></el-input></el-form-item></el-col>
+                            <el-col :span="12"><el-form-item label="入职时间"><el-input v-model="selfInfo.hireDate" disabled></el-input></el-form-item></el-col>
+                        </el-row>
+                    </el-form>
+                </el-card>
                 <el-card shadow="never" class="detail-panel">
                     <template #header>
                         <div class="detail-panel__title">个人资料</div>
@@ -3586,13 +3608,11 @@
                                         v-model="selfEditForm.gender"><el-radio :label="1">男</el-radio><el-radio
                                             :label="2">女</el-radio></el-radio-group></el-form-item></el-col>
                             <el-col :span="12"><el-form-item label="手机号"><el-input
-                                        v-model=" selfEditForm.phone"></el-input></el-form-item></el-col>
+                                        v-model="selfEditForm.phone" placeholder="请输入手机号"></el-input></el-form-item></el-col>
+                            <el-col :span="12"><el-form-item label="身份证号"><el-input
+                                        v-model="selfEditForm.idCard" placeholder="请输入身份证号"></el-input></el-form-item></el-col>
                             <el-col :span="12"><el-form-item label="银行卡号"><el-input v-model="selfEditForm.bankCard"
-                                        placeholder="用于发放工资的银行卡号"></el-input></el-form-item></el-col>
-                            <el-col :span="12"><el-form-item label="入职时间"><el-date-picker
-                                        v-model="selfEditForm.hireDate" type="date" format="YYYY-MM-DD"
-                                        value-format="YYYY-MM-DD" style="width:100%"
-                                        teleported></el-date-picker></el-form-item></el-col>
+                                        placeholder="请输入银行卡号"></el-input></el-form-item></el-col>
                         </el-row>
                     </el-form>
                 </el-card>
@@ -4293,6 +4313,102 @@
             </div>
         </el-dialog>
 
+        <el-dialog v-model="salaryDraftDialogVisible" width="660px" top="8vh" class="modern-dialog">
+            <div class="dialog-header-gradient">
+                <div class="dialog-title-icon"><el-icon>
+                        <Plus />
+                    </el-icon></div>
+                <div>
+                    <div class="dialog-title-text">添加工资草稿</div>
+                    <div class="dialog-title-sub">按月份为单个人员补生成工资草稿，适合误删后补回</div>
+                </div>
+            </div>
+            <div class="dialog-body-padding">
+                <el-card shadow="never" class="detail-panel">
+                    <template #header>
+                        <div class="detail-panel__title">草稿配置</div>
+                    </template>
+                    <el-form :model="salaryDraftForm" label-position="top" class="detail-form">
+                        <el-row :gutter="20">
+                            <el-col :span="12">
+                                <el-form-item label="月份">
+                                    <el-date-picker v-model="salaryDraftForm.yearMonth"
+                                        type="month" format="YYYY-MM" value-format="YYYY-MM" style="width:100%"
+                                        teleported popper-class="numeric-month-popper"></el-date-picker>
+                                </el-form-item>
+                            </el-col>
+                            <el-col :span="12">
+                                <el-form-item label="员工 / 经理">
+                                    <el-select v-model="salaryDraftForm.empId" style="width:100%" filterable>
+                                        <el-option v-for="item in salaryDraftSelectablePeople" :key="item.id"
+                                            :label="item.empNo + ' - ' + item.realName + (item.isSelf ? '（本人）' : '')"
+                                            :value="item.id"></el-option>
+                                    </el-select>
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                    </el-form>
+                </el-card>
+            </div>
+            <div class="dialog-footer-bar">
+                <el-button @click="salaryDraftDialogVisible = false">取消</el-button>
+                <el-button type="primary" :loading="salaryDraftDialogLoading" @click="createSalaryDraft">生成草稿</el-button>
+            </div>
+        </el-dialog>
+
+        <el-dialog v-model="salaryEditDialogVisible" width="760px" top="8vh" class="modern-dialog">
+            <div class="dialog-header-gradient">
+                <div class="dialog-title-icon"><el-icon>
+                        <EditPen />
+                    </el-icon></div>
+                <div>
+                    <div class="dialog-title-text">编辑工资草稿</div>
+                    <div class="dialog-title-sub">经理可在提交审核前调整津贴、其他扣款和备注</div>
+                </div>
+            </div>
+            <div class="dialog-body-padding">
+                <el-card shadow="never" class="detail-panel">
+                    <template #header>
+                        <div class="detail-panel__title">草稿信息</div>
+                    </template>
+                    <el-form :model="salaryEditForm" label-position="top" class="detail-form">
+                        <el-row :gutter="20">
+                            <el-col :span="8"><el-form-item label="月份"><el-input v-model="salaryEditForm.yearMonth" disabled></el-input></el-form-item></el-col>
+                            <el-col :span="8"><el-form-item label="工号"><el-input v-model="salaryEditForm.empNo" disabled></el-input></el-form-item></el-col>
+                            <el-col :span="8"><el-form-item label="姓名"><el-input v-model="salaryEditForm.empName" disabled></el-input></el-form-item></el-col>
+                            <el-col :span="12"><el-form-item label="津贴"><el-input-number v-model="salaryEditForm.allowance" :min="0" :step="100" style="width:100%"></el-input-number></el-form-item></el-col>
+                            <el-col :span="12"><el-form-item label="其他扣款"><el-input-number v-model="salaryEditForm.otherDeduct" :min="0" :step="100" style="width:100%"></el-input-number></el-form-item></el-col>
+                            <el-col :span="24"><el-form-item label="备注"><el-input v-model="salaryEditForm.remark" type="textarea" :rows="4" placeholder="可填写调薪原因、补贴说明等"></el-input></el-form-item></el-col>
+                        </el-row>
+                    </el-form>
+                </el-card>
+                <el-row :gutter="16" style="margin-top:16px;">
+                    <el-col :span="8">
+                        <el-card shadow="never" class="detail-panel">
+                            <div class="detail-panel__title">应发工资</div>
+                            <div style="font-size:24px;font-weight:700;color:#409EFF;">￥{{ salaryEditPreview.gross.toFixed(2) }}</div>
+                        </el-card>
+                    </el-col>
+                    <el-col :span="8">
+                        <el-card shadow="never" class="detail-panel">
+                            <div class="detail-panel__title">扣款合计</div>
+                            <div style="font-size:24px;font-weight:700;color:#F56C6C;">￥{{ salaryEditPreview.deduct.toFixed(2) }}</div>
+                        </el-card>
+                    </el-col>
+                    <el-col :span="8">
+                        <el-card shadow="never" class="detail-panel">
+                            <div class="detail-panel__title">实发工资</div>
+                            <div style="font-size:24px;font-weight:700;color:#67C23A;">￥{{ salaryEditPreview.net.toFixed(2) }}</div>
+                        </el-card>
+                    </el-col>
+                </el-row>
+            </div>
+            <div class="dialog-footer-bar">
+                <el-button @click="salaryEditDialogVisible = false">取消</el-button>
+                <el-button type="primary" :loading="salaryEditSaving" @click="saveSalaryDraft">保存草稿</el-button>
+            </div>
+        </el-dialog>
+
         <!-- 弹窗：统一详情模板 -->
         <el-dialog v-model="detailDialogVisible" :width="detailDialog.width" top="6vh" class="detail-dialog">
             <div class="detail-shell">
@@ -4717,8 +4833,8 @@
                 const currentMenu = ref('home');
 
                 // --- 个人中心数据 ---
-                const selfInfo = reactive({ empNo: '', realName: '', gender: '', phone: '', deptName: '', baseSalary: '', bankCard: '', positionName: '', hireDate: '', managerNo: '', managerName: '', avatar: '', id: '' });
-                const selfEditForm = reactive({ realName: '', gender: 1, phone: '', bankCard: '', hireDate: '' });
+                const selfInfo = reactive({ empNo: '', realName: '', gender: '', phone: '', idCard: '', deptName: '', baseSalary: '', bankCard: '', positionName: '', hireDate: '', managerNo: '', managerName: '', avatar: '', id: '' });
+                const selfEditForm = reactive({ realName: '', gender: 1, phone: '', idCard: '', bankCard: '', hireDate: '' });
                 const selfEditDialogVisible = ref(false);
                 const detailDialogVisible = ref(false);
                 const detailDialog = reactive({
@@ -4734,16 +4850,31 @@
                     items: []
                 });
                 const loadSelfInfo = () => {
-                    const username = userInfo.value.username;
-                    if (!username) return;
-                    // 当前后端未提供 /api/auth/info，直接按账号查询员工资料
-                    axios.get('/api/employee/page', { params: { username, size: 5 } }).then(r => {
-                        const emp = r.data?.data?.records?.[0] || r.data?.data?.[0];
-                        if (emp) {
-                            Object.assign(selfInfo, emp);
+                    axios.get('/api/auth/me').then(r => {
+                        const me = r.data?.data || {};
+                        if (me && (me.empId || me.id || me.userId)) {
+                            Object.assign(selfInfo, {
+                                ...me,
+                                id: me.empId || me.id || '',
+                                empId: me.empId || me.id || '',
+                                empNo: me.empNo || '',
+                                realName: me.realName || '',
+                                gender: me.gender ?? 1,
+                                phone: me.phone || '',
+                                idCard: me.idCard || '',
+                                deptName: me.deptName || '',
+                                baseSalary: me.baseSalary ?? '',
+                                bankCard: me.bankCard || me.bankAccount || '',
+                                positionName: me.positionName || me.position || '',
+                                hireDate: me.hireDate || '',
+                                managerNo: me.managerNo || '',
+                                managerName: me.managerName || '',
+                                avatar: me.avatar || ''
+                            });
                             selfEditForm.realName = selfInfo.realName || '';
                             selfEditForm.gender = selfInfo.gender || 1;
                             selfEditForm.phone = selfInfo.phone || '';
+                            selfEditForm.idCard = selfInfo.idCard || '';
                             selfEditForm.bankCard = selfInfo.bankCard || '';
                             selfEditForm.hireDate = selfInfo.hireDate || '';
                         }
@@ -4754,6 +4885,7 @@
                     selfEditForm.realName = selfInfo.realName || '';
                     selfEditForm.gender = selfInfo.gender || 1;
                     selfEditForm.phone = selfInfo.phone || '';
+                    selfEditForm.idCard = selfInfo.idCard || '';
                     selfEditForm.bankCard = selfInfo.bankCard || '';
                     selfEditForm.hireDate = selfInfo.hireDate || '';
                     selfEditDialogVisible.value = true;
@@ -4765,6 +4897,7 @@
                         realName: selfEditForm.realName,
                         gender: selfEditForm.gender,
                         phone: selfEditForm.phone,
+                        idCard: selfEditForm.idCard,
                         bankCard: selfEditForm.bankCard,
                         hireDate: selfEditForm.hireDate
                     }).then(r => {
@@ -4773,6 +4906,7 @@
                             selfInfo.realName = selfEditForm.realName;
                             selfInfo.gender = selfEditForm.gender;
                             selfInfo.phone = selfEditForm.phone;
+                            selfInfo.idCard = selfEditForm.idCard;
                             selfInfo.bankCard = selfEditForm.bankCard;
                             selfInfo.hireDate = selfEditForm.hireDate;
                             selfEditDialogVisible.value = false;
@@ -5485,48 +5619,57 @@
                 const noticeDetail = reactive({ id: '', title: '', content: '', coverImage: '', pubTime: '', pubUserName: '' });
                 const localPageSize = 10;
                 const WEBSITE_CONTENT_STORAGE_KEY = 'salaryWebsiteContent';
-                const normalizeFilledImages = (images) => {
-                    return Array.isArray(images) ? images.filter(item => !!item) : [];
+                const normalizeFilledImages = (images, fallback = []) => {
+                    const list = Array.isArray(images) ? images.filter(item => !!item) : [];
+                    return list.length ? list : [...fallback];
                 };
                 const createDefaultWebsiteContent = () => ({
-                    portalTitle: '员工薪资管理系统',
+                    portalTitle: '基于Java的员工薪资管理系统设计与实现',
                     aboutTitle: '关于我们',
-                    aboutSubtitle: 'ABOUT US',
-                    aboutContent: '欢迎访问员工薪资管理系统门户。',
+                    aboutSubtitle: '',
+                    aboutContent: '欢迎访问员工薪资管理系统门户。这里用于展示企业网站的轮播图、关于我们介绍和通知公告栏目内容，方便管理员统一维护网站首页展示信息。',
                     systemIntroTitle: '系统简介',
-                    systemIntroContent: '本系统主要用于薪资、考勤、绩效及公告信息管理。',
-                    systemIntroImage: '',
+                    systemIntroContent: '本系统主要用于管理员、部门经理和员工对薪资、考勤、绩效及公告信息进行统一管理。',
+                    systemIntroImage: '/api/front_assets/aboutus_picture1.jpg',
                     noticeSectionTitle: '通知公告',
-                    carouselImages: [],
-                    aboutImages: []
+                    carouselImages: [
+                        '/api/front_assets/picture1.jpg',
+                        '/api/front_assets/picture2.jpg',
+                        '/api/front_assets/picture3.jpg'
+                    ],
+                    aboutImages: [
+                        '/api/front_assets/aboutus_picture1.jpg',
+                        '/api/front_assets/aboutus_picture2.jpg',
+                        '/api/front_assets/aboutus_picture3.jpg'
+                    ]
                 });
                 const websiteForm = reactive(createDefaultWebsiteContent());
                 const loadWebsiteContent = () => {
                     const defaults = createDefaultWebsiteContent();
                     aboutCurrent.value = 1;
+                    const applyWebsiteContent = (stored = {}) => {
+                        Object.assign(websiteForm, defaults, stored);
+                        websiteForm.carouselImages = normalizeFilledImages(stored.carouselImages, defaults.carouselImages);
+                        websiteForm.aboutImages = normalizeFilledImages(stored.aboutImages, defaults.aboutImages);
+                        websiteForm.systemIntroImage = stored.systemIntroImage || defaults.systemIntroImage;
+                    };
 
                     // 优先从数据库加载
                     axios.get('/api/sys-config/website_content').then(r => {
                         if (r.data.code === 200 && r.data.data) {
                             try {
                                 const stored = JSON.parse(r.data.data.configValue || '{}');
-                                Object.assign(websiteForm, defaults, stored);
-                                websiteForm.carouselImages = Array.isArray(stored.carouselImages) ? [...stored.carouselImages] : [];
-                                websiteForm.aboutImages = Array.isArray(stored.aboutImages) ? [...stored.aboutImages] : [];
-                                websiteForm.systemIntroImage = stored.systemIntroImage || '';
+                                applyWebsiteContent(stored);
                                 return;
                             } catch (e) { console.error('Parse database config error', e); }
                         }
                         // 降级：从 localStorage 加载
                         const localStored = JSON.parse(localStorage.getItem(WEBSITE_CONTENT_STORAGE_KEY) || '{}');
-                        Object.assign(websiteForm, defaults, localStored);
-                        websiteForm.carouselImages = Array.isArray(localStored.carouselImages) ? [...localStored.carouselImages] : [];
-                        websiteForm.aboutImages = Array.isArray(localStored.aboutImages) ? [...localStored.aboutImages] : [];
-                        websiteForm.systemIntroImage = localStored.systemIntroImage || '';
+                        applyWebsiteContent(localStored);
                     }).catch(() => {
                         // 接口报错则强制使用 local
                         const localStored = JSON.parse(localStorage.getItem(WEBSITE_CONTENT_STORAGE_KEY) || '{}');
-                        Object.assign(websiteForm, defaults, localStored);
+                        applyWebsiteContent(localStored);
                     });
                 };
                 const saveWebsiteContent = () => {
@@ -5564,6 +5707,7 @@
                     Object.assign(websiteForm, defaults);
                     websiteForm.carouselImages = [...defaults.carouselImages];
                     websiteForm.aboutImages = [...defaults.aboutImages];
+                    websiteForm.systemIntroImage = defaults.systemIntroImage;
                 };
                 const handleWebsiteImageChange = (event, field, index) => {
                     const file = event.target.files?.[0];
@@ -5656,6 +5800,7 @@
                     aboutDialogMode.value = mode;
                     aboutDialogVisible.value = true;
                     aboutEditForm.title = websiteForm.aboutTitle || '';
+                    aboutEditForm.subtitle = websiteForm.aboutSubtitle || '';
                     aboutEditForm.content = websiteForm.aboutContent || '';
                     aboutEditForm.images = [...(websiteForm.aboutImages || [])];
                 };
@@ -6912,6 +7057,60 @@
                 const salaryLoading = ref(false);
                 const salarySearch = reactive({ yearMonth: '', empNo: '', empName: '', deptId: '', managerName: '', calcStatus: '' });
                 const salarySelections = ref([]);
+                const salaryDraftDialogVisible = ref(false);
+                const salaryDraftDialogLoading = ref(false);
+                const salaryDraftForm = reactive({ yearMonth: '', empId: '' });
+                const salaryEditDialogVisible = ref(false);
+                const salaryEditSaving = ref(false);
+                const salaryEditForm = reactive({
+                    id: '',
+                    empId: '',
+                    empNo: '',
+                    empName: '',
+                    yearMonth: '',
+                    deptName: '',
+                    baseSalary: 0,
+                    overtimePay: 0,
+                    perfBonus: 0,
+                    fullAttendBonus: 0,
+                    allowance: 0,
+                    otherIncome: 0,
+                    socialSecurityEmp: 0,
+                    attendDeduct: 0,
+                    otherDeduct: 0,
+                    incomeTax: 0,
+                    grossSalary: 0,
+                    totalDeduct: 0,
+                    netSalary: 0,
+                    remark: ''
+                });
+                const salaryDraftSelectablePeople = computed(() => {
+                    const seen = new Set();
+                    const rows = [];
+                    const selfEmpId = Number(userInfo.value.empId || 0);
+                    if (selfEmpId) {
+                        rows.push({
+                            id: selfEmpId,
+                            empNo: userInfo.value.empNo || userInfo.value.username || '-',
+                            realName: userInfo.value.realName || '本人',
+                            isSelf: true
+                        });
+                    }
+                    (allEmployees.value || []).forEach(item => {
+                        rows.push({
+                            id: item.id,
+                            empNo: item.empNo || '-',
+                            realName: item.realName || item.empName || '-',
+                            isSelf: false
+                        });
+                    });
+                    return rows.filter(item => {
+                        const key = String(item.id || '');
+                        if (!key || seen.has(key)) return false;
+                        seen.add(key);
+                        return true;
+                    });
+                });
                 const resolveLinkedBaseSalary = (row, employee = {}) => {
                     const deptId = row.deptId || employee.deptId;
                     const dept = departments.value.find(item => String(item.id) === String(deptId));
@@ -6985,6 +7184,127 @@
                     }).finally(() => salaryLoading.value = false);
                 };
                 const handleSalarySelection = (val) => { salarySelections.value = val; };
+                const openSalaryDraftDialog = () => {
+                    salaryDraftForm.yearMonth = salarySearch.yearMonth || getCurrentYearMonth();
+                    salaryDraftForm.empId = '';
+                    if (salaryDraftSelectablePeople.value.length === 1) {
+                        salaryDraftForm.empId = salaryDraftSelectablePeople.value[0].id;
+                    }
+                    salaryDraftDialogVisible.value = true;
+                };
+                const createSalaryDraft = () => {
+                    if (!salaryDraftForm.yearMonth) {
+                        return ElementPlus.ElMessage.warning('请先选择要生成草稿的月份');
+                    }
+                    if (!salaryDraftForm.empId) {
+                        return ElementPlus.ElMessage.warning('请选择要补生成草稿的员工');
+                    }
+                    salaryDraftDialogLoading.value = true;
+                    axios.post('/api/salary/calculate', null, {
+                        params: {
+                            empId: salaryDraftForm.empId,
+                            yearMonth: salaryDraftForm.yearMonth
+                        }
+                    }).then(r => {
+                        if (r.data.code === 200) {
+                            ElementPlus.ElMessage.success('工资草稿已生成');
+                            salaryDraftDialogVisible.value = false;
+                            salarySearch.yearMonth = salaryDraftForm.yearMonth;
+                            loadSalaries(1);
+                        } else {
+                            ElementPlus.ElMessage.error(r.data.message || '生成草稿失败');
+                        }
+                    }).finally(() => {
+                        salaryDraftDialogLoading.value = false;
+                    });
+                };
+                const generateSalaryDrafts = () => {
+                    const targetMonth = salarySearch.yearMonth;
+                    if (!targetMonth) {
+                        return ElementPlus.ElMessage.warning('请先选择月份，再生成该月工资草稿');
+                    }
+                    const loadInstance = ElementPlus.ElLoading.service({ text: `正在生成 ${targetMonth} 的工资草稿...` });
+                    axios.post('/api/salary/batch-calculate', null, {
+                        params: { yearMonth: targetMonth }
+                    }).then(r => {
+                        if (r.data.code === 200) {
+                            ElementPlus.ElMessage.success(`${targetMonth} 工资草稿已生成，可继续编辑后提交审核`);
+                            loadSalaries(1);
+                        } else {
+                            ElementPlus.ElMessage.error(r.data.message || '批量生成草稿失败');
+                        }
+                    }).finally(() => loadInstance.close());
+                };
+                const openSalaryEditDialog = (row) => {
+                    salaryEditForm.id = row.id || '';
+                    salaryEditForm.empId = row.empId || '';
+                    salaryEditForm.empNo = row.empNo || '';
+                    salaryEditForm.empName = row.empName || '';
+                    salaryEditForm.yearMonth = row.yearMonth || salarySearch.yearMonth || getCurrentYearMonth();
+                    salaryEditForm.deptName = row.deptName || '';
+                    salaryEditForm.baseSalary = Number(row.baseSalary || 0);
+                    salaryEditForm.overtimePay = Number(row.overtimePay || 0);
+                    salaryEditForm.perfBonus = Number(row.perfBonus || 0);
+                    salaryEditForm.fullAttendBonus = Number(row.fullAttendBonus || 0);
+                    salaryEditForm.allowance = Number(row.allowance || 0);
+                    salaryEditForm.otherIncome = Number(row.otherIncome || 0);
+                    salaryEditForm.socialSecurityEmp = Number(row.socialSecurityEmp || 0);
+                    salaryEditForm.attendDeduct = Number(row.attendDeduct || 0);
+                    salaryEditForm.otherDeduct = Number(row.otherDeduct || 0);
+                    salaryEditForm.incomeTax = Number(row.incomeTax || 0);
+                    salaryEditForm.grossSalary = Number(row.grossSalary || 0);
+                    salaryEditForm.totalDeduct = Number(row.totalDeduct ?? resolvePayrollDeductAmount(row));
+                    salaryEditForm.netSalary = Number(row.netSalary || 0);
+                    salaryEditForm.remark = row.remark || '';
+                    salaryEditDialogVisible.value = true;
+                };
+                const salaryEditPreview = computed(() => {
+                    const gross = Number(salaryEditForm.baseSalary || 0)
+                        + Number(salaryEditForm.overtimePay || 0)
+                        + Number(salaryEditForm.perfBonus || 0)
+                        + Number(salaryEditForm.fullAttendBonus || 0)
+                        + Number(salaryEditForm.allowance || 0)
+                        + Number(salaryEditForm.otherIncome || 0);
+                    const deduct = Number(salaryEditForm.socialSecurityEmp || 0)
+                        + Number(salaryEditForm.attendDeduct || 0)
+                        + Number(salaryEditForm.otherDeduct || 0)
+                        + Number(salaryEditForm.incomeTax || 0);
+                    return {
+                        gross,
+                        deduct,
+                        net: gross - deduct
+                    };
+                });
+                const saveSalaryDraft = () => {
+                    if (!salaryEditForm.id) {
+                        return ElementPlus.ElMessage.warning('当前草稿记录不存在，无法保存');
+                    }
+                    const payload = {
+                        ...salaryEditForm,
+                        allowance: Number(salaryEditForm.allowance || 0),
+                        otherDeduct: Number(salaryEditForm.otherDeduct || 0),
+                        baseSalary: Number(salaryEditForm.baseSalary || 0),
+                        overtimePay: Number(salaryEditForm.overtimePay || 0),
+                        perfBonus: Number(salaryEditForm.perfBonus || 0),
+                        fullAttendBonus: Number(salaryEditForm.fullAttendBonus || 0),
+                        otherIncome: Number(salaryEditForm.otherIncome || 0),
+                        socialSecurityEmp: Number(salaryEditForm.socialSecurityEmp || 0),
+                        attendDeduct: Number(salaryEditForm.attendDeduct || 0),
+                        incomeTax: Number(salaryEditForm.incomeTax || 0)
+                    };
+                    salaryEditSaving.value = true;
+                    axios.put('/api/salary/manual-update', payload).then(r => {
+                        if (r.data.code === 200) {
+                            ElementPlus.ElMessage.success('工资草稿已保存');
+                            salaryEditDialogVisible.value = false;
+                            loadSalaries();
+                        } else {
+                            ElementPlus.ElMessage.error(r.data.message || '保存草稿失败');
+                        }
+                    }).finally(() => {
+                        salaryEditSaving.value = false;
+                    });
+                };
                 const saveAllowance = (row) => {
                     const payload = { ...row, allowance: Number(row.allowance || 0) };
                     axios.put('/api/salary/manual-update', payload).then(r => {
@@ -7746,7 +8066,13 @@
                     if (command === 'home') switchMenu({ key: 'home' });
                     if (command === 'personal') switchMenu({ key: 'personal' });
                     if (command === 'site') goWebsiteHome();
-                    if (command === 'backup') backupDatabase();
+                    if (command === 'backup') {
+                        if (Number(userInfo.value.role) !== 1) {
+                            ElementPlus.ElMessage.warning('仅系统管理员可执行数据备份');
+                            return;
+                        }
+                        backupDatabase();
+                    }
                     if (command === 'logout') logout();
                 };
 
@@ -7840,7 +8166,7 @@
                     taxRecords, taxTotal, taxCurrent, taxSize, taxLoading, taxSearch, taxSelections, taxDialogVisible, taxDetailDialogVisible, taxForm, taxDisplayRows, loadTaxRecords, openTaxDetail, openTaxForm, saveTaxRecord, deleteTaxRecord, handleTaxSelection, batchDeleteTaxRecords, exportTaxCsv,
                     performances, perfTotal, perfCurrent, perfSize, perfLoading, perfSearch, perfSelections, perfDialogVisible, perfForm, perfContext, performanceDisplayRows, calcPerfTotal, calcPerfGrade, loadPerformances, openPerfForm, savePerformance, openPerformanceDetail, deletePerformance, handlePerfSelection, batchDeletePerformances, exportPerformanceCsv,
                     // --- 薪资计算发放 ---
-                    salaries, salaryTotal, salaryCurrent, salarySize, salaryLoading, salarySearch, salaryDisplayRows, handleSalarySelection, loadSalaries, saveAllowance, batchCalcSalary, batchPublishSalary, canSubmitSalaryFeedbackForRow, openSalaryFeedbackDialog, submitSalaryFeedback, openSalaryDetail, deleteSalaryRecord, batchDeleteSalaryRecords, exportSalaryCsv, auditSalaryRecord, batchAuditSalary,
+                    salaries, salaryTotal, salaryCurrent, salarySize, salaryLoading, salarySearch, salaryDisplayRows, handleSalarySelection, loadSalaries, batchCalcSalary, generateSalaryDrafts, openSalaryDraftDialog, salaryDraftDialogVisible, salaryDraftDialogLoading, salaryDraftForm, salaryDraftSelectablePeople, createSalaryDraft, salaryEditDialogVisible, salaryEditSaving, salaryEditForm, salaryEditPreview, openSalaryEditDialog, saveSalaryDraft, batchPublishSalary, canSubmitSalaryFeedbackForRow, openSalaryFeedbackDialog, submitSalaryFeedback, openSalaryDetail, deleteSalaryRecord, batchDeleteSalaryRecords, exportSalaryCsv, auditSalaryRecord, batchAuditSalary,
                     payments, paymentTotal, paymentCurrent, paymentSize, paymentLoading, paymentSearch, paymentDisplayRows, loadPayments, executePayment, publishSalarySlip, batchPublishSalarySlip, exportPaymentCsv, paymentSelections, paymentIssueFileInput, paymentIssueUploading, paymentIssueUploadingRowId, getIssueFileName, triggerPaymentIssueFileUpload, handlePaymentIssueFileChange, paymentGatewayVisible, paymentProcessing, paymentSuccess, selectedPaymentChannel, gatewayTotalAmount, gatewayTargetCount, handlePaymentSelection, batchDeletePaymentRecords, openBatchPaymentGateway, openSinglePaymentGateway, triggerSimulatedPayment, formatNegativeAmount,
                     switchMenu, handleSystemMenuCommand, logout, handleUserMenuCommand
                 };

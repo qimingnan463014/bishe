@@ -62,6 +62,7 @@ public class SecurityConfig {
                 "/js/**",
                 "/css/**",
                 "/img/**",
+                "/front_assets/**",
                 "/uploads/**",
                 "/sys-config/**",
                 "/favicon.ico",

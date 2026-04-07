@@ -29,11 +29,11 @@
             <if test="excludeDraft != null and excludeDraft">
                 AND calc_status <![CDATA[<>]]> 1
             </if>
-            <if test="managerId != null">
+            <if test="managerId != null and (excludeEmpNo == null or excludeEmpNo == '')">
                 AND manager_id = #{managerId}
             </if>
-            <if test="excludeEmpNo != null and excludeEmpNo != ''">
-                AND emp_no <![CDATA[<>]]> #{excludeEmpNo}
+            <if test="managerId != null and excludeEmpNo != null and excludeEmpNo != ''">
+                AND (manager_id = #{managerId} OR emp_no = #{excludeEmpNo})
             </if>
         </where>
         ORDER BY `year_month` DESC, create_time DESC

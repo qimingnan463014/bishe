@@ -493,6 +493,37 @@
             color: #111827;
         }
 
+        .detail-form {
+            --el-text-color-regular: #111827;
+        }
+
+        .detail-form .el-form-item {
+            margin-bottom: 18px;
+        }
+
+        .detail-form .el-form-item__label {
+            color: #6b7280;
+            font-weight: 500;
+            padding-bottom: 8px;
+            line-height: 1.4;
+        }
+
+        .detail-form .el-input__wrapper,
+        .detail-form .el-select__wrapper,
+        .detail-form .el-textarea__inner,
+        .detail-form .el-input-number,
+        .detail-form .el-date-editor.el-input,
+        .detail-form .el-date-editor.el-input__wrapper {
+            border-radius: 12px;
+        }
+
+        .detail-form-tip {
+            margin-top: 8px;
+            font-size: 12px;
+            color: #94a3b8;
+            line-height: 1.5;
+        }
+
         .detail-descriptions .el-descriptions__body,
         .detail-descriptions .el-descriptions__table {
             background: transparent;
@@ -688,51 +719,49 @@
                 <div class="page-panel" :class="{active: currentMenu === 'profile'}">
                     <div class="section-title">个人信息档案</div>
                     <!-- 上：基本信息（全宽） -->
-                    <el-card shadow="hover" class="custom-card" style="margin-bottom:20px;">
+                    <el-card shadow="hover" class="custom-card" style="max-width:720px; margin:0 auto 16px; border-radius:18px;">
                         <template #header>
                             <div style="display:flex;justify-content:space-between;align-items:center;">
-                                <span style="font-weight:bold;font-size:15px;">📋 基本信息</span>
-                                <el-button type="primary" size="small" @click="empEditDialogVisible=true">✏️
-                                    修改个人信息</el-button>
+                                <div style="font-weight:bold;font-size:15px;">个人信息</div>
+                                <el-button type="warning" size="small" @click="openEmpEditForm">修改</el-button>
                             </div>
                         </template>
-                        <div style="display:flex;gap:24px;align-items:center;margin-bottom:20px;">
+                        <div style="display:flex;gap:20px;align-items:center;margin-bottom:20px;">
                             <div
-                                style="width:80px;height:80px;border-radius:50%;overflow:hidden;border:3px solid #deeeff;background:#f0f5fb;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                style="width:72px;height:72px;border-radius:50%;overflow:hidden;border:3px solid #e8f0fa;background:#f0f5fb;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                                 <img v-if="empProfile.avatar" :src="empProfile.avatar"
                                     style="width:100%;height:100%;object-fit:cover;" />
-                                <span v-else style="font-size:32px;">👤</span>
+                                <el-icon v-else :size="32" style="color:#b0c4de">
+                                    <User />
+                                </el-icon>
                             </div>
                             <div>
-                                <div style="font-size:20px;font-weight:bold;color:#333;">{{ empProfile.realName ||
+                                <div style="font-size:17px;font-weight:bold;color:#303133;">{{ empProfile.realName ||
                                     userInfo.realName }}</div>
                                 <el-tag type="success" style="margin-top:8px;">在职员工</el-tag>
                             </div>
                         </div>
-                        <el-descriptions :column="3" border size="default">
-                            <el-descriptions-item label="工号">{{ empProfile.empNo || userInfo.empNo || '-'
-                                }}</el-descriptions-item>
+                        <el-descriptions :column="2" border size="small">
+                            <el-descriptions-item label="工号">{{ empProfile.empNo || userInfo.empNo || '-' }}</el-descriptions-item>
                             <el-descriptions-item label="登录账号">{{ userInfo.username || '-' }}</el-descriptions-item>
-                            <el-descriptions-item label="姓名">{{ empProfile.realName || userInfo.realName || '-'
-                                }}</el-descriptions-item>
+                            <el-descriptions-item label="姓名">{{ empProfile.realName || userInfo.realName || '-' }}</el-descriptions-item>
                             <el-descriptions-item label="性别">{{ empProfile.gender === 1 ? '男' : empProfile.gender === 0
                                 ? '女' : '-' }}</el-descriptions-item>
                             <el-descriptions-item label="手机">{{ empProfile.phone || '-' }}</el-descriptions-item>
-                            <el-descriptions-item label="身份证">{{ empProfile.idCard || '-' }}</el-descriptions-item>
-                            <el-descriptions-item label=" 所在部门">{{ empProfile.deptName || '-' }}</el-descriptions-item>
-                            <el-descriptions-item label="岗位">{{ empProfile.positionName || empProfile.position || '-'
-                                }}</el-descriptions-item>
-                            <el-descriptions-item label="基本工资">{{ empProfile.baseSalary != null ? ('¥ ' +
+                            <el-descriptions-item label="身份证号">{{ empProfile.idCard || '-' }}</el-descriptions-item>
+                            <el-descriptions-item label="部门">{{ empProfile.deptName || '-' }}</el-descriptions-item>
+                            <el-descriptions-item label="岗位">{{ empProfile.positionName || empProfile.position || '-' }}</el-descriptions-item>
+                            <el-descriptions-item label="基本工资">{{ empProfile.baseSalary != null ? ('￥' +
                                 empProfile.baseSalary) : '-' }}</el-descriptions-item>
                             <el-descriptions-item label="银行卡号">{{ empProfile.bankCard || '-' }}</el-descriptions-item>
                             <el-descriptions-item label="入职时间">{{ empProfile.hireDate || '-' }}</el-descriptions-item>
-                            <el-descriptions-item label="所属经理"><el-tag size=" small" type="warning">{{
+                            <el-descriptions-item label="所属经理"><el-tag size="small" type="warning">{{
                                     empProfile.managerName || '-' }}</el-tag></el-descriptions-item>
                         </el-descriptions>
                     </el-card>
 
                     <!-- 下：修改登录密码 -->
-                    <el-card shadow="hover" class="custom-card" style="max-width:600px; margin: 0 auto;">
+                    <el-card shadow="hover" class="custom-card" style="max-width:720px; margin:0 auto; border-radius:18px;">
                         <template #header>
                             <div style="font-weight:bold;font-size:15px;">🔒 修改登录密码</div>
                         </template>
@@ -1119,71 +1148,51 @@
             </el-dialog>
 
             <!-- 弹窗：完善个人信息-->
-            <el-dialog v-model="empEditDialogVisible" width="600px" custom-class="modern-dialog">
-                <template #header>
-                    <div class="dialog-header-gradient">
-                        <div class="dialog-title-icon">✏️</div>
-                        <div>
-                            <div class="dialog-title-text">员工信息维护</div>
-                            <div class="dialog-title-sub">您只可修改通讯与基础资料，职务与薪资等信息如需变更请联系人事</div>
-                            </div>
-                        </div>
-                </template>
-                <div class="dialog-body-padding">
-                    <el-form :model="empEditForm" label-width="90px">
-                        <!-- 基础不可修改信息 (只读） -->
-                        <el-row :gutter="20">
-                            <el-col :span="12">
-                                <el-form-item label="工号"><el-input v-model="empProfile.empNo"
-                                        disabled></el-input></el-form-item>
-                            </el-col>
-                            <el-col :span="12">
-                                <el-form-item label="所在部门"><el-input v-model=" empProfile.deptName"
-                                        disabled></el-input></el-form-item>
-                            </el-col>
-                        </el-row>
-                        <el-row :gutter="20">
-                            <el-col :span="12">
-                                <el-form-item label="当前岗位"><el-input
-                                        :model-value="empProfile.positionName || empProfile.position"
-                                        disabled></el-input></el-form-item>
-                            </el-col>
-                            <el-col :span="12">
-                                <el-form-item label="入职时间"><el-input v-model="empProfile.hireDate"
-                                        disabled></el-input></el-form-item>
-                            </el-col>
-                        </el-row>
-
-                        <el-divider border-style="dashed">以下资料可变更</el-divider>
-
-                        <el-row :gutter="20">
-                            <el-col :span="12">
-                                <el-form-item label="真实姓名"><el-input v-model="empEditForm.realName"
-                                        placeholder="员工真实姓名"></el-input></el-form-item>
-                            </el-col>
-                            <el-col :span="12">
-                                <el-form-item label="性别">
-                                    <el-radio-group v-model="empEditForm.gender">
-                                        <el-radio :label="1">男</el-radio>
-                                        <el-radio :label="0">女</el-radio>
-                                    </el-radio-group>
-                                </el-form-item>
-                            </el-col>
-                        </el-row>
-                        <el-form-item label="身份证号"><el-input v-model="empEditForm.idCard"
-                                placeholder="请输入身份证号"></el-input></el-form-item>
-                        <el-form-item label="手机号"><el-input v-model="empEditForm.phone"
-                                placeholder="请输入手机号"></el-input></el-form-item>
-                        <el-form-item label="银行卡号"><el-input v-model="empEditForm.bankCard"
-                                placeholder="请输入银行卡号"></el-input></el-form-item>
-                    </el-form>
-                </div>
-                <template #footer>
-                    <div class="dialog-footer-bar">
-                        <el-button @click="empEditDialogVisible=false">取消</el-button>
-                        <el-button type="primary" @click="saveEmpProfile">保存更新</el-button>
+            <el-dialog v-model="empEditDialogVisible" width="620px" top="8vh" class="modern-dialog">
+                <div class="dialog-header-gradient">
+                    <div class="dialog-title-icon">
+                        <el-icon>
+                            <User />
+                        </el-icon>
                     </div>
-                </template>
+                    <div>
+                        <div class="dialog-title-text">修改个人信息</div>
+                        <div class="dialog-title-sub">维护个人通讯资料与发薪账户信息，职务与薪资如需变更请联系人事</div>
+                    </div>
+                </div>
+                <div class="dialog-body-padding">
+                    <el-card shadow="never" class="detail-panel" style="margin-bottom:16px;">
+                        <template #header>
+                            <div class="detail-panel__title">只读信息</div>
+                        </template>
+                        <el-form label-position="top" class="detail-form">
+                            <el-row :gutter="20">
+                                <el-col :span="12"><el-form-item label="工号"><el-input v-model="empProfile.empNo" disabled></el-input></el-form-item></el-col>
+                                <el-col :span="12"><el-form-item label="所在部门"><el-input v-model="empProfile.deptName" disabled></el-input></el-form-item></el-col>
+                                <el-col :span="12"><el-form-item label="当前岗位"><el-input :model-value="empProfile.positionName || empProfile.position" disabled></el-input></el-form-item></el-col>
+                                <el-col :span="12"><el-form-item label="入职时间"><el-input v-model="empProfile.hireDate" disabled></el-input></el-form-item></el-col>
+                            </el-row>
+                        </el-form>
+                    </el-card>
+                    <el-card shadow="never" class="detail-panel">
+                        <template #header>
+                            <div class="detail-panel__title">个人资料</div>
+                        </template>
+                        <el-form :model="empEditForm" label-position="top" class="detail-form">
+                            <el-row :gutter="20">
+                                <el-col :span="12"><el-form-item label="姓名"><el-input v-model="empEditForm.realName"></el-input></el-form-item></el-col>
+                                <el-col :span="12"><el-form-item label="性别"><el-radio-group v-model="empEditForm.gender"><el-radio :label="1">男</el-radio><el-radio :label="0">女</el-radio></el-radio-group></el-form-item></el-col>
+                                <el-col :span="12"><el-form-item label="手机号"><el-input v-model="empEditForm.phone" placeholder="请输入手机号"></el-input></el-form-item></el-col>
+                                <el-col :span="12"><el-form-item label="身份证号"><el-input v-model="empEditForm.idCard" placeholder="请输入身份证号"></el-input></el-form-item></el-col>
+                                <el-col :span="12"><el-form-item label="银行卡号"><el-input v-model="empEditForm.bankCard" placeholder="请输入银行卡号"></el-input></el-form-item></el-col>
+                            </el-row>
+                        </el-form>
+                    </el-card>
+                </div>
+                <div class="dialog-footer-bar">
+                    <el-button @click="empEditDialogVisible=false">取消</el-button>
+                    <el-button type="primary" @click="saveEmpProfile">保存</el-button>
+                </div>
             </el-dialog>
 
             <!-- 统一组件 -->
@@ -1412,7 +1421,7 @@
                 return Promise.reject(err);
             });
 
-            createApp({
+            const app = createApp({
                 setup() {
                     const userInfo = ref({});
                     const currentMenu = ref('home');
@@ -2201,6 +2210,14 @@
                             }
                         }).catch(() => { });
                     };
+                    const openEmpEditForm = () => {
+                        empEditForm.phone = empProfile.phone || '';
+                        empEditForm.bankCard = empProfile.bankCard || '';
+                        empEditForm.realName = empProfile.realName || '';
+                        empEditForm.gender = empProfile.gender;
+                        empEditForm.idCard = empProfile.idCard || '';
+                        empEditDialogVisible.value = true;
+                    };
                     const saveEmpProfile = () => {
                         const eid = empProfile.empId || empProfile.id;
                         if (!eid) return ElementPlus.ElMessage.warning('未获取到员工ID，无法保存');
@@ -2629,7 +2646,7 @@
 
                     return {
                         userInfo, currentMenu, websiteContent, noticeList, noticeCenterList, noticeVisible, currentUserNotice, noticeSearch, noticeCurrent, noticeSize, noticeTotal, noticeDetailLoading, noticeDetail,
-                        empProfile, empEditForm, saveEmpProfile, empEditDialogVisible,
+                        empProfile, empEditForm, openEmpEditForm, saveEmpProfile, empEditDialogVisible,
                         myAttendances, myApplies, mySalaries, myAnomalies, myFeedbacks, mySalaryFeedbacks, myTaxes, myPerformances,
                         complaintCurrent, complaintSize, complaintTotal, complaintPageRows, loadComplaintRecords, salaryDisplayRows, taxDisplayRows, performanceDisplayRows,
                         tablePaging, loadAttendances, loadApplies, loadSalaries, loadAnomalies, loadFeedbacks, loadSalaryFeedbacks, loadTaxes, loadPerformances, loadNoticeCenter, openNoticeDetail, backFromNoticeDetail, formatDateTimeText,
@@ -2642,7 +2659,11 @@
                         openApplyForm, submitApply, openAnomalyForm, submitAnomaly, openFeedbackForm, submitFeedback, openSalaryFeedbackForm, submitSalaryFeedback, printAttendances
                     };
                 }
-            }).use(ElementPlus).mount('#app');
+            });
+            Object.entries(ElementPlusIconsVue).forEach(([name, component]) => {
+                app.component(name, component);
+            });
+            app.use(ElementPlus).mount('#app');
         </script>
 </body>
 
