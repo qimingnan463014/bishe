@@ -59,6 +59,12 @@ public class AttendanceRecord {
     private Integer lateTimes;
 
     /**
+     * 早退次数
+     * 扣款逻辑：早退次数 × 每次扣款金额（与迟到同口径）
+     */
+    private Integer earlyLeaveTimes;
+
+    /**
      * 请假天数（事假+病假合计，支持0.5天）
      * 扣款逻辑：请假天数 × 日薪 × 请假扣款比例（考勤规则配置）
      */

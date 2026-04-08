@@ -6,11 +6,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>员工薪资管理系统门户</title>
     <!-- Element Plus CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css" />
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <script src="https://unpkg.com/element-plus"></script>
-    <script src="https://unpkg.com/@element-plus/icons-vue"></script>
-    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <link rel="stylesheet" href="/api/vendor/element-plus.css" />
+    <script src="/api/vendor/vue.global.js"></script>
+    <script src="/api/vendor/element-plus.full.min.js"></script>
+    <script src="/api/vendor/element-plus-icons.js"></script>
+    <script src="/api/vendor/axios.min.js"></script>
 
     <style>
         * {
@@ -871,7 +871,7 @@
                                     show-password placeholder="当前密码"></el-input></el-form-item>
                             <el-form-item label="新密码" required><el-input v-model=" pwdForm.newHash" type="password"
                                     show-password placeholder="不少于6位"></el-input></el-form-item>
-                            <el-form-item><el-button type=" primary" @click="changePwd"
+                            <el-form-item><el-button type="primary" @click="changePwd"
                                     style="width: 100%;">确认修改密码</el-button></el-form-item>
                         </el-form>
                     </el-card>
@@ -890,6 +890,7 @@
                             <el-table-column prop="attendDays" label="出勤天数" min-width="120"></el-table-column>
                             <el-table-column prop="absentDays" label="旷工天数" min-width="120"></el-table-column>
                             <el-table-column prop="lateTimes" label="迟到天数" min-width="120"></el-table-column>
+                            <el-table-column prop="earlyLeaveTimes" label="早退天数" min-width="120"></el-table-column>
                             <el-table-column prop="leaveDays" label="请假天数" min-width="120"></el-table-column>
                             <el-table-column prop="overtimeHours" label="加班小时" min-width="120"></el-table-column>
                             <el-table-column prop="status" label="考勤状态" min-width="180">
@@ -1622,6 +1623,14 @@
                     const noticeDetail = reactive({ id: '', title: '', content: '', coverImage: '', pubTime: '', pubUserName: '' });
                     const aboutDetailSource = ref('home');
                     const aboutDetail = reactive({ title: '', subtitle: '', content: '', images: [] });
+                    const sortAnnouncementsByTime = (rows = []) => {
+                        return [...rows].sort((a, b) => {
+                            const aTime = new Date(a?.pubTime || a?.createTime || 0).getTime();
+                            const bTime = new Date(b?.pubTime || b?.createTime || 0).getTime();
+                            if (bTime !== aTime) return bTime - aTime;
+                            return Number(b?.id || 0) - Number(a?.id || 0);
+                        });
+                    };
 
                     // 数据表
                     const myAttendances = ref([]);
@@ -1802,6 +1811,7 @@
                         attendDays: '出勤天数',
                         absentDays: '旷工天数',
                         lateTimes: '迟到次数',
+                        earlyLeaveTimes: '早退次数',
                         leaveDays: '请假天数',
                         sickLeaveDays: '病假天数',
                         overtimeHours: '加班小时',
@@ -2131,6 +2141,7 @@
                             attendDays: '出勤天数',
                             absentDays: '旷工天数',
                             lateTimes: '迟到天数',
+                            earlyLeaveTimes: '早退天数',
                             leaveDays: '请假天数',
                             sickLeaveDays: '病假天数',
                             overtimeHours: '加班小时',
@@ -2408,7 +2419,9 @@
 
                     const loadNotices = () => {
                         axios.get('/api/announcement/list', { params: { page: 1, size: 6, status: 1 } }).then(r => {
-                            if (r.data.code === 200) noticeList.value = (r.data.data?.records || r.data.data || []).slice(0, 6);
+                            if (r.data.code === 200) {
+                                noticeList.value = sortAnnouncementsByTime(r.data.data?.records || r.data.data || []).slice(0, 6);
+                            }
                         });
                     };
                     const loadNoticeCenter = (page = noticeCurrent.value) => {
@@ -2422,7 +2435,7 @@
                             }
                         }).then(r => {
                             if (r.data.code === 200) {
-                                noticeCenterList.value = r.data.data?.records || r.data.data || [];
+                                noticeCenterList.value = sortAnnouncementsByTime(r.data.data?.records || r.data.data || []);
                                 noticeTotal.value = r.data.data?.total || 0;
                             } else {
                                 noticeCenterList.value = [];
@@ -2641,6 +2654,7 @@
                                 <td>${row.attendDays ?? 0}</td>
                                 <td>${row.absentDays ?? 0}</td>
                                 <td>${row.lateTimes ?? 0}</td>
+                                <td>${row.earlyLeaveTimes ?? 0}</td>
                                 <td>${row.leaveDays ?? 0}</td>
                                 <td>${row.overtimeHours ?? 0}</td>
                                 <td>${row.status === 1 ? '正常' : (row.status === 2 ? '异常' : '待定')}</td>
@@ -2671,6 +2685,7 @@
                                             <th>出勤天数</th>
                                             <th>旷工天数</th>
                                             <th>迟到天数</th>
+                                            <th>早退天数</th>
                                             <th>请假天数</th>
                                             <th>加班小时</th>
                                             <th>考勤状态</th>

@@ -150,19 +150,16 @@ public class SalaryServiceImpl extends ServiceImpl<SalaryRecordMapper, SalaryRec
         // ===== ★ 考勤扣款与加班奖励计算 =====
         //
         //  迟到次数 × 50元 = 扣款
-        //  早退次数 × 50元 = 扣款（存储在 lateTimes 字段，本项目中迟到/早退均记在lateTimes）
+        //  早退次数 × 50元 = 扣款
         //  加班时长 × 20元 = 奖励（从 attend_deduct 中抵扣，即负扣款）
-        //
-        //  注：由于前端考勤表中只有 late_times 字段，早退记录与迟到合并计入 late_times
-        //  若后续需要区分，可在 DTO 中扩展 earlyLeaveTimes 字段
-        //
         BigDecimal attendDeduct = BigDecimal.ZERO;
         BigDecimal overtimePay  = BigDecimal.ZERO;
 
         if (attendance != null) {
             int lateTimes = attendance.getLateTimes() != null ? attendance.getLateTimes() : 0;
-            // 迟到/早退扣款 = 次数 × 50
-            BigDecimal lateDeduct = LATE_DEDUCT_PER_TIME.multiply(BigDecimal.valueOf(lateTimes));
+            int earlyLeaveTimes = attendance.getEarlyLeaveTimes() != null ? attendance.getEarlyLeaveTimes() : 0;
+            // 迟到/早退扣款 = (迟到 + 早退) × 50
+            BigDecimal lateDeduct = LATE_DEDUCT_PER_TIME.multiply(BigDecimal.valueOf(lateTimes + earlyLeaveTimes));
             BigDecimal recordedAttendDeduct = nvl(attendance.getAttendDeduct());
 
             // 加班奖励 = 加班小时数 × 20（加班时已向下取整为整小时）
@@ -175,8 +172,8 @@ public class SalaryServiceImpl extends ServiceImpl<SalaryRecordMapper, SalaryRec
                     ? recordedAttendDeduct.setScale(2, RoundingMode.HALF_UP)
                     : lateDeduct.setScale(2, RoundingMode.HALF_UP);
 
-            log.info("  考勤扣款：迟到/早退{}次基础扣款={} 元，落库扣款={} 元；加班{}小时 × 20 = {} 元",
-                    lateTimes, lateDeduct, attendDeduct, overtimeHours, overtimePay);
+            log.info("  考勤扣款：迟到{}次 + 早退{}次基础扣款={} 元，落库扣款={} 元；加班{}小时 × 20 = {} 元",
+                    lateTimes, earlyLeaveTimes, lateDeduct, attendDeduct, overtimeHours, overtimePay);
         } else {
             log.warn("  未找到考勤记录，empId={} yearMonth={}，考勤扣款/加班奖励均为0", empId, yearMonth);
         }
@@ -277,10 +274,22 @@ public class SalaryServiceImpl extends ServiceImpl<SalaryRecordMapper, SalaryRec
         record.setIncomeTax(incomeTax);
         record.setTotalDeduct(totalDeduct);
         record.setNetSalary(netSalary);
-        record.setCalcStatus(1); // 草稿，等待审核
-        record.setSlipPublished(0);
-        record.setSlipPublishTime(null);
-        record.setRecordDate(LocalDate.now());
+        if (isNew) {
+            record.setCalcStatus(1); // 仅新生成的工资单默认进入草稿
+            record.setSlipPublished(0);
+            record.setSlipPublishTime(null);
+            record.setRecordDate(LocalDate.now());
+        } else {
+            if (record.getCalcStatus() == null) {
+                record.setCalcStatus(1);
+            }
+            if (record.getSlipPublished() == null) {
+                record.setSlipPublished(0);
+            }
+            if (record.getRecordDate() == null) {
+                record.setRecordDate(LocalDate.now());
+            }
+        }
 
         if (isNew) { save(record); } else { updateById(record); }
         log.info("【算薪完成】empNo={} yearMonth={} 实发={}", emp.getEmpNo(), yearMonth, netSalary);

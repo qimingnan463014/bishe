@@ -1,8 +1,8 @@
 @font-face {
   font-family: "iconfont"; /* Project id 4097802 */
-  src: url('//at.alicdn.com/t/c/font_4097802_w9071sf3dx.woff2?t=1689819570930') format('woff2'),
-       url('//at.alicdn.com/t/c/font_4097802_w9071sf3dx.woff?t=1689819570930') format('woff'),
-       url('//at.alicdn.com/t/c/font_4097802_w9071sf3dx.ttf?t=1689819570930') format('truetype');
+  src: url('/api/vendor/iconfont/font_4097802_w9071sf3dx.woff2') format('woff2'),
+       url('/api/vendor/iconfont/font_4097802_w9071sf3dx.woff') format('woff'),
+       url('/api/vendor/iconfont/font_4097802_w9071sf3dx.ttf') format('truetype');
 }
 
 .iconfont {
@@ -1184,4 +1184,3 @@
 .icon-gengduo:before {
   content: "\e621";
 }
-

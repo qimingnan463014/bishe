@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <title>基于Java的员工薪资管理系统设计与实现 - 登录</title>
     <!-- 引入 Vue 3, Element Plus 和 Axios -->
-    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css"/>
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <script src="https://unpkg.com/element-plus/dist/index.full.min.js"></script>
-    <script src="https://unpkg.com/@element-plus/icons-vue"></script>
-    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <link rel="stylesheet" href="/api/vendor/element-plus.css"/>
+    <script src="/api/vendor/vue.global.js"></script>
+    <script src="/api/vendor/element-plus.full.min.js"></script>
+    <script src="/api/vendor/element-plus-icons.js"></script>
+    <script src="/api/vendor/axios.min.js"></script>
 
     <!-- 原版套皮核心 CSS 库 -->
     <link href="/api/login_assets/font_4097802_w9071sf3dx.css" rel="stylesheet">
@@ -34,7 +34,7 @@
         /* 磨砂玻璃表单 */
         .login_form {
             width: 440px;
-            background: rgba(255, 255, 255, 0.45); /* 半透明白底 */
+            background: rgba(255, 255, 255, 0.45); /* 半明白底 */
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
             border-radius: 20px;
@@ -55,7 +55,7 @@
             letter-spacing: 1px;
         }
 
-        /* 普通输入框 */
+        /* 普输入框 */
         .list-item, .list-code { margin-bottom: 22px; width: 100%; }
         
         .list-item input, .list-code input {
@@ -148,15 +148,6 @@
                     </div>
                 </div>
 
-                <div class="list-item select">
-                    <div class="el-select el-select--medium" style="width: 100%;">
-                        <el-select v-model="loginForm.role" placeholder="请选择角色：" style="width: 100%;">
-                            <el-option label="普通员工" value="3"></el-option>
-                            <el-option label="部门经理" value="2"></el-option>
-                            <el-option label="管理员" value="1"></el-option>
-                        </el-select>
-                    </div>
-                </div>
                 
                 <!-- 登录按钮区块 -->
                 <div class="login-btn">
@@ -195,8 +186,7 @@
                 username: '',
                 password: '',
                 captcha: '',
-                captchaKey: '',
-                role: '1'
+                captchaKey: ''
             });
             const captchaImg = ref('');
             const loading = ref(false);
