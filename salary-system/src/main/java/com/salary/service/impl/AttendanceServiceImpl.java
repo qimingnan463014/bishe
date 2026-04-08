@@ -396,8 +396,10 @@ public class AttendanceServiceImpl extends ServiceImpl<AttendanceRecordMapper, A
         BigDecimal daySalary = resolveDaySalary(baseSalary, rule);
         BigDecimal absentDeduct = resolveAbsentDeduct(record, daySalary, rule);
         BigDecimal leaveDeduct = resolveLeaveDeduct(record, daySalary, rule);
+        int lateTimes = record.getLateTimes() == null ? 0 : record.getLateTimes();
+        int earlyLeaveTimes = record.getEarlyLeaveTimes() == null ? 0 : record.getEarlyLeaveTimes();
         BigDecimal lateDeduct = nvl(rule.getLateDeductPerTime(), new BigDecimal("50"))
-                .multiply(BigDecimal.valueOf(record.getLateTimes() == null ? 0 : record.getLateTimes()));
+                .multiply(BigDecimal.valueOf(lateTimes + earlyLeaveTimes));
         BigDecimal totalDeduct = absentDeduct
                 .add(leaveDeduct)
                 .add(lateDeduct)

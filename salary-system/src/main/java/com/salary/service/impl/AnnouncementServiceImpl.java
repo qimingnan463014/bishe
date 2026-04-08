@@ -23,9 +23,9 @@ public class AnnouncementServiceImpl extends ServiceImpl<AnnouncementMapper, Ann
         if (status != null) {
             qw.eq(Announcement::getStatus, status);
         }
-        qw.orderByDesc(Announcement::getIsTop)
-                .orderByDesc(Announcement::getPubTime)
-                .orderByDesc(Announcement::getCreateTime);
+        qw.orderByDesc(Announcement::getPubTime)
+                .orderByDesc(Announcement::getCreateTime)
+                .orderByDesc(Announcement::getId);
         this.page(page, qw);
         return PageResult.of(page);
     }

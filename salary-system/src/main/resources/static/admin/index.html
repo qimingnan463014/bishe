@@ -4,14 +4,14 @@
 <head>
     <meta charset="UTF-8">
     <title>管理员后台 - 员工薪资管理系统</title>
-    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css" />
-    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-    <script src="https://unpkg.com/element-plus/dist/index.full.min.js"></script>
-    <script src="https://unpkg.com/element-plus/dist/locale/zh-cn.js"></script>
-    <script src="https://unpkg.com/@element-plus/icons-vue"></script>
-    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
-    <script src="https://unpkg.com/echarts@5/dist/echarts.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="/api/vendor/element-plus.css" />
+    <script src="/api/vendor/vue.global.prod.js"></script>
+    <script src="/api/vendor/element-plus.full.min.js"></script>
+    <script src="/api/vendor/element-plus.zh-cn.js"></script>
+    <script src="/api/vendor/element-plus-icons.js"></script>
+    <script src="/api/vendor/axios.min.js"></script>
+    <script src="/api/vendor/echarts.min.js"></script>
+    <script src="/api/vendor/xlsx.full.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -1699,7 +1699,7 @@
                         <el-dropdown-menu>
                             <el-dropdown-item command="home">首页</el-dropdown-item>
                             <el-dropdown-item command="personal">个人中心</el-dropdown-item>
-                            <el-dropdown-item command="backup">数据备份</el-dropdown-item>
+                            <el-dropdown-item v-if="userInfo.role === 1" command="backup">数据备份</el-dropdown-item>
                             <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
                         </el-dropdown-menu>
                     </template>
@@ -1708,7 +1708,7 @@
             </div>
         </div>
 
-        <!-- 姘村钩瀵艰埅鑿滃崟 -->
+        <!-- 姘村钩艰埅鑿滃崟 -->
         <div class="menu-preview">
             <ul role="menubar" class="el-menu-horizontal-2">
                 <template v-for="menu in menus" :key="menu.key">
@@ -1962,6 +1962,7 @@
                             <el-descriptions-item label="性别">{{ selfInfo.gender === 1 ? '男' : selfInfo.gender === 2
                                 ? '女' : '-' }}</el-descriptions-item>
                             <el-descriptions-item label="手机">{{ selfInfo.phone || '-' }}</el-descriptions-item>
+                            <el-descriptions-item label="身份证号">{{ selfInfo.idCard || '-' }}</el-descriptions-item>
                             <el-descriptions-item label="部门">{{ selfInfo.deptName || '-' }}</el-descriptions-item>
                             <el-descriptions-item label="基本工资">{{ selfInfo.baseSalary != null ? ('￥' +
                                 selfInfo.baseSalary) : '-' }}</el-descriptions-item>
@@ -1969,6 +1970,7 @@
                             <el-descriptions-item label="岗位">{{ selfInfo.positionName || selfInfo.position || '-'
                                 }}</el-descriptions-item>
                             <el-descriptions-item label="入职时间">{{ selfInfo.hireDate || '-' }}</el-descriptions-item>
+                            <el-descriptions-item label="部门经理">{{ selfInfo.managerName || '-' }}</el-descriptions-item>
                         </el-descriptions>
                     </el-card>
                     <el-card shadow="hover" style="border-radius:18px;">
@@ -2081,7 +2083,7 @@
                         <el-table-column label="头像" width="100" align="center">
                             <template #default="{row}">
                                 <el-image v-if="row.avatar" :src="row.avatar" class="avatar-cell-image"
-                                    :preview-src-list="[row.avatar]" :hide-on-click-modal="true" teleported
+                                    :preview-src-list="[row.avatar]" :hide-on-click-modal="true" :preview-teleported="true"
                                     fit="cover"></el-image>
                                 <el-avatar v-else :size="38">{{ (row.realName || row.empName || '?')[0] }}</el-avatar>
                             </template>
@@ -2156,7 +2158,7 @@
                         <el-table-column label="头像" min-width="96" align="center">
                             <template #default="{row}">
                                 <el-image v-if="row.avatar" :src="row.avatar" class="avatar-cell-image"
-                                    :preview-src-list="[row.avatar]" :hide-on-click-modal="true" teleported
+                                    :preview-src-list="[row.avatar]" :hide-on-click-modal="true" :preview-teleported="true"
                                     fit="cover"></el-image>
                                 <el-avatar v-else :size="38">{{ (row.realName || row.empName || '?')[0] }}</el-avatar>
                             </template>
@@ -2201,8 +2203,9 @@
                                 </div>
                             </template>
                         </el-table-column>
-                        <el-table-column label="操作" width="120">
+                        <el-table-column label="操作" width="160">
                             <template #default>
+                                <el-button link type="primary" size="small" @click="openAboutDialog('detail')">详情</el-button>
                                 <el-button link type="warning" size="small" @click="openAboutEditor">修改</el-button>
                             </template>
                         </el-table-column>
@@ -2455,6 +2458,9 @@
                         <el-table-column type="selection" width="50"></el-table-column>
                         <el-table-column type="index" label="序号" width="70"></el-table-column>
                         <el-table-column prop="title" label="标题" min-width="220"></el-table-column>
+                        <el-table-column label="发布时间" width="180" sortable>
+                            <template #default="{row}">{{ formatDateTime(row.pubTime || row.createTime) || '-' }}</template>
+                        </el-table-column>
                         <el-table-column label="图片" width="110">
                             <template #default="{row}">
                                 <el-image v-if="row.coverImage" :src="row.coverImage" class="avatar-cell-image"
@@ -2500,7 +2506,7 @@
                     </div>
                     <div v-if="noticeDetail.id" style="display:flex;flex-direction:column;gap:20px;">
                         <el-image v-if="noticeDetail.coverImage" :src="noticeDetail.coverImage"
-                            :preview-src-list="[noticeDetail.coverImage]" :hide-on-click-modal="true" teleported
+                            :preview-src-list="[noticeDetail.coverImage]" :hide-on-click-modal="true" :preview-teleported="true"
                             class="notice-detail-cover" fit="cover"></el-image>
                         <el-card shadow="never" class="detail-panel">
                             <template #header>
@@ -2520,7 +2526,7 @@
             <div class="page-section" :class="{active: currentMenu === 'attendance-rule'}">
                 <div class="search-bar">
                     <span>部门</span>
-                    <el-select v-model="attendanceRuleSearch.deptId" placeholder="请选择部门" style="width:180px;" clearable>
+                    <el-select v-model="attendanceRuleSearch.deptId" placeholder="请择部门" style="width:180px;" clearable>
                         <el-option v-for="d in departments" :key="d.id" :label="d.deptName" :value="d.id"></el-option>
                     </el-select>
                     <el-button type="primary" @click="loadAttendanceRules">查询</el-button>
@@ -2537,7 +2543,8 @@
                         <el-table-column prop="deptName" label="部门" min-width="140"></el-table-column>
                         <el-table-column prop="startTime" label="上班时间" min-width="120"></el-table-column>
                         <el-table-column prop="endTime" label="下班时间" min-width="120"></el-table-column>
-                        <el-table-column prop="leaveRule" label="假勤规则"></el-table-column>
+                        <el-table-column prop="leaveRule" label="假勤规则" min-width="220"></el-table-column>
+                        <el-table-column prop="deductRule" label="扣款规则" min-width="280"></el-table-column>
                         <el-table-column label="操作" width="210">
                             <template #default="{row}">
                                 <div class="inline-actions">
@@ -2623,28 +2630,29 @@
                         v-loading="attendLoading" @selection-change="handleAttendSelection">
                         <el-table-column type="selection" width="48"></el-table-column>
                         <el-table-column type="index" label="序号" width="60"></el-table-column>
-                        <el-table-column prop="recordNo" label="登记编号" width="110"></el-table-column>
-                        <el-table-column prop="yearMonth" label="月份" width="90"></el-table-column>
-                        <el-table-column prop="empNo" label="工号" width="80"></el-table-column>
-                        <el-table-column prop="empName" label="姓名" width="90"></el-table-column>
+                        <el-table-column prop="recordNo" label="登记编号" min-width="118"></el-table-column>
+                        <el-table-column prop="yearMonth" label="月份" min-width="92"></el-table-column>
+                        <el-table-column prop="empNo" label="工号" min-width="84"></el-table-column>
+                        <el-table-column prop="empName" label="姓名" min-width="96"></el-table-column>
                         <el-table-column label="头像" width="90" align="center">
                             <template #default="{row}">
                                 <el-image v-if="row.avatar" :src="row.avatar" :preview-src-list="[row.avatar]"
-                                    :hide-on-click-modal="true" teleported
+                                    :hide-on-click-modal="true" :preview-teleported="true"
                                     style="width:38px;height:38px;border-radius:50%;cursor:pointer;"
                                     fit="cover"></el-image>
                                 <el-avatar v-else :size="38">{{ (row.empName || '?')[0] }}</el-avatar>
                             </template>
                         </el-table-column>
-                        <el-table-column prop="deptName" label="部门" width="100"></el-table-column>
-                        <el-table-column prop="attendDays" label="出勤天数" width="90"></el-table-column>
-                        <el-table-column prop="absentDays" label="旷工天数" width="90"></el-table-column>
-                        <el-table-column prop="lateTimes" label="迟到天数" width="90"></el-table-column>
-                        <el-table-column prop="leaveDays" label="请假天数" width="90"></el-table-column>
-                        <el-table-column prop="overtimeHours" label="加班小时" width="90"></el-table-column>
-                        <el-table-column prop="registerDate" label="登记日期" width="120"></el-table-column>
-                        <el-table-column prop="managerNo" label="经理账号" width="100"></el-table-column>
-                        <el-table-column prop="managerName" label="部门经理" width="100"></el-table-column>
+                        <el-table-column prop="deptName" label="部门" min-width="112"></el-table-column>
+                        <el-table-column prop="attendDays" label="出勤天数" min-width="94"></el-table-column>
+                        <el-table-column prop="absentDays" label="旷工天数" min-width="94"></el-table-column>
+                        <el-table-column prop="lateTimes" label="迟到天数" min-width="94"></el-table-column>
+                        <el-table-column prop="earlyLeaveTimes" label="早天数" min-width="94"></el-table-column>
+                        <el-table-column prop="leaveDays" label="请假天数" min-width="94"></el-table-column>
+                        <el-table-column prop="overtimeHours" label="加班小时" min-width="94"></el-table-column>
+                        <el-table-column prop="registerDate" label="登记日期" min-width="126"></el-table-column>
+                        <el-table-column prop="managerNo" label="经理账号" min-width="108"></el-table-column>
+                        <el-table-column prop="managerName" label="部门经理" min-width="108"></el-table-column>
                         <el-table-column label="操作" fixed="right" width="170"
                             v-if="userInfo.role === 1 || userInfo.role === 2">
                             <template #default="{row}">
@@ -2700,7 +2708,7 @@
                         <el-table-column label="头像" width="90" align="center">
                             <template #default="{row}">
                                 <el-image v-if="row.avatar" :src="row.avatar" :preview-src-list="[row.avatar]"
-                                    :hide-on-click-modal="true" teleported
+                                    :hide-on-click-modal="true" :preview-teleported="true"
                                     style="width:38px;height:38px;border-radius:50%;cursor:pointer;"
                                     fit="cover"></el-image>
                                 <el-avatar v-else :size="38">{{ (row.empName || '?')[0] }}</el-avatar>
@@ -2834,7 +2842,7 @@
                         <el-table-column label="头像" width="76" align="center">
                             <template #default="{row}">
                                 <el-image v-if="row.avatar" :src="row.avatar" :preview-src-list="[row.avatar]"
-                                    :hide-on-click-modal="true" teleported
+                                    :hide-on-click-modal="true" :preview-teleported="true"
                                     style="width:38px;height:38px;border-radius:50%;cursor:pointer;" fit="cover"></el-image>
                                 <el-avatar v-else :size="38">{{ (row.empName || '?')[0] }}</el-avatar>
                             </template>
@@ -2905,7 +2913,7 @@
                         <el-table-column label="头像" width="76" align="center">
                             <template #default="{row}">
                                 <el-image v-if="row.avatar" :src="row.avatar" :preview-src-list="[row.avatar]"
-                                    :hide-on-click-modal="true" teleported
+                                    :hide-on-click-modal="true" :preview-teleported="true"
                                     style="width:38px;height:38px;border-radius:50%;cursor:pointer;" fit="cover"></el-image>
                                 <el-avatar v-else :size="38">{{ (row.empName || '?')[0] }}</el-avatar>
                             </template>
@@ -2975,7 +2983,7 @@
                         <el-table-column label="头像" width="90" align="center">
                             <template #default="{ row }">
                                 <el-image v-if="row.empAvatar" :src="row.empAvatar" :preview-src-list="[row.empAvatar]"
-                                    :hide-on-click-modal="true" teleported
+                                    :hide-on-click-modal="true" :preview-teleported="true"
                                     style="width:38px;height:38px;border-radius:50%;cursor:pointer;"
                                     fit="cover"></el-image>
                                 <el-avatar v-else :size="38">{{ (row.empName || '?')[0] }}</el-avatar>
@@ -3036,7 +3044,7 @@
                         <el-table-column label="头像" width="90" align="center">
                             <template #default="{row}">
                                 <el-image v-if="row.avatar" :src="row.avatar" :preview-src-list="[row.avatar]"
-                                    :hide-on-click-modal="true" teleported
+                                    :hide-on-click-modal="true" :preview-teleported="true"
                                     style="width:38px;height:38px;border-radius:50%;cursor:pointer;"
                                     fit="cover"></el-image>
                                 <el-avatar v-else :size="38">{{ (row.empName || '?')[0] }}</el-avatar>
@@ -3052,7 +3060,7 @@
                         <el-table-column prop="grade" label="评价等级" width="100">
                             <template #default="{row}">
                                 <el-tag
-                                    :type="row.grade === '优秀' ? 'success' : (row.grade === '良好' ? 'primary' : (row.grade === '及格' ? 'warning' : 'danger'))"
+                                    :type="row.grade === '优秀' ? 'success' : (row.grade === '良好' ? 'primary' : (row.grade === '合格' ? 'warning' : 'danger'))"
                                     size="small">
                                     {{row.grade || '-'}}
                                 </el-tag>
@@ -3112,9 +3120,16 @@
                 <div class="action-bar">
                     <el-button type="warning" @click="batchCalcSalary"
                         v-if="userInfo.role===2">核算</el-button>
-                    <el-button type="success" plain @click="batchPublishSalary"
+                    <el-button type="primary" @click="generateSalaryDrafts"
                         v-if="userInfo.role===2"
-                        title="将草稿账单提交到审核队列，进入待审核状态">提交审核</el-button>
+                        title="按当前月份为经理本人及名下员工生成工资草稿">生成草稿</el-button>
+                    <el-button @click="openSalaryDraftDialog"
+                        v-if="userInfo.role===2"
+                        title="单独补一条工资草稿，适合误删后重新添加">添加草稿</el-button>
+                    <el-button type="success" @click="batchPublishSalary"
+                        v-if="userInfo.role===2"
+                        title="将草稿账单提交到审核队列，进入待审核状态"
+                        style="font-weight:600;">提交审核</el-button>
                     <el-button type="primary" @click="batchAuditSalary" v-if="userInfo.role===1"
                         title="将待审核的薪资账单批量审核为可发放状态">批量审核</el-button>
                     <el-button type="danger" @click="batchDeleteSalaryRecords">删除</el-button>
@@ -3124,36 +3139,36 @@
                     <el-table :data="salaryDisplayRows" stripe border size="small" style="width:100%"
                         v-loading="salaryLoading" @selection-change="handleSalarySelection">
                         <el-table-column type="selection" width="45"></el-table-column>
-                        <el-table-column prop="yearMonth" label="月份" width="90"></el-table-column>
-                        <el-table-column prop="empNo" label="工号" width="90"></el-table-column>
-                        <el-table-column prop="empName" label="姓名" width="90"></el-table-column>
+                        <el-table-column prop="yearMonth" label="月份" min-width="92"></el-table-column>
+                        <el-table-column prop="empNo" label="工号" min-width="92"></el-table-column>
+                        <el-table-column prop="empName" label="姓名" min-width="96"></el-table-column>
                         <el-table-column label="头像" width="90" align="center">
                             <template #default="{row}">
                                 <el-image v-if="row.avatar" :src="row.avatar" :preview-src-list="[row.avatar]"
-                                    :hide-on-click-modal="true" teleported
+                                    :hide-on-click-modal="true" :preview-teleported="true"
                                     style="width:38px;height:38px;border-radius:50%;cursor:pointer;"
                                     fit="cover"></el-image>
                                 <el-avatar v-else :size="38">{{ (row.empName || '?')[0] }}</el-avatar>
                             </template>
                         </el-table-column>
-                        <el-table-column prop="deptName" label="部门" width="100"></el-table-column>
-                        <el-table-column prop="bankCard" label="银行卡号" width="160"
+                        <el-table-column prop="deptName" label="部门" min-width="112"></el-table-column>
+                        <el-table-column prop="bankCard" label="银行卡号" min-width="176"
                             show-overflow-tooltip></el-table-column>
-                        <el-table-column prop="baseSalary" label="基本工资" width="100"></el-table-column>
-                        <el-table-column prop="overtimePay" label="加班工资" width="100"></el-table-column>
-                        <el-table-column prop="perfBonus" label="绩效奖金" width="100"></el-table-column>
-                        <el-table-column prop="allowance" label="津贴" width="100"></el-table-column>
-                        <el-table-column prop="socialSecurityEmp" label="五险一金" width="100">
+                        <el-table-column prop="baseSalary" label="基本工资" min-width="108"></el-table-column>
+                        <el-table-column prop="overtimePay" label="加班工资" min-width="108"></el-table-column>
+                        <el-table-column prop="perfBonus" label="绩效奖金" min-width="108"></el-table-column>
+                        <el-table-column prop="allowance" label="津贴" min-width="108"></el-table-column>
+                        <el-table-column prop="socialSecurityEmp" label="五险一金" min-width="108">
                             <template #default="{row}">{{ formatNegativeAmount(row.socialSecurityEmp) }}</template>
                         </el-table-column>
-                        <el-table-column prop="incomeTax" label="个税" width="90">
+                        <el-table-column prop="incomeTax" label="个税" min-width="92">
                             <template #default="{row}">{{ formatNegativeAmount(row.incomeTax) }}</template>
                         </el-table-column>
-                        <el-table-column prop="deductAmount" label="扣款金额" width="100">
+                        <el-table-column prop="deductAmount" label="扣款金额" min-width="108">
                             <template #default="{row}">{{ formatNegativeAmount(row.deductAmount) }}</template>
                         </el-table-column>
-                        <el-table-column prop="netSalary" label="实发工资" width="100"></el-table-column>
-                        <el-table-column label="状态" width="90">
+                        <el-table-column prop="netSalary" label="实发工资" min-width="108"></el-table-column>
+                        <el-table-column label="状态" min-width="92">
                             <template #default="{row}">
                                 <el-tag
                                     :type="row.calcStatus === 1 ? 'info' : (row.calcStatus === 2 ? 'primary' : (row.calcStatus === 3 ? 'success' : 'danger'))"
@@ -3166,7 +3181,7 @@
                             <template #default="{row}">
                                 <div class="inline-actions">
                                     <el-button v-if="(userInfo.role===1 || userInfo.role===2) && row.calcStatus===1"
-                                        link type="warning" size="small" @click="saveAllowance(row)">修改(草稿)</el-button>
+                                        link type="warning" size="small" @click="openSalaryEditDialog(row)">编辑草稿</el-button>
                                     <el-button v-if="userInfo.role===1 && row.calcStatus===2" link type="success"
                                         size="small" @click="auditSalaryRecord(row)">单笔审核</el-button>
                                     <el-button v-if="canSubmitSalaryFeedbackForRow(row)" link type="warning"
@@ -3223,34 +3238,34 @@
                         v-loading="paymentLoading" @selection-change="handlePaymentSelection">
                         <el-table-column type="selection" width="45" v-if="userInfo.role === 1"></el-table-column>
                         <el-table-column type="index" label="序号" width="60"></el-table-column>
-                        <el-table-column prop="yearMonth" label="月份" width="90"></el-table-column>
-                        <el-table-column prop="empNo" label="工号" width="90"></el-table-column>
-                        <el-table-column prop="empName" label="姓名" width="90"></el-table-column>
+                        <el-table-column prop="yearMonth" label="月份" min-width="92"></el-table-column>
+                        <el-table-column prop="empNo" label="工号" min-width="92"></el-table-column>
+                        <el-table-column prop="empName" label="姓名" min-width="96"></el-table-column>
                         <el-table-column label="头像" width="90" align="center">
                             <template #default="{row}">
                                 <el-image v-if="row.avatar" :src="row.avatar" :preview-src-list="[row.avatar]"
-                                    :hide-on-click-modal="true" teleported
+                                    :hide-on-click-modal="true" :preview-teleported="true"
                                     style="width:38px;height:38px;border-radius:50%;cursor:pointer;"
                                     fit="cover"></el-image>
                                 <el-avatar v-else :size="38">{{ (row.empName || '?')[0] }}</el-avatar>
                             </template>
                         </el-table-column>
-                        <el-table-column prop="deptName" label="部门" width="100"></el-table-column>
-                        <el-table-column prop="baseSalary" label="基本工资" width="100"></el-table-column>
-                        <el-table-column prop="overtimePay" label="加班工资" width="100"></el-table-column>
-                        <el-table-column prop="perfBonus" label="绩效奖金" width="100"></el-table-column>
-                        <el-table-column prop="allowance" label="津贴" width="100"></el-table-column>
-                        <el-table-column prop="socialSecurityEmp" label="五险一金" width="100">
+                        <el-table-column prop="deptName" label="部门" min-width="112"></el-table-column>
+                        <el-table-column prop="baseSalary" label="基本工资" min-width="108"></el-table-column>
+                        <el-table-column prop="overtimePay" label="加班工资" min-width="108"></el-table-column>
+                        <el-table-column prop="perfBonus" label="绩效奖金" min-width="108"></el-table-column>
+                        <el-table-column prop="allowance" label="津贴" min-width="108"></el-table-column>
+                        <el-table-column prop="socialSecurityEmp" label="五险一金" min-width="108">
                             <template #default="{row}">{{ formatNegativeAmount(row.socialSecurityEmp) }}</template>
                         </el-table-column>
-                        <el-table-column prop="incomeTax" label="个税" width="90">
+                        <el-table-column prop="incomeTax" label="个税" min-width="92">
                             <template #default="{row}">{{ formatNegativeAmount(row.incomeTax) }}</template>
                         </el-table-column>
-                        <el-table-column prop="deductAmount" label="扣款金额" width="100">
+                        <el-table-column prop="deductAmount" label="扣款金额" min-width="108">
                             <template #default="{row}">{{ formatNegativeAmount(row.deductAmount) }}</template>
                         </el-table-column>
-                        <el-table-column prop="netSalary" label="实发工资" width="100"></el-table-column>
-                        <el-table-column label="审核状态" width="110">
+                        <el-table-column prop="netSalary" label="实发工资" min-width="108"></el-table-column>
+                        <el-table-column label="审核状态" min-width="112">
                             <template #default="{row}">
                                 <el-tag
                                     :type="row.calcStatus === 4 ? 'success' : (row.calcStatus === 3 ? 'success' : 'warning')"
@@ -3259,22 +3274,22 @@
                                 </el-tag>
                             </template>
                         </el-table-column>
-                        <el-table-column prop="payDate" label="发放日期" width="120"></el-table-column>
-                        <el-table-column prop="isPaid" label="是否支付" width="100">
+                        <el-table-column prop="payDate" label="发放日期" min-width="126"></el-table-column>
+                        <el-table-column prop="isPaid" label="是否支付" min-width="104">
                             <template #default="{row}">
                                 <el-tag :type="row.isPaid ? 'success' : 'warning'" size="small">
                                     {{ row.isPaid ? '已支付' : '未支付' }}
                                 </el-tag>
                             </template>
                         </el-table-column>
-                        <el-table-column label="发布状态" width="110">
+                        <el-table-column label="发布状态" min-width="112">
                             <template #default="{row}">
                                 <el-tag :type="row.slipPublished ? 'success' : 'info'" size="small">
                                     {{ row.slipPublished ? '已发布' : '未发布' }}
                                 </el-tag>
                             </template>
                         </el-table-column>
-                        <el-table-column label="发放文件" width="170">
+                        <el-table-column label="发放文件" min-width="176">
                             <template #default="{row}">
                                 <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start;">
                                     <el-link v-if="row.issueFile" :href="row.issueFile" target="_blank" type="primary">
@@ -3354,7 +3369,7 @@
                             </el-col>
                             <el-col :span="12">
                                 <el-form-item label="部门经理">
-                                    <el-select v-model="deptForm.managerId" placeholder="请选择部门经理" style="width:100%;"
+                                    <el-select v-model="deptForm.managerId" placeholder="请择部门经理" style="width:100%;"
                                         clearable>
                                         <el-option v-for="emp in allEmployees.filter(e => e.role === 2)"
                                             :key="emp.userId || emp.id"
@@ -3380,7 +3395,7 @@
                             <el-col :span="24">
                                 <el-form-item label="说明">
                                     <el-input type="textarea" :rows="4" v-model="deptForm.description"
-                                        placeholder="补充该部门职责、边界或审批说明"></el-input>
+                                        placeholder="补充该部门职责边界或审批说明"></el-input>
                                 </el-form-item>
                             </el-col>
                         </el-row>
@@ -3399,7 +3414,7 @@
                 <div class="detail-hero">
                     <div class="detail-hero__media">
                         <el-image v-if="empForm.avatar" :src="empForm.avatar" :preview-src-list="[empForm.avatar]"
-                            :hide-on-click-modal="true" teleported class="detail-hero__image" fit="cover"></el-image>
+                            :hide-on-click-modal="true" :preview-teleported="true" class="detail-hero__image" fit="cover"></el-image>
                         <el-avatar v-else :size="84" class="detail-hero__image">{{ (empForm.realName || '?')[0]
                             }}</el-avatar>
                     </div>
@@ -3504,7 +3519,7 @@
                                 <el-col :span="12" v-if="empDialogMode !== 'manager'">
                                     <el-form-item label="直属经理">
                                         <el-select v-model="empForm.managerId" style="width:100%"
-                                            placeholder="选择直属经理（可不选）" clearable>
+                                            placeholder="选择直属经理（可不）" clearable>
                                             <el-option v-for="e in allEmployees.filter(item => item.role === 2)"
                                                 :key="e.userId || e.id"
                                                 :label="e.realName + ' (' + (e.empNo || e.username) + ')'"
@@ -3574,6 +3589,19 @@
                 </div>
             </div>
             <div class="dialog-body-padding">
+                <el-card shadow="never" class="detail-panel" style="margin-bottom:16px;">
+                    <template #header>
+                        <div class="detail-panel__title">只读信息</div>
+                    </template>
+                    <el-form label-position="top" class="detail-form">
+                        <el-row :gutter="20">
+                            <el-col :span="12"><el-form-item label="工号"><el-input v-model="selfInfo.empNo" disabled></el-input></el-form-item></el-col>
+                            <el-col :span="12"><el-form-item label="所在部门"><el-input v-model="selfInfo.deptName" disabled></el-input></el-form-item></el-col>
+                            <el-col :span="12"><el-form-item label="当前岗位"><el-input :model-value="selfInfo.positionName || selfInfo.position" disabled></el-input></el-form-item></el-col>
+                            <el-col :span="12"><el-form-item label="入职时间"><el-input v-model="selfInfo.hireDate" disabled></el-input></el-form-item></el-col>
+                        </el-row>
+                    </el-form>
+                </el-card>
                 <el-card shadow="never" class="detail-panel">
                     <template #header>
                         <div class="detail-panel__title">个人资料</div>
@@ -3586,13 +3614,11 @@
                                         v-model="selfEditForm.gender"><el-radio :label="1">男</el-radio><el-radio
                                             :label="2">女</el-radio></el-radio-group></el-form-item></el-col>
                             <el-col :span="12"><el-form-item label="手机号"><el-input
-                                        v-model=" selfEditForm.phone"></el-input></el-form-item></el-col>
+                                        v-model="selfEditForm.phone" placeholder="请输入手机号"></el-input></el-form-item></el-col>
+                            <el-col :span="12"><el-form-item label="身份证号"><el-input
+                                        v-model="selfEditForm.idCard" placeholder="请输入身份证号"></el-input></el-form-item></el-col>
                             <el-col :span="12"><el-form-item label="银行卡号"><el-input v-model="selfEditForm.bankCard"
                                         placeholder="用于发放工资的银行卡号"></el-input></el-form-item></el-col>
-                            <el-col :span="12"><el-form-item label="入职时间"><el-date-picker
-                                        v-model="selfEditForm.hireDate" type="date" format="YYYY-MM-DD"
-                                        value-format="YYYY-MM-DD" style="width:100%"
-                                        teleported></el-date-picker></el-form-item></el-col>
                         </el-row>
                     </el-form>
                 </el-card>
@@ -3603,7 +3629,7 @@
             </div>
         </el-dialog>
 
-        <!-- 弹窗：企业薪资统一发放网关 -->
+        <!-- 弹窗：企业薪资统丢发放网关 -->
         <el-dialog v-model="paymentGatewayVisible" width="980px" top="8vh" class="modern-dialog"
             :close-on-click-modal="false" :show-close="!paymentProcessing">
             <div class="dialog-header-gradient">
@@ -3775,7 +3801,7 @@
                                 <el-form-item :label="'图片 ' + (index + 1)">
                                     <label class="upload-tile">
                                         <el-image v-if="img" :src="img" class="upload-tile__image"
-                                            :preview-src-list="[img]" :hide-on-click-modal="true" teleported
+                                            :preview-src-list="[img]" :hide-on-click-modal="true" :preview-teleported="true"
                                             fit="cover"></el-image>
                                         <div v-else class="upload-tile__placeholder">+</div>
                                         <div class="upload-tile__tip">点击上传图片 {{ index + 1 }}</div>
@@ -3827,7 +3853,7 @@
                             :key="'carousel-form-' + index">
                             <label class="upload-tile" style="min-height:185px;">
                                 <el-image v-if="img" :src="img" class="upload-tile__image" :preview-src-list="[img]"
-                                    :hide-on-click-modal="true" teleported fit="cover" style="height:128px;"></el-image>
+                                    :hide-on-click-modal="true" :preview-teleported="true" fit="cover" style="height:128px;"></el-image>
                                 <div v-else class="upload-tile__placeholder" style="height:128px;">+</div>
                                 <div class="upload-tile__tip">点击上传轮播图 {{ index + 1 }}</div>
                                 <span class="upload-tile__button">选择图片</span>
@@ -3904,7 +3930,7 @@
                             <label class="upload-tile">
                                 <el-image v-if="noticeForm.coverImage" :src="noticeForm.coverImage"
                                     class="upload-tile__image" :preview-src-list="[noticeForm.coverImage]"
-                                    :hide-on-click-modal="true" teleported fit="cover"></el-image>
+                                    :hide-on-click-modal="true" :preview-teleported="true" fit="cover"></el-image>
                                 <div v-else class="upload-tile__placeholder">+</div>
                                 <div class="upload-tile__tip">点击上传简介图片</div>
                                 <span class="upload-tile__button">选择图片</span>
@@ -3954,6 +3980,9 @@
                             <el-col :span="24"><el-form-item label="请假规则"><el-input
                                         v-model="attendanceRuleForm.leaveRule" type="textarea"
                                         :rows="5"></el-input></el-form-item></el-col>
+                            <el-col :span="24"><el-form-item label="扣款规则"><el-input
+                                        v-model="attendanceRuleForm.deductRule" type="textarea"
+                                        :rows="5"></el-input></el-form-item></el-col>
                         </el-row>
                     </el-form>
                 </el-card>
@@ -3999,7 +4028,7 @@
             </div>
         </el-dialog>
 
-        <!-- 弹窗：考勤数据/手动录入 -->
+        <!-- 弹窗：勤数据/手动录入 -->
         <el-dialog v-model="attendDialogVisible" width="760px" top="8vh" class="modern-dialog">
             <div class="dialog-header-gradient">
                 <div class="dialog-title-icon"><el-icon>
@@ -4007,7 +4036,7 @@
                     </el-icon></div>
                 <div>
                     <div class="dialog-title-text">{{ attendForm.id ? '修改考勤数据' : '录入考勤数据' }}</div>
-                    <div class="dialog-title-sub">统一维护月度出勤、迟到、请假与出差信息</div>
+                    <div class="dialog-title-sub">统一维护月度出勤、迟到请假与出差信息</div>
                 </div>
             </div>
             <div class="dialog-body-padding">
@@ -4037,6 +4066,9 @@
                                         style="width:100%"></el-input-number></el-form-item></el-col>
                             <el-col :span="12"><el-form-item label="迟到次数"><el-input-number
                                         v-model="attendForm.lateTimes" :min="0" :step="1"
+                                        style="width:100%"></el-input-number></el-form-item></el-col>
+                            <el-col :span="12"><el-form-item label="早次数"><el-input-number
+                                        v-model="attendForm.earlyLeaveTimes" :min="0" :step="1"
                                         style="width:100%"></el-input-number></el-form-item></el-col>
                             <el-col :span="12"><el-form-item label="加班小时"><el-input-number
                                         v-model="attendForm.overtimeHours" :min="0" :step="0.5"
@@ -4127,7 +4159,7 @@
                     </el-icon></div>
                 <div>
                     <div class="dialog-title-text">处理异常情况</div>
-                    <div class="dialog-title-sub">统一记录处理状态与回执说明</div>
+                    <div class="dialog-title-sub">统一记录处理状与回执说明</div>
                 </div>
             </div>
             <div class="dialog-body-padding">
@@ -4187,7 +4219,7 @@
                     </el-icon></div>
                 <div>
                     <div class="dialog-title-text">跟进投诉与反馈</div>
-                    <div class="dialog-title-sub">统一记录结案状态与官方回复</div>
+                    <div class="dialog-title-sub">统一记录结案状与官方回复</div>
                 </div>
             </div>
             <div class="dialog-body-padding">
@@ -4249,7 +4281,7 @@
                     </el-icon></div>
                 <div>
                     <div class="dialog-title-text">提交薪资反馈</div>
-                    <div class="dialog-title-sub">仅提交与本人薪资核算相关的工资、绩效、个税或津贴异议</div>
+                    <div class="dialog-title-sub">仅提交与本人薪资核算相关的工资绩效个税或津贴异议</div>
                 </div>
             </div>
             <div class="dialog-body-padding">
@@ -4293,13 +4325,109 @@
             </div>
         </el-dialog>
 
-        <!-- 弹窗：统一详情模板 -->
+        <el-dialog v-model="salaryDraftDialogVisible" width="660px" top="8vh" class="modern-dialog">
+            <div class="dialog-header-gradient">
+                <div class="dialog-title-icon"><el-icon>
+                        <Plus />
+                    </el-icon></div>
+                <div>
+                    <div class="dialog-title-text">添加工资草稿</div>
+                    <div class="dialog-title-sub">按月份为单个人员补生成工资草稿，适合误删后补录</div>
+                </div>
+            </div>
+            <div class="dialog-body-padding">
+                <el-card shadow="never" class="detail-panel">
+                    <template #header>
+                        <div class="detail-panel__title">草稿配置</div>
+                    </template>
+                    <el-form :model="salaryDraftForm" label-position="top" class="detail-form">
+                        <el-row :gutter="20">
+                            <el-col :span="12">
+                                <el-form-item label="月份">
+                                    <el-date-picker v-model="salaryDraftForm.yearMonth"
+                                        type="month" format="YYYY-MM" value-format="YYYY-MM" style="width:100%"
+                                        teleported popper-class="numeric-month-popper"></el-date-picker>
+                                </el-form-item>
+                            </el-col>
+                            <el-col :span="12">
+                                <el-form-item label="员工 / 经理">
+                                    <el-select v-model="salaryDraftForm.empId" style="width:100%" filterable>
+                                        <el-option v-for="item in salaryDraftSelectablePeople" :key="item.id"
+                                            :label="item.empNo + ' - ' + item.realName + (item.isSelf ? '（本人）' : '')"
+                                            :value="item.id"></el-option>
+                                    </el-select>
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                    </el-form>
+                </el-card>
+            </div>
+            <div class="dialog-footer-bar">
+                <el-button @click="salaryDraftDialogVisible = false">取消</el-button>
+                <el-button type="primary" :loading="salaryDraftDialogLoading" @click="createSalaryDraft">生成草稿</el-button>
+            </div>
+        </el-dialog>
+
+        <el-dialog v-model="salaryEditDialogVisible" width="760px" top="8vh" class="modern-dialog">
+            <div class="dialog-header-gradient">
+                <div class="dialog-title-icon"><el-icon>
+                        <EditPen />
+                    </el-icon></div>
+                <div>
+                    <div class="dialog-title-text">编辑工资草稿</div>
+                    <div class="dialog-title-sub">经理可在提交审核前调整津贴其他扣款和备注</div>
+                </div>
+            </div>
+            <div class="dialog-body-padding">
+                <el-card shadow="never" class="detail-panel">
+                    <template #header>
+                        <div class="detail-panel__title">草稿信息</div>
+                    </template>
+                    <el-form :model="salaryEditForm" label-position="top" class="detail-form">
+                        <el-row :gutter="20">
+                            <el-col :span="8"><el-form-item label="月份"><el-input v-model="salaryEditForm.yearMonth" disabled></el-input></el-form-item></el-col>
+                            <el-col :span="8"><el-form-item label="工号"><el-input v-model="salaryEditForm.empNo" disabled></el-input></el-form-item></el-col>
+                            <el-col :span="8"><el-form-item label="姓名"><el-input v-model="salaryEditForm.empName" disabled></el-input></el-form-item></el-col>
+                            <el-col :span="12"><el-form-item label="津贴"><el-input-number v-model="salaryEditForm.allowance" :min="0" :step="100" style="width:100%"></el-input-number></el-form-item></el-col>
+                            <el-col :span="12"><el-form-item label="其他扣款"><el-input-number v-model="salaryEditForm.otherDeduct" :min="0" :step="100" style="width:100%"></el-input-number></el-form-item></el-col>
+                            <el-col :span="24"><el-form-item label="备注"><el-input v-model="salaryEditForm.remark" type="textarea" :rows="4" placeholder="可填写调薪原因补贴说明等"></el-input></el-form-item></el-col>
+                        </el-row>
+                    </el-form>
+                </el-card>
+                <el-row :gutter="16" style="margin-top:16px;">
+                    <el-col :span="8">
+                        <el-card shadow="never" class="detail-panel">
+                            <div class="detail-panel__title">应发工资</div>
+                            <div style="font-size:24px;font-weight:700;color:#409EFF;">￥{{ salaryEditPreview.gross.toFixed(2) }}</div>
+                        </el-card>
+                    </el-col>
+                    <el-col :span="8">
+                        <el-card shadow="never" class="detail-panel">
+                            <div class="detail-panel__title">扣款合计</div>
+                            <div style="font-size:24px;font-weight:700;color:#F56C6C;">￥{{ salaryEditPreview.deduct.toFixed(2) }}</div>
+                        </el-card>
+                    </el-col>
+                    <el-col :span="8">
+                        <el-card shadow="never" class="detail-panel">
+                            <div class="detail-panel__title">实发工资</div>
+                            <div style="font-size:24px;font-weight:700;color:#67C23A;">￥{{ salaryEditPreview.net.toFixed(2) }}</div>
+                        </el-card>
+                    </el-col>
+                </el-row>
+            </div>
+            <div class="dialog-footer-bar">
+                <el-button @click="salaryEditDialogVisible = false">取消</el-button>
+                <el-button type="primary" :loading="salaryEditSaving" @click="saveSalaryDraft">保存草稿</el-button>
+            </div>
+        </el-dialog>
+
+        <!-- 弹窗：统丢详情模板 -->
         <el-dialog v-model="detailDialogVisible" :width="detailDialog.width" top="6vh" class="detail-dialog">
             <div class="detail-shell">
                 <div class="detail-hero">
                     <div class="detail-hero__media">
                         <el-image v-if="detailDialog.avatar" :src="detailDialog.avatar"
-                            :preview-src-list="[detailDialog.avatar]" :hide-on-click-modal="true" teleported
+                            :preview-src-list="[detailDialog.avatar]" :hide-on-click-modal="true" :preview-teleported="true"
                             class="detail-hero__image" fit="cover"></el-image>
                         <el-avatar v-else :size="84" class="detail-hero__image">{{ detailDialog.avatarFallback || '?'
                             }}</el-avatar>
@@ -4347,7 +4475,7 @@
             <div class="dialog-header-gradient">
                 <div class="dialog-title-icon" style="overflow:hidden;padding:0;">
                     <el-image v-if="taxForm.empAvatar" :src="taxForm.empAvatar" :preview-src-list="[taxForm.empAvatar]"
-                        :hide-on-click-modal="true" teleported
+                        :hide-on-click-modal="true" :preview-teleported="true"
                         style="width:100%;height:100%;border-radius:16px;cursor:pointer;" fit="cover"></el-image>
                     <span v-else>税</span>
                 </div>
@@ -4398,7 +4526,7 @@
                     </div>
                     <div class="detail-item"
                         style="background:linear-gradient(135deg,#fff1f0,#fff8f7);border-color:#ffd0cc;">
-                        <div class="detail-label">个人所得税代缴</div>
+                        <div class="detail-label">个人扢得税代缴</div>
                         <div class="detail-value" style="color:#e6573c;font-size:20px;">￥{{ taxForm.incomeTax }}</div>
                     </div>
                     <div class="detail-item">
@@ -4482,15 +4610,15 @@
                     </el-icon></div>
                 <div>
                     <div class="dialog-title-text">绩效评分</div>
-                    <div class="dialog-title-sub">统一录入评分项、等级与奖金标准</div>
+                    <div class="dialog-title-sub">统一录入评分项等级与奖金标准</div>
                 </div>
             </div>
             <div class="dialog-body-padding">
                 <div class="dialog-hero-card">
                     <div class="dialog-hero-card__eyebrow">绩效评审</div>
                     <div class="dialog-hero-card__title">{{ perfContext.empName || '绩效评分' }}</div>
-                    <div class="dialog-hero-card__subtitle">{{ (perfContext.deptName || '待选择员工') + ' · ' +
-                        (perfForm.yearMonth || '未选择月份') }}</div>
+                    <div class="dialog-hero-card__subtitle">{{ (perfContext.deptName || '待择员工') + ' · ' +
+                        (perfForm.yearMonth || '未择月份') }}</div>
                     <div class="dialog-hero-card__tags">
                         <el-tag effect="light" type="primary">{{ perfContext.managerName || '待匹配经理' }}</el-tag>
                         <el-tag effect="light"
@@ -4535,7 +4663,7 @@
                         <el-form :model="perfForm" label-position="top" class="detail-form">
                             <el-row :gutter="20">
                                 <el-col :span="24"><el-form-item label="员工姓名"><el-select v-model="perfForm.empId"
-                                            filterable placeholder="请选择员工" style="width:100%;"
+                                            filterable placeholder="请择员工" style="width:100%;"
                                             @click="loadAllEmployeesForSelect"><el-option v-for="e in allEmployees"
                                                 :key="e.id" :label="e.realName + ' (' + e.empNo + ')'"
                                                 :value="e.id"></el-option></el-select></el-form-item></el-col>
@@ -4717,8 +4845,8 @@
                 const currentMenu = ref('home');
 
                 // --- 个人中心数据 ---
-                const selfInfo = reactive({ empNo: '', realName: '', gender: '', phone: '', deptName: '', baseSalary: '', bankCard: '', positionName: '', hireDate: '', managerNo: '', managerName: '', avatar: '', id: '' });
-                const selfEditForm = reactive({ realName: '', gender: 1, phone: '', bankCard: '', hireDate: '' });
+                const selfInfo = reactive({ empNo: '', realName: '', gender: '', phone: '', idCard: '', deptName: '', baseSalary: '', bankCard: '', positionName: '', position: '', hireDate: '', managerNo: '', managerName: '', avatar: '', id: '', empId: '' });
+                const selfEditForm = reactive({ realName: '', gender: 1, phone: '', idCard: '', bankCard: '', hireDate: '' });
                 const selfEditDialogVisible = ref(false);
                 const detailDialogVisible = ref(false);
                 const detailDialog = reactive({
@@ -4733,27 +4861,50 @@
                     tags: [],
                     items: []
                 });
+                const syncSelfForms = () => {
+                    selfEditForm.realName = selfInfo.realName || '';
+                    selfEditForm.gender = selfInfo.gender ?? 1;
+                    selfEditForm.phone = selfInfo.phone || '';
+                    selfEditForm.idCard = selfInfo.idCard || '';
+                    selfEditForm.bankCard = selfInfo.bankCard || '';
+                    selfEditForm.hireDate = selfInfo.hireDate || '';
+                };
+                const applySelfInfo = (payload = {}) => {
+                    Object.assign(selfInfo, {
+                        ...payload,
+                        id: payload.empId || payload.id || selfInfo.id || '',
+                        empId: payload.empId || payload.id || selfInfo.empId || '',
+                        empNo: payload.empNo || payload.username || selfInfo.empNo || '',
+                        realName: payload.realName || payload.name || selfInfo.realName || '',
+                        gender: payload.gender ?? selfInfo.gender ?? 1,
+                        phone: payload.phone || selfInfo.phone || '',
+                        idCard: payload.idCard || selfInfo.idCard || '',
+                        deptName: payload.deptName || selfInfo.deptName || '',
+                        baseSalary: payload.baseSalary ?? selfInfo.baseSalary ?? '',
+                        bankCard: payload.bankCard || payload.bankAccount || selfInfo.bankCard || '',
+                        positionName: payload.positionName || payload.position || selfInfo.positionName || '',
+                        position: payload.position || payload.positionName || selfInfo.position || '',
+                        hireDate: payload.hireDate || selfInfo.hireDate || '',
+                        managerNo: payload.managerNo || selfInfo.managerNo || '',
+                        managerName: payload.managerName || selfInfo.managerName || '',
+                        avatar: payload.avatar || selfInfo.avatar || ''
+                    });
+                    syncSelfForms();
+                };
                 const loadSelfInfo = () => {
-                    const username = userInfo.value.username;
-                    if (!username) return;
-                    // 当前后端未提供 /api/auth/info，直接按账号查询员工资料
-                    axios.get('/api/employee/page', { params: { username, size: 5 } }).then(r => {
-                        const emp = r.data?.data?.records?.[0] || r.data?.data?.[0];
-                        if (emp) {
-                            Object.assign(selfInfo, emp);
-                            selfEditForm.realName = selfInfo.realName || '';
-                            selfEditForm.gender = selfInfo.gender || 1;
-                            selfEditForm.phone = selfInfo.phone || '';
-                            selfEditForm.bankCard = selfInfo.bankCard || '';
-                            selfEditForm.hireDate = selfInfo.hireDate || '';
-                        }
-                    }).catch(() => { });
+                    axios.get('/api/auth/me').then(r => {
+                        const me = r.data?.data || {};
+                        applySelfInfo({ ...userInfo.value, ...me });
+                    }).catch(() => {
+                        applySelfInfo(userInfo.value || {});
+                    });
                 };
                 const openSelfEditForm = () => {
                     if (!selfInfo.id) return ElementPlus.ElMessage.warning('尚未关联到员工信息，无法修改');
                     selfEditForm.realName = selfInfo.realName || '';
                     selfEditForm.gender = selfInfo.gender || 1;
                     selfEditForm.phone = selfInfo.phone || '';
+                    selfEditForm.idCard = selfInfo.idCard || '';
                     selfEditForm.bankCard = selfInfo.bankCard || '';
                     selfEditForm.hireDate = selfInfo.hireDate || '';
                     selfEditDialogVisible.value = true;
@@ -4765,6 +4916,7 @@
                         realName: selfEditForm.realName,
                         gender: selfEditForm.gender,
                         phone: selfEditForm.phone,
+                        idCard: selfEditForm.idCard,
                         bankCard: selfEditForm.bankCard,
                         hireDate: selfEditForm.hireDate
                     }).then(r => {
@@ -4773,8 +4925,10 @@
                             selfInfo.realName = selfEditForm.realName;
                             selfInfo.gender = selfEditForm.gender;
                             selfInfo.phone = selfEditForm.phone;
+                            selfInfo.idCard = selfEditForm.idCard;
                             selfInfo.bankCard = selfEditForm.bankCard;
                             selfInfo.hireDate = selfEditForm.hireDate;
+                            syncAdminUserInfo({ realName: selfEditForm.realName });
                             selfEditDialogVisible.value = false;
                         } else ElementPlus.ElMessage.error(r.data.message || '保存失败');
                     });
@@ -4932,7 +5086,10 @@
                     const inst = ensureChartInstance('top2', 'echart-top2');
                     if (!inst) return;
                     inst.setOption({
-                        tooltip: { trigger: 'item' },
+                        tooltip: {
+                            trigger: 'item',
+                            formatter: ({ data }) => `${data.name}<br/>鍗犳瘮锛?${Number(data.percent || 0).toFixed(2)}%`
+                        },
                         legend: { bottom: 10, left: 'center' },
                         series: [{
                             name: '薪资类型', type: 'pie', radius: ['40%', '70%'], center: ['50%', '46%'],
@@ -4970,23 +5127,46 @@
                 const renderAttendanceStatusChart = (attendStatus = {}) => {
                     const inst = ensureChartInstance('mid2', 'echart-bot1');
                     if (!inst) return;
-                    const pieData = [
+                    const rawPieData = [
                         { value: attendStatus.normal || 0, name: '全勤正常' },
-                        { value: attendStatus.late || 0, name: '迟到/早退' },
+                        { value: attendStatus.late || 0, name: '迟到' },
+                        { value: attendStatus.earlyLeave || 0, name: '早退' },
                         { value: attendStatus.absent || 0, name: '旷工' },
                         { value: attendStatus.leave || 0, name: '请假' }
                     ];
+                    const total = rawPieData.reduce((sum, item) => sum + (Number(item.value) || 0), 0);
+                    const pieData = rawPieData.map(item => {
+                        const rawValue = Number(item.value) || 0;
+                        const percent = total > 0 ? Number(((rawValue / total) * 100).toFixed(2)) : 0;
+                        return { name: item.name, value: percent, percent, rawValue };
+                    });
                     inst.clear();
                     inst.setOption({
-                        tooltip: { trigger: 'item' },
+                        tooltip: {
+                            trigger: 'item',
+                            formatter: ({ data }) => `${data.name}<br/>\u5360\u6bd4\uff1a${Number(data.percent || 0).toFixed(2)}%`
+                        },
                         series: [{
                             type: 'pie', radius: '65%', center: ['50%', '50%'],
                             data: pieData,
-                            stillShowZeroSum: true,
-                            label: { show: true, formatter: '{b}\n{c}' },
+                            stillShowZeroSum: false,
+                            label: {
+                                show: true,
+                                formatter: ({ data }) => `${data.name}\n${Number(data.percent || 0).toFixed(2)}%`
+                            },
                             itemStyle: { borderRadius: 6 }
                         }],
-                        color: ['#0956FF', '#E6A23C', '#F56C6C', '#909399']
+                        color: ['#0956FF', '#E6A23C', '#67C23A', '#F56C6C', '#909399'],
+                        graphic: total > 0 ? [] : [{
+                            type: 'text',
+                            left: 'center',
+                            top: 'middle',
+                            style: {
+                                text: '\u6682\u65e0\u8003\u52e4\u6570\u636e',
+                                fill: '#909399',
+                                font: '14px Microsoft YaHei'
+                            }
+                        }]
                     }, true);
                 };
                 const renderDeptAvgSalaryChart = (deptAvg = []) => {
@@ -5483,50 +5663,97 @@
                 const noticeSelections = ref([]);
                 const noticeForm = reactive({ id: '', title: '', content: '', coverImage: '', status: 1, isTop: 0 });
                 const noticeDetail = reactive({ id: '', title: '', content: '', coverImage: '', pubTime: '', pubUserName: '' });
+                const sortAnnouncementsByTime = (rows = []) => {
+                    return [...rows].sort((a, b) => {
+                        const aTime = new Date(a?.pubTime || a?.createTime || 0).getTime();
+                        const bTime = new Date(b?.pubTime || b?.createTime || 0).getTime();
+                        if (bTime !== aTime) return bTime - aTime;
+                        return Number(b?.id || 0) - Number(a?.id || 0);
+                    });
+                };
                 const localPageSize = 10;
                 const WEBSITE_CONTENT_STORAGE_KEY = 'salaryWebsiteContent';
-                const normalizeFilledImages = (images) => {
+                const normalizeFilledImages = (images, fallback = []) => {
                     return Array.isArray(images) ? images.filter(item => !!item) : [];
+                    return list.length ? list : [...fallback];
+                };
+                const normalizeWebsiteText = (value, fallback = '') => {
+                    if (typeof value === 'string') {
+                        const trimmed = value.trim();
+                        return trimmed || fallback;
+                    }
+                    return value == null ? fallback : value;
                 };
                 const createDefaultWebsiteContent = () => ({
-                    portalTitle: '员工薪资管理系统',
+                    portalTitle: '基于Java的员工薪资管理系统设计与实现',
                     aboutTitle: '关于我们',
-                    aboutSubtitle: 'ABOUT US',
+                    aboutSubtitle: '',
                     aboutContent: '欢迎访问员工薪资管理系统门户。',
                     systemIntroTitle: '系统简介',
                     systemIntroContent: '本系统主要用于薪资、考勤、绩效及公告信息管理。',
-                    systemIntroImage: '',
+                    systemIntroImage: '/api/front_assets/aboutus_picture1.jpg',
                     noticeSectionTitle: '通知公告',
-                    carouselImages: [],
-                    aboutImages: []
+                    carouselImages: [
+                        '/api/front_assets/picture1.jpg',
+                        '/api/front_assets/picture2.jpg',
+                        '/api/front_assets/picture3.jpg'
+                    ],
+                    aboutImages: [
+                        '/api/front_assets/aboutus_picture1.jpg',
+                        '/api/front_assets/aboutus_picture2.jpg',
+                        '/api/front_assets/aboutus_picture3.jpg'
+                    ]
                 });
+                const buildWebsiteContentState = (stored = {}, defaults = createDefaultWebsiteContent()) => {
+                    const normalized = { ...defaults, ...stored };
+                    normalized.portalTitle = normalizeWebsiteText(stored.portalTitle, defaults.portalTitle);
+                    normalized.noticeSectionTitle = normalizeWebsiteText(stored.noticeSectionTitle, defaults.noticeSectionTitle);
+                    normalized.aboutTitle = normalizeWebsiteText(stored.aboutTitle, defaults.aboutTitle);
+                    normalized.aboutSubtitle = typeof stored.aboutSubtitle === 'string' ? stored.aboutSubtitle : defaults.aboutSubtitle;
+                    normalized.aboutContent = normalizeWebsiteText(stored.aboutContent, defaults.aboutContent);
+                    normalized.systemIntroTitle = normalizeWebsiteText(stored.systemIntroTitle, defaults.systemIntroTitle);
+                    normalized.systemIntroContent = normalizeWebsiteText(stored.systemIntroContent, defaults.systemIntroContent);
+                    normalized.carouselImages = normalizeFilledImages(stored.carouselImages, defaults.carouselImages);
+                    normalized.aboutImages = normalizeFilledImages(stored.aboutImages, defaults.aboutImages);
+                    normalized.systemIntroImage = normalizeWebsiteText(stored.systemIntroImage, defaults.systemIntroImage);
+                    return normalized;
+                };
                 const websiteForm = reactive(createDefaultWebsiteContent());
                 const loadWebsiteContent = () => {
                     const defaults = createDefaultWebsiteContent();
                     aboutCurrent.value = 1;
+                    const applyWebsiteContent = (stored = {}) => {
+                        Object.assign(websiteForm, buildWebsiteContentState(stored, defaults));
+                    };
+                    const syncLocalConfigToServer = (localStored) => {
+                        const jsonValue = JSON.stringify(buildWebsiteContentState(localStored, defaults));
+                        axios.post('/api/sys-config/save', { key: 'website_content', value: jsonValue }).catch(() => { });
+                    };
 
-                    // 优先从数据库加载
+                    // 服务端为主；若旧版本只保存在本地，则在管理端自动补同步一?
                     axios.get('/api/sys-config/website_content').then(r => {
                         if (r.data.code === 200 && r.data.data) {
                             try {
                                 const stored = JSON.parse(r.data.data.configValue || '{}');
-                                Object.assign(websiteForm, defaults, stored);
-                                websiteForm.carouselImages = Array.isArray(stored.carouselImages) ? [...stored.carouselImages] : [];
-                                websiteForm.aboutImages = Array.isArray(stored.aboutImages) ? [...stored.aboutImages] : [];
-                                websiteForm.systemIntroImage = stored.systemIntroImage || '';
+                                applyWebsiteContent(stored);
                                 return;
                             } catch (e) { console.error('Parse database config error', e); }
                         }
-                        // 降级：从 localStorage 加载
                         const localStored = JSON.parse(localStorage.getItem(WEBSITE_CONTENT_STORAGE_KEY) || '{}');
-                        Object.assign(websiteForm, defaults, localStored);
-                        websiteForm.carouselImages = Array.isArray(localStored.carouselImages) ? [...localStored.carouselImages] : [];
-                        websiteForm.aboutImages = Array.isArray(localStored.aboutImages) ? [...localStored.aboutImages] : [];
-                        websiteForm.systemIntroImage = localStored.systemIntroImage || '';
+                        if (Object.keys(localStored).length) {
+                            applyWebsiteContent(localStored);
+                            syncLocalConfigToServer(localStored);
+                            return;
+                        }
+                        applyWebsiteContent({});
                     }).catch(() => {
-                        // 接口报错则强制使用 local
                         const localStored = JSON.parse(localStorage.getItem(WEBSITE_CONTENT_STORAGE_KEY) || '{}');
-                        Object.assign(websiteForm, defaults, localStored);
+                        if (Object.keys(localStored).length) {
+                            applyWebsiteContent(localStored);
+                            syncLocalConfigToServer(localStored);
+                            return;
+                        }
+                        applyWebsiteContent({});
                     });
                 };
                 const saveWebsiteContent = () => {
@@ -5546,13 +5773,13 @@
                     };
                     const jsonValue = JSON.stringify(configData);
 
-                    // 同步到数据库
+                    // 同步到服务端配置
                     axios.post('/api/sys-config/save', { key: 'website_content', value: jsonValue }).then(r => {
                         if (r.data.code === 200) {
                             ElementPlus.ElMessage.success('成功同步到数据库');
                         }
                     }).catch(() => {
-                        ElementPlus.ElMessage.warning('数据库保存失败，已临时保存到本地');
+                        ElementPlus.ElMessage.warning('服务端保存失败，已临时保存到本地');
                     });
 
                     // 备份到本地
@@ -5564,12 +5791,13 @@
                     Object.assign(websiteForm, defaults);
                     websiteForm.carouselImages = [...defaults.carouselImages];
                     websiteForm.aboutImages = [...defaults.aboutImages];
+                    websiteForm.systemIntroImage = defaults.systemIntroImage;
                 };
                 const handleWebsiteImageChange = (event, field, index) => {
                     const file = event.target.files?.[0];
                     if (!file) return;
                     if (!file.type.startsWith('image/')) {
-                        ElementPlus.ElMessage.warning('请选择图片文件');
+                        ElementPlus.ElMessage.warning('请择图片文件');
                         event.target.value = '';
                         return;
                     }
@@ -5656,6 +5884,7 @@
                     aboutDialogMode.value = mode;
                     aboutDialogVisible.value = true;
                     aboutEditForm.title = websiteForm.aboutTitle || '';
+                    aboutEditForm.subtitle = websiteForm.aboutSubtitle || '';
                     aboutEditForm.content = websiteForm.aboutContent || '';
                     aboutEditForm.images = [...(websiteForm.aboutImages || [])];
                 };
@@ -5752,19 +5981,32 @@
                     { id: 7, deptId: 7, deptName: '销售部', startTime: '8:30', endTime: '18:30', leaveRule: '工伤假凭工伤认定书，按伤情核定休假天数' },
                     { id: 8, deptId: 8, deptName: '人力资源部', startTime: '8:30', endTime: '17:30', leaveRule: '婚假按国家规定执行，需提前 7 天提交申请' }
                 ]);
+                const normalizeAttendanceRuleRow = (row = {}) => {
+                    const fallback = createDefaultAttendanceRules().find(item => String(item.deptId) === String(row.deptId)) || {};
+                    return {
+                        id: row.id || fallback.id || Date.now(),
+                        deptId: row.deptId || fallback.deptId || '',
+                        deptName: row.deptName || fallback.deptName || '',
+                        startTime: row.startTime || fallback.startTime || '8:00',
+                        endTime: row.endTime || fallback.endTime || '18:00',
+                        leaveRule: row.leaveRule || fallback.leaveRule || '',
+                        deductRule: row.deductRule || fallback.deductRule || '迟到 50 元/次；早退 50 元/次；事假按日薪 100% 扣减；病假按日薪 50% 扣减；旷工按日薪全额扣减。'
+                    };
+                };
                 const attendanceRules = ref([]);
                 const attendanceRuleSearch = reactive({ deptId: '' });
                 const attendanceRuleSelections = ref([]);
                 const attendanceRuleCurrent = ref(1);
                 const attendanceRuleDialogVisible = ref(false);
                 const attendanceRuleDialogMode = ref('edit');
-                const attendanceRuleForm = reactive({ id: '', deptId: '', deptName: '', startTime: '8:00', endTime: '18:00', leaveRule: '' });
+                const attendanceRuleForm = reactive({ id: '', deptId: '', deptName: '', startTime: '8:00', endTime: '18:00', leaveRule: '', deductRule: '' });
                 const loadAttendanceRules = () => {
                     attendanceRuleCurrent.value = 1;
                     try {
-                        attendanceRules.value = JSON.parse(localStorage.getItem(LOCAL_ATTENDANCE_RULE_KEY) || 'null') || createDefaultAttendanceRules();
+                        const stored = JSON.parse(localStorage.getItem(LOCAL_ATTENDANCE_RULE_KEY) || 'null') || createDefaultAttendanceRules();
+                        attendanceRules.value = stored.map(item => normalizeAttendanceRuleRow(item));
                     } catch (error) {
-                        attendanceRules.value = createDefaultAttendanceRules();
+                        attendanceRules.value = createDefaultAttendanceRules().map(item => normalizeAttendanceRuleRow(item));
                     }
                 };
                 const persistAttendanceRules = () => {
@@ -5782,7 +6024,7 @@
                 const openAttendanceRuleDialog = (row, mode = 'edit') => {
                     attendanceRuleDialogMode.value = mode;
                     attendanceRuleDialogVisible.value = true;
-                    Object.assign(attendanceRuleForm, row || { id: '', deptId: '', deptName: '', startTime: '8:00', endTime: '18:00', leaveRule: '' });
+                    Object.assign(attendanceRuleForm, normalizeAttendanceRuleRow(row || { id: '', deptId: '', deptName: '', startTime: '8:00', endTime: '18:00', leaveRule: '', deductRule: '' }));
                 };
                 const saveAttendanceRule = () => {
                     const currentDept = departments.value.find(item => String(item.id) === String(attendanceRuleForm.deptId));
@@ -5798,7 +6040,7 @@
                 };
                 const deleteAttendanceRule = (id) => {
                     const currentRule = attendanceRules.value.find(item => item.id === id);
-                    ElementPlus.ElMessageBox.confirm('确认删除该考勤规则吗？', '警告', { type: 'warning' }).then(() => {
+                    ElementPlus.ElMessageBox.confirm('确认删除该勤规则吗？', '警告', { type: 'warning' }).then(() => {
                         attendanceRules.value = attendanceRules.value.filter(item => item.id !== id);
                         if (attendanceRuleCurrent.value > 1 && (attendanceRuleCurrent.value - 1) * localPageSize >= attendanceRules.value.length) {
                             attendanceRuleCurrent.value--;
@@ -5809,7 +6051,7 @@
                     }).catch(() => { });
                 };
                 const batchDeleteAttendanceRule = () => {
-                    if (!attendanceRuleSelections.value.length) return ElementPlus.ElMessage.warning('请先勾选要删除的考勤规则');
+                    if (!attendanceRuleSelections.value.length) return ElementPlus.ElMessage.warning('请先勾要删除的勤规则');
                     const ids = attendanceRuleSelections.value.map(item => item.id);
                     const ruleNames = attendanceRuleSelections.value.map(item => item.deptName || ('ID=' + item.id));
                     ElementPlus.ElMessageBox.confirm('确认批量删除已选中的 ' + ids.length + ' 名员工吗？', '批量删除', { type: 'warning' }).then(() => {
@@ -6025,7 +6267,7 @@
                 const attendSelections = ref([]);
                 const attendImportMonth = ref(new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0'));
                 const attendDialogVisible = ref(false);
-                const attendForm = reactive({ id: '', yearMonth: '', empId: '', attendDays: 0, absentDays: 0, lateTimes: 0, leaveDays: 0, overtimeHours: 0, registerDate: '', remark: '' });
+                const attendForm = reactive({ id: '', yearMonth: '', empId: '', attendDays: 0, absentDays: 0, lateTimes: 0, earlyLeaveTimes: 0, leaveDays: 0, overtimeHours: 0, registerDate: '', remark: '' });
                 const attendImportInput = ref(null);
                 const allEmployees = ref([]);
                 const attendanceSelectablePeople = computed(() => {
@@ -6054,6 +6296,7 @@
                         deptName: row.deptName || employee.deptName || '-',
                         deptId: row.deptId || employee.deptId || '',
                         avatar: row.avatar || employee.avatar || getStoredAvatar(row.empNo || employee.empNo || row.managerNo || employee.managerNo) || '',
+                        earlyLeaveTimes: row.earlyLeaveTimes ?? 0,
                         overtimeHours: row.overtimeHours ?? 0,
                         registerDate: (row.recordDate || row.createTime || '').toString().slice(0, 10) || '-',
                         managerNo: row.managerNo || employee.managerNo || '-',
@@ -6091,6 +6334,7 @@
                     attendDialogVisible.value = true;
                     if (row) Object.assign(attendForm, {
                         ...row,
+                        earlyLeaveTimes: Number(row.earlyLeaveTimes ?? 0),
                         overtimeHours: Number(row.overtimeHours ?? 0),
                         registerDate: (row.registerDate || row.createTime || '').toString().slice(0, 10)
                     });
@@ -6098,13 +6342,14 @@
                         const now = new Date();
                         const ym = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
                         const dateText = now.toISOString().slice(0, 10);
-                        Object.assign(attendForm, { id: '', yearMonth: ym, empId: '', attendDays: 22, absentDays: 0, lateTimes: 0, leaveDays: 0, overtimeHours: 0, registerDate: dateText, remark: '' });
+                        Object.assign(attendForm, { id: '', yearMonth: ym, empId: '', attendDays: 22, absentDays: 0, lateTimes: 0, earlyLeaveTimes: 0, leaveDays: 0, overtimeHours: 0, registerDate: dateText, remark: '' });
                     }
                 };
                 const saveAttend = () => {
                     if (!attendForm.empId || !attendForm.yearMonth) return ElementPlus.ElMessage.warning('月份和员工必填');
                     const payload = {
                         ...attendForm,
+                        earlyLeaveTimes: Number(attendForm.earlyLeaveTimes || 0),
                         overtimeHours: Number(attendForm.overtimeHours || 0),
                         registerDate: attendForm.registerDate || new Date().toISOString().slice(0, 10)
                     };
@@ -6128,8 +6373,8 @@
                 const batchDeleteAttendances = () => {
                     runBatchDelete({
                         rows: attendSelections.value.filter(row => row && row.id),
-                        title: `确认批量删除已勾选的 ${attendSelections.value.length} 条考勤记录吗？`,
-                        emptyText: '请先勾选要删除的考勤记录',
+                        title: `确认批量删除已勾选的 ${attendSelections.value.length} 条勤记录吗？`,
+                        emptyText: '请先勾要删除的勤记录',
                         request: (row) => axios.delete('/api/attendance/' + row.id),
                         reload: () => {
                             attendSelections.value = [];
@@ -6172,6 +6417,7 @@
                             createDetailItem('出勤天数', row.attendDays || 0),
                             createDetailItem('旷工天数', row.absentDays || 0),
                             createDetailItem('迟到次数', row.lateTimes || 0),
+                            createDetailItem('早次数', row.earlyLeaveTimes || 0),
                             createDetailItem('请假天数', row.leaveDays || 0),
                             createDetailItem('加班时长', row.overtimeHours || 0),
                             createDetailItem('登记日期', row.registerDate || '-', 'muted'),
@@ -6288,7 +6534,7 @@
                                 ElementPlus.ElMessage.error(r.data.message || '删除失败');
                             }
                         }).catch(() => {
-                            ElementPlus.ElMessage.warning('当前后台暂未开放考勤申请删除接口');
+                            ElementPlus.ElMessage.warning('当前后台暂未弢放勤申请删除接口');
                         });
                     }).catch(() => { });
                 };
@@ -6424,16 +6670,12 @@
                 const feedbackPageTitle = computed(() => currentMenu.value === 'salary-feedback' ? '薪资反馈处理' : '投诉反馈记录');
                 const feedbackContentLabel = computed(() => currentMenu.value === 'salary-feedback' ? '反馈内容' : '投诉内容');
                 const feedbackDisplayRows = computed(() => feedbacks.value.map(row => {
-                    const employee = allEmployees.value.find(item =>
-                        String(item.id) === String(row.empId)
-                        || (row.empNo && String(item.empNo) === String(row.empNo))
-                        || (item.userId && String(item.userId) === String(row.empId))
-                    ) || {};
+                    const employee = resolveEmployeeProfile(row.empId, row.empNo, row.managerNo);
                     return {
                         ...row,
-                        empNo: row.empNo || employee.empNo || '-',
-                        empName: row.empName || employee.realName || '-',
-                        avatar: row.avatar || employee.avatar || ''
+                        empNo: row.empNo || employee.empNo || row.managerNo || employee.managerNo || '-',
+                        empName: row.empName || employee.realName || employee.empName || row.managerName || '-',
+                        avatar: row.avatar || employee.avatar || getStoredAvatar(row.empNo || employee.empNo || row.managerNo || employee.managerNo) || ''
                     };
                 }));
                 const complaintTotal = computed(() => complaintRows.value.length);
@@ -6735,7 +6977,7 @@
                         cancelButtonText: '暂不操作',
                         type: 'warning'
                     }).then(() => {
-                        ElementPlus.ElMessage.warning('当前后台暂未开放单条删除接口，本地移除仅作预览');
+                        ElementPlus.ElMessage.warning('当前后台暂未弢放单条删除接口，本地移除仅作预览');
                     }).catch(() => { });
                 };
                 const handleTaxSelection = (rows) => {
@@ -6912,6 +7154,60 @@
                 const salaryLoading = ref(false);
                 const salarySearch = reactive({ yearMonth: '', empNo: '', empName: '', deptId: '', managerName: '', calcStatus: '' });
                 const salarySelections = ref([]);
+                const salaryDraftDialogVisible = ref(false);
+                const salaryDraftDialogLoading = ref(false);
+                const salaryDraftForm = reactive({ yearMonth: '', empId: '' });
+                const salaryEditDialogVisible = ref(false);
+                const salaryEditSaving = ref(false);
+                const salaryEditForm = reactive({
+                    id: '',
+                    empId: '',
+                    empNo: '',
+                    empName: '',
+                    yearMonth: '',
+                    deptName: '',
+                    baseSalary: 0,
+                    overtimePay: 0,
+                    perfBonus: 0,
+                    fullAttendBonus: 0,
+                    allowance: 0,
+                    otherIncome: 0,
+                    socialSecurityEmp: 0,
+                    attendDeduct: 0,
+                    otherDeduct: 0,
+                    incomeTax: 0,
+                    grossSalary: 0,
+                    totalDeduct: 0,
+                    netSalary: 0,
+                    remark: ''
+                });
+                const salaryDraftSelectablePeople = computed(() => {
+                    const seen = new Set();
+                    const rows = [];
+                    const selfEmpId = Number(userInfo.value.empId || 0);
+                    if (selfEmpId) {
+                        rows.push({
+                            id: selfEmpId,
+                            empNo: userInfo.value.empNo || userInfo.value.username || '-',
+                            realName: userInfo.value.realName || '本人',
+                            isSelf: true
+                        });
+                    }
+                    (allEmployees.value || []).forEach(item => {
+                        rows.push({
+                            id: item.id,
+                            empNo: item.empNo || '-',
+                            realName: item.realName || item.empName || '-',
+                            isSelf: false
+                        });
+                    });
+                    return rows.filter(item => {
+                        const key = String(item.id || '');
+                        if (!key || seen.has(key)) return false;
+                        seen.add(key);
+                        return true;
+                    });
+                });
                 const resolveLinkedBaseSalary = (row, employee = {}) => {
                     const deptId = row.deptId || employee.deptId;
                     const dept = departments.value.find(item => String(item.id) === String(deptId));
@@ -6985,6 +7281,127 @@
                     }).finally(() => salaryLoading.value = false);
                 };
                 const handleSalarySelection = (val) => { salarySelections.value = val; };
+                const openSalaryDraftDialog = () => {
+                    salaryDraftForm.yearMonth = salarySearch.yearMonth || getCurrentYearMonth();
+                    salaryDraftForm.empId = '';
+                    if (salaryDraftSelectablePeople.value.length === 1) {
+                        salaryDraftForm.empId = salaryDraftSelectablePeople.value[0].id;
+                    }
+                    salaryDraftDialogVisible.value = true;
+                };
+                const createSalaryDraft = () => {
+                    if (!salaryDraftForm.yearMonth) {
+                        return ElementPlus.ElMessage.warning('请先选择要生成草稿的月份');
+                    }
+                    if (!salaryDraftForm.empId) {
+                        return ElementPlus.ElMessage.warning('请选择要补生成工资草稿的员工');
+                    }
+                    salaryDraftDialogLoading.value = true;
+                    axios.post('/api/salary/calculate', null, {
+                        params: {
+                            empId: salaryDraftForm.empId,
+                            yearMonth: salaryDraftForm.yearMonth
+                        }
+                    }).then(r => {
+                        if (r.data.code === 200) {
+                            ElementPlus.ElMessage.success('工资草稿已生成');
+                            salaryDraftDialogVisible.value = false;
+                            salarySearch.yearMonth = salaryDraftForm.yearMonth;
+                            loadSalaries(1);
+                        } else {
+                            ElementPlus.ElMessage.error(r.data.message || '生成草稿失败');
+                        }
+                    }).finally(() => {
+                        salaryDraftDialogLoading.value = false;
+                    });
+                };
+                const generateSalaryDrafts = () => {
+                    const targetMonth = salarySearch.yearMonth;
+                    if (!targetMonth) {
+                        return ElementPlus.ElMessage.warning('请先选择月份，再生成该月工资草稿');
+                    }
+                    const loadInstance = ElementPlus.ElLoading.service({ text: `正在生成 ${targetMonth} 的工资草稿...` });
+                    axios.post('/api/salary/batch-calculate', null, {
+                        params: { yearMonth: targetMonth }
+                    }).then(r => {
+                        if (r.data.code === 200) {
+                            ElementPlus.ElMessage.success(`${targetMonth} 工资草稿已生成，可继续编辑后提交审核`);
+                            loadSalaries(1);
+                        } else {
+                            ElementPlus.ElMessage.error(r.data.message || '批量生成草稿失败');
+                        }
+                    }).finally(() => loadInstance.close());
+                };
+                const openSalaryEditDialog = (row) => {
+                    salaryEditForm.id = row.id || '';
+                    salaryEditForm.empId = row.empId || '';
+                    salaryEditForm.empNo = row.empNo || '';
+                    salaryEditForm.empName = row.empName || '';
+                    salaryEditForm.yearMonth = row.yearMonth || salarySearch.yearMonth || getCurrentYearMonth();
+                    salaryEditForm.deptName = row.deptName || '';
+                    salaryEditForm.baseSalary = Number(row.baseSalary || 0);
+                    salaryEditForm.overtimePay = Number(row.overtimePay || 0);
+                    salaryEditForm.perfBonus = Number(row.perfBonus || 0);
+                    salaryEditForm.fullAttendBonus = Number(row.fullAttendBonus || 0);
+                    salaryEditForm.allowance = Number(row.allowance || 0);
+                    salaryEditForm.otherIncome = Number(row.otherIncome || 0);
+                    salaryEditForm.socialSecurityEmp = Number(row.socialSecurityEmp || 0);
+                    salaryEditForm.attendDeduct = Number(row.attendDeduct || 0);
+                    salaryEditForm.otherDeduct = Number(row.otherDeduct || 0);
+                    salaryEditForm.incomeTax = Number(row.incomeTax || 0);
+                    salaryEditForm.grossSalary = Number(row.grossSalary || 0);
+                    salaryEditForm.totalDeduct = Number(row.totalDeduct ?? resolvePayrollDeductAmount(row));
+                    salaryEditForm.netSalary = Number(row.netSalary || 0);
+                    salaryEditForm.remark = row.remark || '';
+                    salaryEditDialogVisible.value = true;
+                };
+                const salaryEditPreview = computed(() => {
+                    const gross = Number(salaryEditForm.baseSalary || 0)
+                        + Number(salaryEditForm.overtimePay || 0)
+                        + Number(salaryEditForm.perfBonus || 0)
+                        + Number(salaryEditForm.fullAttendBonus || 0)
+                        + Number(salaryEditForm.allowance || 0)
+                        + Number(salaryEditForm.otherIncome || 0);
+                    const deduct = Number(salaryEditForm.socialSecurityEmp || 0)
+                        + Number(salaryEditForm.attendDeduct || 0)
+                        + Number(salaryEditForm.otherDeduct || 0)
+                        + Number(salaryEditForm.incomeTax || 0);
+                    return {
+                        gross,
+                        deduct,
+                        net: gross - deduct
+                    };
+                });
+                const saveSalaryDraft = () => {
+                    if (!salaryEditForm.id) {
+                        return ElementPlus.ElMessage.warning('当前草稿记录不存在，无法保存');
+                    }
+                    const payload = {
+                        ...salaryEditForm,
+                        allowance: Number(salaryEditForm.allowance || 0),
+                        otherDeduct: Number(salaryEditForm.otherDeduct || 0),
+                        baseSalary: Number(salaryEditForm.baseSalary || 0),
+                        overtimePay: Number(salaryEditForm.overtimePay || 0),
+                        perfBonus: Number(salaryEditForm.perfBonus || 0),
+                        fullAttendBonus: Number(salaryEditForm.fullAttendBonus || 0),
+                        otherIncome: Number(salaryEditForm.otherIncome || 0),
+                        socialSecurityEmp: Number(salaryEditForm.socialSecurityEmp || 0),
+                        attendDeduct: Number(salaryEditForm.attendDeduct || 0),
+                        incomeTax: Number(salaryEditForm.incomeTax || 0)
+                    };
+                    salaryEditSaving.value = true;
+                    axios.put('/api/salary/manual-update', payload).then(r => {
+                        if (r.data.code === 200) {
+                            ElementPlus.ElMessage.success('工资草稿已保存');
+                            salaryEditDialogVisible.value = false;
+                            loadSalaries();
+                        } else {
+                            ElementPlus.ElMessage.error(r.data.message || '保存草稿失败');
+                        }
+                    }).finally(() => {
+                        salaryEditSaving.value = false;
+                    });
+                };
                 const saveAllowance = (row) => {
                     const payload = { ...row, allowance: Number(row.allowance || 0) };
                     axios.put('/api/salary/manual-update', payload).then(r => {
@@ -6998,7 +7415,7 @@
                 };
                 const batchCalcSalary = () => {
                     if (!salarySelections.value || salarySelections.value.length === 0) {
-                        return ElementPlus.ElMessage.warning('请先勾选需要核算薪资的员工记录');
+                        return ElementPlus.ElMessage.warning('请先勾需要核算薪资的员工记录');
                     }
                     const totalSelected = salarySelections.value.length;
                     const loadInstance = ElementPlus.ElLoading.service({ text: `正在核算选中的 ${totalSelected} 条记录...` });
@@ -7013,7 +7430,7 @@
                             ElementPlus.ElMessage.success(`成功核算 ${successCount} 条薪资记录`);
                             loadSalaries();
                         } else {
-                            ElementPlus.ElMessage.error('选中项核算均失败，请检查数据或网络');
+                            ElementPlus.ElMessage.error('选中项核算均失败，请棢查数据或网络');
                         }
                     }).finally(() => loadInstance.close());
                 };
@@ -7024,7 +7441,7 @@
                     }
                     if (ids.length === 0) return ElementPlus.ElMessage.warning('当前账单中没有可提交审核的草稿记录');
                     axios.put('/api/salary/batch-publish', ids).then(r => {
-                        if (r.data.code === 200) { ElementPlus.ElMessage.success('已提交审核，账单状态已更新为待审核'); loadSalaries(); loadPayments(paymentCurrent.value); }
+                        if (r.data.code === 200) { ElementPlus.ElMessage.success('已提交审核，账单状已更新为待审核'); loadSalaries(); loadPayments(paymentCurrent.value); }
                     });
                 };
                 const canSubmitSalaryFeedbackForRow = (row) => {
@@ -7181,7 +7598,7 @@
                 const executePayment = (row) => {
                     if (row.calcStatus < 2) return ElementPlus.ElMessage.warning('该账单未公开定表，不可打款');
                     ElementPlus.ElMessageBox.confirm(`准备向账户 ${row.bankAccount || '【未绑定对公账户】'} 汇款 ${row.netSalary} 元，是否连通银行接口执行？`, '安全支付网关接入中...').then(() => {
-                        const loadInstance = ElementPlus.ElLoading.service({ text: '正在验证网银密钥与通讯...' });
+                        const loadInstance = ElementPlus.ElLoading.service({ text: '正在验证网银密钥与讯...' });
                         setTimeout(() => {
                             axios.put('/api/salary/' + row.id + '/pay').then(r => {
                                 if (r.data.code === 200) { ElementPlus.ElMessage.success('支付成功，资金已汇出'); loadPayments(); }
@@ -7194,7 +7611,7 @@
                 // 新增：财务二审与批量审核
                 const auditSalaryRecord = (row) => {
                     if (row.calcStatus !== 2) return ElementPlus.ElMessage.warning('只能对【待审核】状态进行审核');
-                    ElementPlus.ElMessageBox.confirm(`确认审核 ${row.empName} 的薪资记录吗？审核通过后，该账单将进入可发放状态。`, '单笔审核').then(() => {
+                    ElementPlus.ElMessageBox.confirm(`确认审核 ${row.empName} 的薪资记录吗？审核过后，该账单将进入可发放状态`, '单笔审核').then(() => {
                         axios.put(`/api/salary/${row.id}/audit`).then(r => {
                             if (r.data.code === 200) { ElementPlus.ElMessage.success('审核通过'); loadSalaries(); loadPayments(paymentCurrent.value); }
                             else ElementPlus.ElMessage.error(r.data.message || '审核失败');
@@ -7207,8 +7624,8 @@
                 const batchDeleteApplies = () => {
                     runBatchDelete({
                         rows: applySelections.value.filter(row => row && row.id),
-                        title: `确认批量删除已勾选的 ${applySelections.value.length} 条考勤申请吗？`,
-                        emptyText: '请先勾选要删除的考勤申请',
+                        title: `确认批量删除已勾选的 ${applySelections.value.length} 条勤申请吗？`,
+                        emptyText: '请先勾要删除的勤申请',
                         request: (row) => axios.delete('/api/attendance-apply/' + row.id),
                         reload: () => {
                             applySelections.value = [];
@@ -7247,7 +7664,7 @@
                         .filter(item => Number(item.calcStatus) === 4 && Number(item.slipPublished || 0) !== 1)
                         .map(item => item.id);
                     if (ids.length === 0) {
-                        return ElementPlus.ElMessage.warning('请先勾选已发放且未发布工资条的记录');
+                        return ElementPlus.ElMessage.warning('请先勾已发放且未发布工资条的记录');
                     }
                     ElementPlus.ElMessageBox.confirm(
                         `确认批量发布这 ${ids.length} 条工资条吗？发布后，员工和经理端即可查看对应工资。`,
@@ -7268,7 +7685,7 @@
                 };
                 const batchAuditSalary = () => {
                     const ids = salarySelections.value.filter(item => item.calcStatus === 2).map(item => item.id);
-                    if (ids.length === 0) return ElementPlus.ElMessage.warning('请先勾选状态为【待审核】的记录');
+                    if (ids.length === 0) return ElementPlus.ElMessage.warning('请先勾状态为【待审核】的记录');
                     ElementPlus.ElMessageBox.confirm(`确认批量审核这 ${ids.length} 条薪资记录吗？审核通过后，这些账单将进入可发放状态。`, '批量审核').then(() => {
                         axios.put('/api/salary/batch-audit', ids).then(r => {
                             if (r.data.code === 200) { ElementPlus.ElMessage.success('批量审核完成'); loadSalaries(); loadPayments(paymentCurrent.value); }
@@ -7289,7 +7706,7 @@
                 const selectedPaymentChannel = ref('');
                 const gatewayTotalAmount = ref('0.00');
                 const gatewayTargetCount = ref(0);
-                const currentPaymentTargets = ref([]); // 存储当前需要打款的记录ID
+                const currentPaymentTargets = ref([]); // 存储当前霢要打款的记录ID
 
                 const handlePaymentSelection = (val) => {
                     paymentSelections.value = val;
@@ -7512,7 +7929,7 @@
                     const file = event.target.files?.[0];
                     if (!file) return;
                     if (!file.type.startsWith('image/')) {
-                        ElementPlus.ElMessage.warning('请选择图片文件');
+                        ElementPlus.ElMessage.warning('请择图片文件');
                         event.target.value = '';
                         return;
                     }
@@ -7643,6 +8060,7 @@
                         { label: '出勤天数', value: 'attendDays' },
                         { label: '旷工天数', value: 'absentDays' },
                         { label: '迟到天数', value: 'lateTimes' },
+                        { label: '早天数', value: 'earlyLeaveTimes' },
                         { label: '请假天数', value: 'leaveDays' },
                         { label: '加班小时', value: 'overtimeHours' },
                         { label: '登记日期', value: 'createTime' },
@@ -7746,7 +8164,13 @@
                     if (command === 'home') switchMenu({ key: 'home' });
                     if (command === 'personal') switchMenu({ key: 'personal' });
                     if (command === 'site') goWebsiteHome();
-                    if (command === 'backup') backupDatabase();
+                    if (command === 'backup') {
+                        if (Number(userInfo.value.role) !== 1) {
+                            ElementPlus.ElMessage.warning('仅系统管理员可执行数据备份');
+                            return;
+                        }
+                        backupDatabase();
+                    }
                     if (command === 'logout') logout();
                 };
 
@@ -7840,7 +8264,7 @@
                     taxRecords, taxTotal, taxCurrent, taxSize, taxLoading, taxSearch, taxSelections, taxDialogVisible, taxDetailDialogVisible, taxForm, taxDisplayRows, loadTaxRecords, openTaxDetail, openTaxForm, saveTaxRecord, deleteTaxRecord, handleTaxSelection, batchDeleteTaxRecords, exportTaxCsv,
                     performances, perfTotal, perfCurrent, perfSize, perfLoading, perfSearch, perfSelections, perfDialogVisible, perfForm, perfContext, performanceDisplayRows, calcPerfTotal, calcPerfGrade, loadPerformances, openPerfForm, savePerformance, openPerformanceDetail, deletePerformance, handlePerfSelection, batchDeletePerformances, exportPerformanceCsv,
                     // --- 薪资计算发放 ---
-                    salaries, salaryTotal, salaryCurrent, salarySize, salaryLoading, salarySearch, salaryDisplayRows, handleSalarySelection, loadSalaries, saveAllowance, batchCalcSalary, batchPublishSalary, canSubmitSalaryFeedbackForRow, openSalaryFeedbackDialog, submitSalaryFeedback, openSalaryDetail, deleteSalaryRecord, batchDeleteSalaryRecords, exportSalaryCsv, auditSalaryRecord, batchAuditSalary,
+                    salaries, salaryTotal, salaryCurrent, salarySize, salaryLoading, salarySearch, salaryDisplayRows, handleSalarySelection, loadSalaries, batchCalcSalary, generateSalaryDrafts, openSalaryDraftDialog, salaryDraftDialogVisible, salaryDraftDialogLoading, salaryDraftForm, salaryDraftSelectablePeople, createSalaryDraft, salaryEditDialogVisible, salaryEditSaving, salaryEditForm, salaryEditPreview, openSalaryEditDialog, saveSalaryDraft, batchPublishSalary, canSubmitSalaryFeedbackForRow, openSalaryFeedbackDialog, submitSalaryFeedback, openSalaryDetail, deleteSalaryRecord, batchDeleteSalaryRecords, exportSalaryCsv, auditSalaryRecord, batchAuditSalary,
                     payments, paymentTotal, paymentCurrent, paymentSize, paymentLoading, paymentSearch, paymentDisplayRows, loadPayments, executePayment, publishSalarySlip, batchPublishSalarySlip, exportPaymentCsv, paymentSelections, paymentIssueFileInput, paymentIssueUploading, paymentIssueUploadingRowId, getIssueFileName, triggerPaymentIssueFileUpload, handlePaymentIssueFileChange, paymentGatewayVisible, paymentProcessing, paymentSuccess, selectedPaymentChannel, gatewayTotalAmount, gatewayTargetCount, handlePaymentSelection, batchDeletePaymentRecords, openBatchPaymentGateway, openSinglePaymentGateway, triggerSimulatedPayment, formatNegativeAmount,
                     switchMenu, handleSystemMenuCommand, logout, handleUserMenuCommand
                 };

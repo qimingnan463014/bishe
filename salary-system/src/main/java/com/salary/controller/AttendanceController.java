@@ -35,7 +35,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
  *
  * Excel import clock-in rules (enforced in AttendanceServiceImpl):
  *   morning  > 09:00  -> lateTimes + 1
- *   afternoon < 18:00 -> earlyLeaveTimes + 1 (merged into late_times column)
+ *   afternoon < 18:00 -> earlyLeaveTimes + 1
  *   afternoon >= 19:00 -> overtimeHours += floor((out - 19:00) in minutes / 60)
  *   morning  missing  -> skip day entirely, record error message
  *   afternoon missing -> earlyLeave + 1, work hours counted as 4h
