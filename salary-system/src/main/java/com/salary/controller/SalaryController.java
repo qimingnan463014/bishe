@@ -31,10 +31,8 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -156,23 +154,9 @@ public class SalaryController {
             HttpServletRequest request) {
         Integer role = getRole(request);
         if (role == 2) {
-            Long managerUserId = getUserId(request);
-            Map<Long, Employee> targets = new LinkedHashMap<>();
-
-            Employee self = employeeMapper.selectByUserId(managerUserId);
-            if (self != null && self.getId() != null) {
-                targets.put(self.getId(), self);
-            }
-
-            java.util.List<Employee> team = employeeMapper.selectByManagerId(managerUserId);
+            Long managerId = getUserId(request);
+            java.util.List<Employee> team = employeeMapper.selectByManagerId(managerId);
             for (Employee emp : team) {
-                if (emp == null || emp.getId() == null) {
-                    continue;
-                }
-                targets.put(emp.getId(), emp);
-            }
-
-            for (Employee emp : targets.values()) {
                 salaryService.calculateSalary(emp.getId(), yearMonth);
             }
             return Result.successMsg("Manager batch calculate done");
@@ -207,6 +191,24 @@ public class SalaryController {
     public Result<Void> batchAudit(@RequestBody List<Long> ids, HttpServletRequest request) {
         salaryService.auditBatch(ids, getRole(request));
         return Result.successMsg("Batch audited");
+    }
+
+    @ApiOperation("Reject salary: Pending Audit(2) -> Rejected(5). ADMIN ONLY.")
+    @PutMapping("/{id:[0-9]+}/reject")
+    public Result<Void> reject(@PathVariable Long id,
+                               @RequestParam(required = false) String reason,
+                               HttpServletRequest request) {
+        salaryService.rejectSalary(id, getRole(request), reason);
+        return Result.successMsg("Rejected");
+    }
+
+    @ApiOperation("Batch reject salaries. ADMIN ONLY.")
+    @PutMapping("/batch-reject")
+    public Result<Void> batchReject(@RequestBody List<Long> ids,
+                                    @RequestParam(required = false) String reason,
+                                    HttpServletRequest request) {
+        salaryService.rejectBatch(ids, getRole(request), reason);
+        return Result.successMsg("Batch rejected");
     }
 
     @ApiOperation("Pay salary: Audited(3) -> Paid(4). ADMIN ONLY (role=1).")

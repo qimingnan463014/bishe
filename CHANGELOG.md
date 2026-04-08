@@ -1,4 +1,22 @@
 # CHANGELOG
+## 2026-04-08 V14.27（GitHub 备份推送与薪资驳回链路补齐）
+### 仓库 / GitHub
+- [备份] 已先将当前系统代码快照整理后推送到 GitHub `main`，用于在补流程前保留一个可回退版本；本次推送未纳入本地 `docx`、视频、缓存、日志与截图目录。
+### salary-system/src/main/java/com/salary/controller/SalaryController.java
+- [后端] 新增薪资单笔驳回接口 `/salary/{id}/reject` 与批量驳回接口 `/salary/batch-reject`，仅允许管理员操作，并支持附带可选驳回原因。
+### salary-system/src/main/java/com/salary/service/SalaryService.java
+- [后端] 为薪资服务接口补充 `rejectSalary(...)` 与 `rejectBatch(...)` 定义，统一收口“待审核 -> 已驳回”的状态流转能力。
+### salary-system/src/main/java/com/salary/service/impl/SalaryServiceImpl.java
+- [后端] 将 `publishSalary(...)` 从“仅草稿可提交审核”扩展为“草稿或已驳回都可重新提交审核”，使经理在被打回后可修改并重新送审。
+- [后端] 新增驳回实现：管理员可将 `2=待审核` 的工资单打回为 `5=已驳回`，并把驳回原因整理写入 `remark`，便于经理在列表/详情中查看。
+### salary-system/src/main/resources/static/admin/index.html
+- [前端] 在薪资核算页新增“单笔驳回”“批量驳回”操作，管理员可对待审核账单直接退回经理修改。
+- [前端] 为薪资状态筛选、列表状态标签、详情状态展示补齐 `5=已驳回`，并允许经理对“草稿/已驳回”账单都使用“编辑草稿”和“提交审核”。
+- [前端] 将发放前端门控从原先的宽松判断修正为仅 `3=已审核` 才能发放，同时修复薪资发放表中 `4=已发放` 仍显示“已审核”的错误文案。
+### 校验
+- [校验] 已执行 `mvn -q -DskipTests compile`，后端编译通过。
+- [校验] 已抽取并校验 `admin/index.html` 内联脚本语法，结果为 `admin inline script syntax ok`。
+
 ## 2026-04-08 V14.26（薪资核算流程图右侧回路连通修复）
 ### codexlunwen
 - [图表] 继续微调 `E:\bishe\codexlunwen\tools\draw_thesis_diagrams.py` 中 `07-图3-7-薪资核算与审核发放流程图.png` 的右侧否分支回路，将其整理为完整连通的正交路径。
