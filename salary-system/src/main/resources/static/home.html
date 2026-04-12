@@ -1086,7 +1086,7 @@
                     <div class="section-title">我的个税缴纳与社保档案</div>
                     <el-card shadow="never" class="custom-card">
                         <el-table :data="taxDisplayRows" border stripe size="small">
-                            <el-table-column prop="taxYear" label="汇算清缴年度" min-width="130" align="center"></el-table-column>
+                            <el-table-column prop="displayYearMonth" label="账期月份" min-width="130" align="center"></el-table-column>
                             <el-table-column prop="totalIncome" label="累计薪水收入" min-width="130"
                                 align="right"></el-table-column>
                             <el-table-column prop="totalTaxFree" label="累计免税额" min-width="120"
@@ -2516,6 +2516,7 @@
                     })));
                     const taxDisplayRows = computed(() => myTaxes.value.map(row => ({
                         ...row,
+                        displayYearMonth: row.yearMonth || (row.taxYear ? `${row.taxYear}-01` : '-'),
                         totalIncome: row.totalIncome ?? row.accumGross ?? 0,
                         totalTaxFree: row.totalTaxFree ?? ((String(row.yearMonth || '').split('-')[1] ? Number(String(row.yearMonth).split('-')[1]) : 0) * 5000),
                         totalSocialSecurity: row.totalSocialSecurity ?? row.accumSocialSecurity ?? 0,

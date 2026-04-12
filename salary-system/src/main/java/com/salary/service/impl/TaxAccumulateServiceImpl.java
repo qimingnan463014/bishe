@@ -18,7 +18,7 @@ public class TaxAccumulateServiceImpl extends ServiceImpl<TaxAccumulateMapper, T
         LambdaQueryWrapper<TaxAccumulate> qw = new LambdaQueryWrapper<>();
         if (taxYear != null && !taxYear.isEmpty()) qw.eq(TaxAccumulate::getTaxYear, taxYear);
         if (empId != null) qw.eq(TaxAccumulate::getEmpId, empId);
-        qw.orderByDesc(TaxAccumulate::getTaxYear, TaxAccumulate::getCreateTime);
+        qw.orderByDesc(TaxAccumulate::getYearMonth, TaxAccumulate::getCreateTime);
         this.page(page, qw);
         return PageResult.of(page);
     }

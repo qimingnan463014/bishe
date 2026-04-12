@@ -75,7 +75,7 @@ public class SalaryController {
             HttpServletRequest request) {
         Integer role = getRole(request);
         Long managerId = role == 2 ? getUserId(request) : null;
-        String excludeEmpNo = role == 2 ? getUsername(request) : null;
+        String excludeEmpNo = null;
         Boolean excludeDraft = role == 1;
         return Result.success(salaryService.page(
                 current, size, yearMonth, empNo, realName, deptId, calcStatus, managerId, excludeEmpNo, excludeDraft));
@@ -155,6 +155,10 @@ public class SalaryController {
         Integer role = getRole(request);
         if (role == 2) {
             Long managerId = getUserId(request);
+            Employee selfEmployee = employeeMapper.selectByUserId(managerId);
+            if (selfEmployee != null) {
+                salaryService.calculateSalary(selfEmployee.getId(), yearMonth);
+            }
             java.util.List<Employee> team = employeeMapper.selectByManagerId(managerId);
             for (Employee emp : team) {
                 salaryService.calculateSalary(emp.getId(), yearMonth);

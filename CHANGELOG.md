@@ -16,7 +16,6 @@
 ### 校验
 - [校验] 已执行 `mvn -q -DskipTests compile`，后端编译通过。
 - [校验] 已抽取并校验 `admin/index.html` 内联脚本语法，结果为 `admin inline script syntax ok`。
-
 ## 2026-04-08 V14.26（薪资核算流程图右侧回路连通修复）
 ### codexlunwen
 - [图表] 继续微调 `E:\bishe\codexlunwen\tools\draw_thesis_diagrams.py` 中 `07-图3-7-薪资核算与审核发放流程图.png` 的右侧否分支回路，将其整理为完整连通的正交路径。

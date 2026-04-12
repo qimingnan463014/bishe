@@ -3134,7 +3134,7 @@
                         style="font-weight:600;">提交审核</el-button>
                     <el-button type="primary" @click="batchAuditSalary" v-if="userInfo.role===1"
                         title="将待审核的薪资账单批量审核为可发放状态">批量审核</el-button>
-                    <el-button type="danger" plain @click="batchRejectSalary" v-if="userInfo.role===1"
+                    <el-button type="danger" @click="batchRejectSalary" v-if="userInfo.role===1"
                         title="将待审核的薪资账单驳回给经理重新修改">批量驳回</el-button>
                     <el-button type="danger" @click="batchDeleteSalaryRecords">删除</el-button>
                     <el-button type="warning" @click="exportSalaryCsv">导出</el-button>
@@ -6320,7 +6320,12 @@
                     return new Promise((resolve) => {
                         axios.get('/api/employee/page?size=1000').then(r => {
                             if (r.data.code === 200) {
-                                allEmployees.value = r.data.data?.records || [];
+                                const rows = r.data.data?.records || [];
+                                const selfEmployee = getSelfSelectableEmployee();
+                                if (selfEmployee && !rows.some(item => String(item.id) === String(selfEmployee.id))) {
+                                    rows.unshift(selfEmployee);
+                                }
+                                allEmployees.value = rows;
                             }
                             resolve();
                         }).catch(() => resolve());
@@ -7163,6 +7168,18 @@
                 const salaryDraftDialogVisible = ref(false);
                 const salaryDraftDialogLoading = ref(false);
                 const salaryDraftForm = reactive({ yearMonth: '', empId: '' });
+                const getSelfSelectableEmployee = () => {
+                    const selfEmpId = Number(userInfo.value.empId || selfInfo.empId || 0);
+                    if (!selfEmpId) return null;
+                    return {
+                        id: selfEmpId,
+                        empNo: userInfo.value.empNo || selfInfo.empNo || userInfo.value.username || '-',
+                        realName: userInfo.value.realName || selfInfo.realName || '本人',
+                        userId: Number(userInfo.value.userId || userInfo.value.id || 0) || undefined,
+                        role: 2,
+                        isSelf: true
+                    };
+                };
                 const salaryEditDialogVisible = ref(false);
                 const salaryEditSaving = ref(false);
                 const salaryEditForm = reactive({
@@ -7190,14 +7207,9 @@
                 const salaryDraftSelectablePeople = computed(() => {
                     const seen = new Set();
                     const rows = [];
-                    const selfEmpId = Number(userInfo.value.empId || 0);
-                    if (selfEmpId) {
-                        rows.push({
-                            id: selfEmpId,
-                            empNo: userInfo.value.empNo || userInfo.value.username || '-',
-                            realName: userInfo.value.realName || '本人',
-                            isSelf: true
-                        });
+                    const selfEmployee = getSelfSelectableEmployee();
+                    if (selfEmployee) {
+                        rows.push(selfEmployee);
                     }
                     (allEmployees.value || []).forEach(item => {
                         rows.push({
