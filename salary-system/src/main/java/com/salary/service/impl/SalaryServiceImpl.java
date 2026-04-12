@@ -550,8 +550,8 @@ public class SalaryServiceImpl extends ServiceImpl<SalaryRecordMapper, SalaryRec
     public void publishSalary(Long salaryId) {
         SalaryRecord record = getById(salaryId);
         if (record == null) throw new RuntimeException("薪资记录不存在：id=" + salaryId);
-        if (record.getCalcStatus() != 1) {
-            throw new RuntimeException("当前状态不允许提交审核（需为草稿），当前状态=" + record.getCalcStatus());
+        if (record.getCalcStatus() != 1 && record.getCalcStatus() != 5) {
+            throw new RuntimeException("当前状态不允许提交审核（需为草稿或已驳回），当前状态=" + record.getCalcStatus());
         }
         SalaryRecord update = new SalaryRecord();
         update.setId(salaryId);
@@ -605,6 +605,39 @@ public class SalaryServiceImpl extends ServiceImpl<SalaryRecordMapper, SalaryRec
         ids.forEach(id -> {
             try { auditSalary(id, role); }
             catch (Exception e) { log.error("二审失败 id={}：{}", id, e.getMessage()); }
+        });
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void rejectSalary(Long salaryId, Integer role, String reason) {
+        if (role == null || role != 1) {
+            throw new RuntimeException("权限不足：只有管理员（Admin）才能驳回薪资");
+        }
+        SalaryRecord record = getById(salaryId);
+        if (record == null) {
+            throw new RuntimeException("薪资记录不存在：id=" + salaryId);
+        }
+        if (record.getCalcStatus() != 2) {
+            throw new RuntimeException("当前状态不允许驳回（需为待审核），当前状态=" + record.getCalcStatus());
+        }
+        SalaryRecord update = new SalaryRecord();
+        update.setId(salaryId);
+        update.setCalcStatus(5); // 5 = 已驳回
+        update.setRemark(buildRejectRemark(record.getRemark(), reason));
+        updateById(update);
+        log.info("薪资已驳回：id={} empNo={} yearMonth={} reason={}", salaryId, record.getEmpNo(), record.getYearMonth(), reason);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void rejectBatch(List<Long> ids, Integer role, String reason) {
+        if (role == null || role != 1) {
+            throw new RuntimeException("权限不足：只有管理员（Admin）才能执行批量驳回");
+        }
+        ids.forEach(id -> {
+            try { rejectSalary(id, role, reason); }
+            catch (Exception e) { log.error("批量驳回失败 id={}：{}", id, e.getMessage()); }
         });
     }
 
@@ -680,6 +713,18 @@ public class SalaryServiceImpl extends ServiceImpl<SalaryRecordMapper, SalaryRec
                 log.error("批量发布工资条失败 id={}：{}", id, e.getMessage());
             }
         }
+    }
+
+    private String buildRejectRemark(String currentRemark, String reason) {
+        String normalizedReason = reason == null ? "" : reason.trim();
+        String rejectRemark = normalizedReason.isEmpty() ? "审核驳回：请经理修改后重新提交。" : "审核驳回：" + normalizedReason;
+        if (currentRemark == null || currentRemark.trim().isEmpty()) {
+            return rejectRemark;
+        }
+        if (currentRemark.startsWith("审核驳回：")) {
+            return rejectRemark;
+        }
+        return rejectRemark + "；原备注：" + currentRemark.trim();
     }
 
     @Override
