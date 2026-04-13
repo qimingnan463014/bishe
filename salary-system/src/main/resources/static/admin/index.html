@@ -2647,8 +2647,17 @@
                         <el-table-column prop="attendDays" label="出勤天数" min-width="94"></el-table-column>
                         <el-table-column prop="absentDays" label="旷工天数" min-width="94"></el-table-column>
                         <el-table-column prop="lateTimes" label="迟到天数" min-width="94"></el-table-column>
-                        <el-table-column prop="earlyLeaveTimes" label="早天数" min-width="94"></el-table-column>
-                        <el-table-column prop="leaveDays" label="请假天数" min-width="94"></el-table-column>
+                        <el-table-column prop="earlyLeaveTimes" label="早退次数" min-width="94"></el-table-column>
+                        <el-table-column prop="leaveDays" label="请假天数" min-width="94">
+                            <template #default="{row}">
+                                <el-tooltip placement="top">
+                                    <template #content>
+                                        <div style="white-space:nowrap;">{{ getAttendanceLeaveTooltip(row) }}</div>
+                                    </template>
+                                    <span>{{ formatDayValue(row.leaveDays || 0) }}</span>
+                                </el-tooltip>
+                            </template>
+                        </el-table-column>
                         <el-table-column prop="overtimeHours" label="加班小时" min-width="94"></el-table-column>
                         <el-table-column prop="registerDate" label="登记日期" min-width="126"></el-table-column>
                         <el-table-column prop="managerNo" label="经理账号" min-width="108"></el-table-column>
@@ -2715,11 +2724,13 @@
                             </template>
                         </el-table-column>
                         <el-table-column prop="deptName" label="部门" width="100"></el-table-column>
-                        <el-table-column prop="applyType" label="申请类型" width="90">
+                        <el-table-column prop="applyType" label="申请类型" width="100">
                             <template #default="{row}">
-                                <el-tag size="small">{{ ['', '补签', '请假', '加班', '异常异议'][row.applyType] }}</el-tag>
+                                <el-tag size="small">{{ getApplyTypeText(row.applyType, row.leaveType) }}</el-tag>
                             </template>
                         </el-table-column>
+                        <el-table-column prop="leaveDaysText" label="请假天数" width="96"></el-table-column>
+                        <el-table-column prop="applyDateText" label="涉及日期" width="120"></el-table-column>
                         <el-table-column prop="createTimeText" label="申请时间" width="160"></el-table-column>
                         <el-table-column prop="reasonText" label="申请理由" min-width="160"
                             show-overflow-tooltip></el-table-column>
@@ -4067,7 +4078,7 @@
                             <el-col :span="12"><el-form-item label="迟到次数"><el-input-number
                                         v-model="attendForm.lateTimes" :min="0" :step="1"
                                         style="width:100%"></el-input-number></el-form-item></el-col>
-                            <el-col :span="12"><el-form-item label="早次数"><el-input-number
+                            <el-col :span="12"><el-form-item label="早退次数"><el-input-number
                                         v-model="attendForm.earlyLeaveTimes" :min="0" :step="1"
                                         style="width:100%"></el-input-number></el-form-item></el-col>
                             <el-col :span="12"><el-form-item label="加班小时"><el-input-number
@@ -6287,6 +6298,41 @@
                             isManager: isManagerRecord(item)
                         }));
                 });
+                const formatDayValue = (value) => {
+                    const amount = Number(value || 0);
+                    if (!Number.isFinite(amount)) return value || '0';
+                    return Number.isInteger(amount)
+                        ? String(amount)
+                        : amount.toFixed(2).replace(/\.?0+$/, '');
+                };
+                const hasValue = (value) => value !== null && value !== undefined && value !== '';
+                const formatDateText = (value) => {
+                    if (!hasValue(value)) return '-';
+                    return String(value).replace('T', ' ').slice(0, 10);
+                };
+                const getPersonalLeaveDays = (row) => {
+                    const weightedLeaveDays = Number(row.leaveDays || 0);
+                    const sickLeaveDays = Number(row.sickLeaveDays || 0);
+                    const personalLeaveDays = weightedLeaveDays - sickLeaveDays * 0.5;
+                    return personalLeaveDays > 0 ? Number(personalLeaveDays.toFixed(2)) : 0;
+                };
+                const getAttendanceLeaveTooltip = (row) => `事假 ${formatDayValue(getPersonalLeaveDays(row))} 天，病假 ${formatDayValue(row.sickLeaveDays || 0)} 天`;
+                const getLeaveTypeText = (leaveType) => Number(leaveType) === 2 ? '病假' : (Number(leaveType) === 1 ? '事假' : '-');
+                const getApplyTypeText = (applyType, leaveType) => {
+                    const typeValue = Number(applyType);
+                    if (typeValue === 2) {
+                        const leaveTypeText = getLeaveTypeText(leaveType);
+                        return leaveTypeText === '-' ? '请假' : leaveTypeText;
+                    }
+                    return ['', '补签', '请假', '加班', '异常异议'][typeValue] || '-';
+                };
+                const getApplyDeductedLeaveDays = (row) => {
+                    if (Number(row.applyType) !== 2) return '-';
+                    if (!hasValue(row.leaveDays)) return '-';
+                    const leaveDays = Number(row.leaveDays || 0);
+                    const deductedLeaveDays = Number(row.leaveType) === 2 ? leaveDays * 0.5 : leaveDays;
+                    return `${formatDayValue(deductedLeaveDays)}天`;
+                };
                 const attendanceDisplayRows = computed(() => attendances.value.map(row => {
                     const employee = resolveEmployeeProfile(row.empId, row.empNo, row.managerNo);
                     return {
@@ -6296,6 +6342,10 @@
                         deptName: row.deptName || employee.deptName || '-',
                         deptId: row.deptId || employee.deptId || '',
                         avatar: row.avatar || employee.avatar || getStoredAvatar(row.empNo || employee.empNo || row.managerNo || employee.managerNo) || '',
+                        leaveDays: row.leaveDays ?? 0,
+                        sickLeaveDays: row.sickLeaveDays ?? 0,
+                        personalLeaveDays: getPersonalLeaveDays(row),
+                        leaveTooltip: getAttendanceLeaveTooltip(row),
                         earlyLeaveTimes: row.earlyLeaveTimes ?? 0,
                         overtimeHours: row.overtimeHours ?? 0,
                         registerDate: (row.recordDate || row.createTime || '').toString().slice(0, 10) || '-',
@@ -6417,8 +6467,10 @@
                             createDetailItem('出勤天数', row.attendDays || 0),
                             createDetailItem('旷工天数', row.absentDays || 0),
                             createDetailItem('迟到次数', row.lateTimes || 0),
-                            createDetailItem('早次数', row.earlyLeaveTimes || 0),
-                            createDetailItem('请假天数', row.leaveDays || 0),
+                            createDetailItem('早退次数', row.earlyLeaveTimes || 0),
+                            createDetailItem('事假天数', formatDayValue(row.personalLeaveDays || 0)),
+                            createDetailItem('病假天数', formatDayValue(row.sickLeaveDays || 0)),
+                            createDetailItem('折算请假天数', formatDayValue(row.leaveDays || 0)),
                             createDetailItem('加班时长', row.overtimeHours || 0),
                             createDetailItem('登记日期', row.registerDate || '-', 'muted'),
                             createDetailItem('经理账号', row.managerNo || '-', 'muted'),
@@ -6448,6 +6500,9 @@
                         avatar: row.avatar || employee.avatar || getStoredAvatar(row.empNo || employee.empNo || row.managerNo || employee.managerNo) || '',
                         managerNo: row.managerNo || employee.managerNo || '-',
                         managerName: row.managerName || employee.managerName || '-',
+                        leaveTypeText: getLeaveTypeText(row.leaveType),
+                        leaveDaysText: getApplyDeductedLeaveDays(row),
+                        applyDateText: formatDateText(row.applyDate),
                         createTimeText: formatDateTime(row.createTime),
                         reasonText: row.reason || '-',
                         reviewComment: row.reviewComment || row.replyContent || '-'
@@ -6476,10 +6531,12 @@
                         empNo: row.empNo || '-',
                         empName: row.empName || '考勤申请审批',
                         deptName: row.deptName || '-',
-                        applyTypeText: ['', '补签', '请假', '加班', '异常异议'][row.applyType] || '-',
-                        createTime: row.createTime || '-',
+                        applyTypeText: getApplyTypeText(row.applyType, row.leaveType),
+                        createTime: row.createTimeText || formatDateTime(row.createTime),
                         statusText: ['待审批', '审核通过', '审核驳回'][row.status] || '待审批',
-                        summary: (row.reason || '暂无申请说明') + ' · ' + (row.managerName || '未分配经理')
+                        summary: (Number(row.applyType) === 2
+                            ? `${getApplyTypeText(row.applyType, row.leaveType)} ${hasValue(row.leaveDays) ? `${formatDayValue(row.leaveDays)} 天` : '-'}（折算 ${getApplyDeductedLeaveDays(row)}）`
+                            : (row.reason || '暂无申请说明')) + ' · ' + (row.managerName || '未分配经理')
                     });
                     applyReviewDialogVisible.value = true;
                 };
@@ -6501,10 +6558,15 @@
                     });
                 };
                 const showApplyDetail = (row) => {
+                    const leaveDetailItems = Number(row.applyType) === 2 ? [
+                        createDetailItem('请假类型', getLeaveTypeText(row.leaveType)),
+                        createDetailItem('请假天数', `${formatDayValue(row.leaveDays || 0)}天`),
+                        createDetailItem('折算请假天数', getApplyDeductedLeaveDays(row))
+                    ] : [];
                     openDetailDialog({
                         eyebrow: '考勤申请详情',
                         title: row.empName || '考勤申请详情',
-                        subtitle: `${['', '补签', '请假', '加班', '异常异议'][row.applyType] || '-'} · ${row.createTime || '-'}`,
+                        subtitle: `${getApplyTypeText(row.applyType, row.leaveType)} · ${row.createTimeText || formatDateTime(row.createTime)}`,
                         avatar: row.avatar || '',
                         avatarFallback: (row.empName || '?')[0],
                         sectionTitle: '申请信息',
@@ -6514,8 +6576,10 @@
                             createDetailTag(['待审批', '审核通过', '审核驳回'][row.status] || '-', row.status === 1 ? 'success' : (row.status === 2 ? 'danger' : 'warning'))
                         ],
                         items: [
-                            createDetailItem('申请类型', ['', '补签', '请假', '加班', '异常异议'][row.applyType] || '-'),
-                            createDetailItem('申请时间', row.createTime || '-', 'muted'),
+                            createDetailItem('申请类型', getApplyTypeText(row.applyType, row.leaveType)),
+                            ...leaveDetailItems,
+                            createDetailItem('涉及日期', row.applyDateText || formatDateText(row.applyDate), 'muted'),
+                            createDetailItem('申请时间', row.createTimeText || formatDateTime(row.createTime), 'muted'),
                             createDetailItem('申请事由', row.reason || '-'),
                             createDetailItem('经理账号', row.managerNo || '-', 'muted'),
                             createDetailItem('部门经理', row.managerName || '-'),
@@ -8246,7 +8310,7 @@
                     loadEmployees, resetEmpSearch, handleEmpSelection, openEmpForm, syncEmpDeptSalary, saveEmployee, deleteEmp, batchDeleteEmp, triggerImport, handleImportFile, exportExcel,
                     avatarInput, avatarUploading, triggerAvatarUpload, handleAvatarFile,
                     // --- 考勤 ---
-                    attendances, attendTotal, attendCurrent, attendSize, attendLoading, attendSearch, attendSelections, attendImportMonth, attendDialogVisible, attendForm, attendImportInput, allEmployees, attendanceSelectablePeople, attendanceDisplayRows, loadAttendances, openAttendForm, saveAttend, deleteAttend, handleAttendSelection, batchDeleteAttendances, triggerAttendImport, handleAttendImport, loadAllEmployeesForSelect, showAttendDetail, exportAttendanceCsv,
+                    attendances, attendTotal, attendCurrent, attendSize, attendLoading, attendSearch, attendSelections, attendImportMonth, attendDialogVisible, attendForm, attendImportInput, allEmployees, attendanceSelectablePeople, attendanceDisplayRows, loadAttendances, openAttendForm, saveAttend, deleteAttend, handleAttendSelection, batchDeleteAttendances, triggerAttendImport, handleAttendImport, loadAllEmployeesForSelect, showAttendDetail, exportAttendanceCsv, formatDayValue, getAttendanceLeaveTooltip, getApplyTypeText,
                     // --- 公告 ---
                     noticeList, noticeTotal, noticeCurrent, noticeSearch, noticeLoading, noticeDialogVisible, noticeDetailLoading, noticeDetail, noticeSelections, noticeForm, loadNotices, loadNoticeDetail, backFromNoticeDetail, openHomeNoticeEntry, openNoticeForm, openNoticeDetail, saveNotice, deleteNotice, handleNoticeSelection, batchDeleteNotice, handleNoticeImageChange,
                     localPageSize, websiteForm, loadWebsiteContent, saveWebsiteContent, resetWebsiteContent, handleWebsiteImageChange, aboutPreviewRows, aboutCurrent, aboutTotal, aboutPageRows, carouselPreviewRows, systemIntroRows, systemLogs, systemLogTotal, systemLogLoading, loadSystemLogs,

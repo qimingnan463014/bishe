@@ -2,6 +2,7 @@ package com.salary.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.salary.common.PageResult;
+import com.salary.entity.AttendanceApply;
 import com.salary.entity.AttendanceRecord;
 
 /**
@@ -54,4 +55,9 @@ public interface AttendanceService extends IService<AttendanceRecord> {
      * 获取指定月份的考勤状态分布统计
      */
     java.util.Map<String, Object> getAttendanceStatus(String yearMonth);
+
+    /**
+     * 将审批通过的请假申请同步到当月考勤记录。
+     */
+    AttendanceRecord syncApprovedLeaveToAttendance(AttendanceApply apply, Long reviewerId, String reviewerName);
 }
