@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import javax.servlet.http.HttpServletRequest;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import java.math.BigDecimal;
 
 @Api(tags = "Attendance Apply")
 @RestController
@@ -66,7 +67,22 @@ public class AttendanceApplyController {
         if (employee == null) {
             return Result.error("未绑定员工档案，无法提交考勤申请");
         }
+        if (Integer.valueOf(2).equals(apply.getApplyType())) {
+            if (apply.getLeaveType() == null || (apply.getLeaveType() != 1 && apply.getLeaveType() != 2)) {
+                return Result.error("请假申请必须选择事假或病假");
+            }
+            BigDecimal leaveDays = apply.getLeaveDays();
+            if (leaveDays == null || leaveDays.compareTo(BigDecimal.ZERO) <= 0) {
+                return Result.error("请填写有效的请假天数");
+            }
+        } else {
+            apply.setLeaveType(null);
+            apply.setLeaveDays(null);
+        }
         apply.setEmpId(employee.getId());
+        apply.setEmpNo(employee.getEmpNo());
+        apply.setEmpName(employee.getRealName());
+        apply.setDeptId(employee.getDeptId());
         apply.setStatus(0); // 待审批
         applyService.save(apply);
         return Result.successMsg("Submitted");
@@ -79,8 +95,12 @@ public class AttendanceApplyController {
             @RequestParam Integer status,
             @RequestParam(required = false) String comment,
             HttpServletRequest request) {
-        Long managerId = Long.valueOf(claims(request).get("userId").toString());
-        applyService.reviewApply(id, status, comment, managerId);
+        Claims claims = claims(request);
+        Long managerId = Long.valueOf(claims.get("userId").toString());
+        String reviewerName = claims.get("realName") != null
+                ? claims.get("realName").toString()
+                : (claims.get("username") != null ? claims.get("username").toString() : claims.getSubject());
+        applyService.reviewApply(id, status, comment, managerId, reviewerName);
         return Result.successMsg("Reviewed");
     }
 

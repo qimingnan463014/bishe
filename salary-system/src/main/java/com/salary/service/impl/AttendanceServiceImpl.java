@@ -11,11 +11,14 @@ import com.salary.dto.AttendanceClockDTO;
 import com.salary.dto.AttendanceSummaryDTO;
 import com.salary.entity.AttendanceRecord;
 import com.salary.entity.AttendanceRule;
+import com.salary.entity.Department;
 import com.salary.entity.Employee;
 import com.salary.mapper.AttendanceRecordMapper;
 import com.salary.mapper.AttendanceRuleMapper;
+import com.salary.mapper.DepartmentMapper;
 import com.salary.mapper.EmployeeMapper;
 import com.salary.mapper.SalaryRecordMapper;
+import com.salary.mapper.UserMapper;
 import com.salary.service.AttendanceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -66,11 +69,15 @@ public class AttendanceServiceImpl extends ServiceImpl<AttendanceRecordMapper, A
     private static final BigDecimal DEFAULT_SICK_LEAVE_DEDUCT_RATIO = new BigDecimal("0.5");
     private static final int DEFAULT_WORK_DAYS = 22;
     private static final BigDecimal ZERO = BigDecimal.ZERO;
+    private static final int LEAVE_TYPE_PERSONAL = 1;
+    private static final int LEAVE_TYPE_SICK = 2;
 
     private final AttendanceRecordMapper attendanceRecordMapper;
     private final SalaryRecordMapper     salaryRecordMapper;
     private final EmployeeMapper         employeeMapper;
     private final AttendanceRuleMapper   attendanceRuleMapper;
+    private final DepartmentMapper       departmentMapper;
+    private final UserMapper             userMapper;
 
     // ====================================================
     //  查询 / 基础 CRUD
@@ -387,6 +394,74 @@ public class AttendanceServiceImpl extends ServiceImpl<AttendanceRecordMapper, A
         return attendanceRecordMapper.countAttendanceStatus(yearMonth);
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public AttendanceRecord syncApprovedLeaveToAttendance(com.salary.entity.AttendanceApply apply,
+                                                          Long reviewerId,
+                                                          String reviewerName) {
+        if (apply == null || !Integer.valueOf(2).equals(apply.getApplyType())) {
+            return null;
+        }
+        if (apply.getEmpId() == null || apply.getApplyDate() == null) {
+            throw new RuntimeException("请假申请缺少员工或日期信息，无法同步考勤");
+        }
+        BigDecimal actualLeaveDays = nvl(apply.getLeaveDays(), ZERO).setScale(2, RoundingMode.HALF_UP);
+        if (actualLeaveDays.compareTo(ZERO) <= 0) {
+            throw new RuntimeException("请假申请天数必须大于0");
+        }
+
+        Employee emp = employeeMapper.selectById(apply.getEmpId());
+        if (emp == null) {
+            throw new RuntimeException("员工不存在，无法同步请假到考勤");
+        }
+        String yearMonth = apply.getApplyDate().format(DateTimeFormatter.ofPattern("yyyy-MM"));
+        AttendanceRecord existing = attendanceRecordMapper.selectByEmpAndMonth(emp.getId(), yearMonth);
+        AttendanceRecord record = existing != null ? existing : new AttendanceRecord();
+        Department dept = emp.getDeptId() == null ? null : departmentMapper.selectById(emp.getDeptId());
+        com.salary.entity.User reviewer = reviewerId == null ? null : userMapper.selectById(reviewerId);
+        BigDecimal deductedLeaveDays = toDeductedLeaveDays(apply.getLeaveType(), actualLeaveDays);
+
+        record.setEmpId(emp.getId());
+        record.setEmpNo(hasText(record.getEmpNo()) ? record.getEmpNo() : defaultText(emp.getEmpNo()));
+        record.setEmpName(hasText(record.getEmpName()) ? record.getEmpName() : defaultText(emp.getRealName()));
+        record.setDeptId(emp.getDeptId());
+        if (!hasText(record.getDeptName())) {
+            record.setDeptName(dept != null ? defaultText(dept.getDeptName()) : "");
+        }
+        record.setYearMonth(yearMonth);
+        record.setAttendDays(record.getAttendDays() == null ? 0 : record.getAttendDays());
+        record.setAbsentDays(nvl(record.getAbsentDays(), ZERO));
+        record.setLateTimes(record.getLateTimes() == null ? 0 : record.getLateTimes());
+        record.setEarlyLeaveTimes(record.getEarlyLeaveTimes() == null ? 0 : record.getEarlyLeaveTimes());
+        record.setOvertimeHours(nvl(record.getOvertimeHours(), ZERO));
+        record.setAttendHours(nvl(record.getAttendHours(), ZERO));
+        record.setLeaveDays(nvl(record.getLeaveDays(), ZERO).add(deductedLeaveDays).setScale(2, RoundingMode.HALF_UP));
+        if (Integer.valueOf(LEAVE_TYPE_SICK).equals(apply.getLeaveType())) {
+            record.setSickLeaveDays(nvl(record.getSickLeaveDays(), ZERO).add(actualLeaveDays).setScale(2, RoundingMode.HALF_UP));
+        } else {
+            record.setSickLeaveDays(nvl(record.getSickLeaveDays(), ZERO).setScale(2, RoundingMode.HALF_UP));
+        }
+        record.setRecordDate(record.getRecordDate() == null ? apply.getApplyDate() : record.getRecordDate());
+        record.setManagerId(reviewerId != null ? reviewerId : record.getManagerId());
+        if (reviewer != null) {
+            record.setManagerNo(reviewer.getUsername());
+            record.setManagerName(hasText(reviewerName) ? reviewerName : reviewer.getRealName());
+        } else if (hasText(reviewerName)) {
+            record.setManagerName(reviewerName);
+        }
+        record.setStatus(record.getStatus() == null ? 1 : record.getStatus());
+        record.setRemark(buildLeaveSyncRemark(record, apply, actualLeaveDays, deductedLeaveDays));
+        fillAttendanceDeduct(record);
+
+        if (existing == null) {
+            record.setRecordNo(generateRecordNo());
+            save(record);
+        } else {
+            updateById(record);
+        }
+        return record;
+    }
+
     private void fillAttendanceDeduct(AttendanceRecord record) {
         if (record == null) {
             return;
@@ -453,15 +528,48 @@ public class AttendanceServiceImpl extends ServiceImpl<AttendanceRecordMapper, A
 
     private BigDecimal resolveLeaveDeduct(AttendanceRecord record, BigDecimal daySalary, AttendanceRule rule) {
         BigDecimal leaveDays = nvl(record.getLeaveDays(), ZERO);
-        BigDecimal sickLeaveDays = nvl(record.getSickLeaveDays(), ZERO);
-        BigDecimal personalLeaveDays = leaveDays.subtract(sickLeaveDays).max(ZERO);
-        BigDecimal leaveRatio = nvl(rule.getLeaveDeductRatio(), DEFAULT_LEAVE_DEDUCT_RATIO);
-        BigDecimal sickLeaveRatio = nvl(rule.getSickLeaveDeductRatio(), DEFAULT_SICK_LEAVE_DEDUCT_RATIO);
-        return daySalary.multiply(personalLeaveDays).multiply(leaveRatio)
-                .add(daySalary.multiply(sickLeaveDays).multiply(sickLeaveRatio));
+        if (leaveDays.compareTo(ZERO) <= 0) {
+            return ZERO;
+        }
+        return daySalary.multiply(leaveDays);
     }
 
     private BigDecimal nvl(BigDecimal value, BigDecimal defaultValue) {
         return value == null ? defaultValue : value;
+    }
+
+    private BigDecimal toDeductedLeaveDays(Integer leaveType, BigDecimal actualLeaveDays) {
+        if (actualLeaveDays == null) {
+            return ZERO;
+        }
+        if (Integer.valueOf(LEAVE_TYPE_SICK).equals(leaveType)) {
+            return actualLeaveDays.multiply(new BigDecimal("0.5")).setScale(2, RoundingMode.HALF_UP);
+        }
+        return actualLeaveDays.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private String buildLeaveSyncRemark(AttendanceRecord record,
+                                        com.salary.entity.AttendanceApply apply,
+                                        BigDecimal actualLeaveDays,
+                                        BigDecimal deductedLeaveDays) {
+        String leaveLabel = Integer.valueOf(LEAVE_TYPE_SICK).equals(apply.getLeaveType()) ? "病假" : "事假";
+        String base = String.format("审批同步：%s%s天，折算请假%s天；当前请假%s天，病假%s天。",
+                leaveLabel,
+                actualLeaveDays.stripTrailingZeros().toPlainString(),
+                deductedLeaveDays.stripTrailingZeros().toPlainString(),
+                nvl(record.getLeaveDays(), ZERO).stripTrailingZeros().toPlainString(),
+                nvl(record.getSickLeaveDays(), ZERO).stripTrailingZeros().toPlainString());
+        if (hasText(record.getRemark()) && !record.getRemark().contains(base)) {
+            return record.getRemark() + " " + base;
+        }
+        return base;
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
+    }
+
+    private String defaultText(String value) {
+        return value == null ? "" : value;
     }
 }

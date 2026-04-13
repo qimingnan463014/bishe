@@ -2647,8 +2647,17 @@
                         <el-table-column prop="attendDays" label="出勤天数" min-width="94"></el-table-column>
                         <el-table-column prop="absentDays" label="旷工天数" min-width="94"></el-table-column>
                         <el-table-column prop="lateTimes" label="迟到天数" min-width="94"></el-table-column>
-                        <el-table-column prop="earlyLeaveTimes" label="早天数" min-width="94"></el-table-column>
-                        <el-table-column prop="leaveDays" label="请假天数" min-width="94"></el-table-column>
+                        <el-table-column prop="earlyLeaveTimes" label="早退次数" min-width="94"></el-table-column>
+                        <el-table-column prop="leaveDays" label="请假天数" min-width="94">
+                            <template #default="{row}">
+                                <el-tooltip placement="top">
+                                    <template #content>
+                                        <div style="white-space:nowrap;">{{ getAttendanceLeaveTooltip(row) }}</div>
+                                    </template>
+                                    <span>{{ formatDayValue(row.leaveDays || 0) }}</span>
+                                </el-tooltip>
+                            </template>
+                        </el-table-column>
                         <el-table-column prop="overtimeHours" label="加班小时" min-width="94"></el-table-column>
                         <el-table-column prop="registerDate" label="登记日期" min-width="126"></el-table-column>
                         <el-table-column prop="managerNo" label="经理账号" min-width="108"></el-table-column>
@@ -2715,11 +2724,13 @@
                             </template>
                         </el-table-column>
                         <el-table-column prop="deptName" label="部门" width="100"></el-table-column>
-                        <el-table-column prop="applyType" label="申请类型" width="90">
+                        <el-table-column prop="applyType" label="申请类型" width="100">
                             <template #default="{row}">
-                                <el-tag size="small">{{ ['', '补签', '请假', '加班', '异常异议'][row.applyType] }}</el-tag>
+                                <el-tag size="small">{{ getApplyTypeText(row.applyType, row.leaveType) }}</el-tag>
                             </template>
                         </el-table-column>
+                        <el-table-column prop="leaveDaysText" label="请假天数" width="96"></el-table-column>
+                        <el-table-column prop="applyDateText" label="涉及日期" width="120"></el-table-column>
                         <el-table-column prop="createTimeText" label="申请时间" width="160"></el-table-column>
                         <el-table-column prop="reasonText" label="申请理由" min-width="160"
                             show-overflow-tooltip></el-table-column>
@@ -3108,13 +3119,11 @@
                             <el-option label="待审核" :value="2"></el-option>
                             <el-option label="已审核" :value="3"></el-option>
                             <el-option label="已发放" :value="4"></el-option>
-                            <el-option label="已驳回" :value="5"></el-option>
                         </template>
                         <template v-else>
                             <el-option label="待审核" :value="2"></el-option>
                             <el-option label="已审核" :value="3"></el-option>
                             <el-option label="已发放" :value="4"></el-option>
-                            <el-option label="已驳回" :value="5"></el-option>
                         </template>
                     </el-select>
                     <el-button type="primary" @click="loadSalaries(1)">查询</el-button>
@@ -3130,12 +3139,10 @@
                         title="单独补一条工资草稿，适合误删后重新添加">添加草稿</el-button>
                     <el-button type="success" @click="batchPublishSalary"
                         v-if="userInfo.role===2"
-                        title="将草稿或已驳回账单重新提交到审核队列，进入待审核状态"
+                        title="将草稿账单提交到审核队列，进入待审核状态"
                         style="font-weight:600;">提交审核</el-button>
                     <el-button type="primary" @click="batchAuditSalary" v-if="userInfo.role===1"
                         title="将待审核的薪资账单批量审核为可发放状态">批量审核</el-button>
-                    <el-button type="danger" @click="batchRejectSalary" v-if="userInfo.role===1"
-                        title="将待审核的薪资账单驳回给经理重新修改">批量驳回</el-button>
                     <el-button type="danger" @click="batchDeleteSalaryRecords">删除</el-button>
                     <el-button type="warning" @click="exportSalaryCsv">导出</el-button>
                 </div>
@@ -3175,21 +3182,19 @@
                         <el-table-column label="状态" min-width="92">
                             <template #default="{row}">
                                 <el-tag
-                                    :type="getSalaryCalcStatusTagType(row.calcStatus)"
+                                    :type="row.calcStatus === 1 ? 'info' : (row.calcStatus === 2 ? 'primary' : (row.calcStatus === 3 ? 'success' : 'danger'))"
                                     size="small">
-                                    {{ getSalaryCalcStatusText(row.calcStatus) }}
+                                    {{ ['', '草稿', '待审核', '已审核', '已发放'][row.calcStatus] || '未知' }}
                                 </el-tag>
                             </template>
                         </el-table-column>
                         <el-table-column label="操作" fixed="right" width="260">
                             <template #default="{row}">
                                 <div class="inline-actions">
-                                    <el-button v-if="(userInfo.role===1 || userInfo.role===2) && (row.calcStatus===1 || row.calcStatus===5)"
+                                    <el-button v-if="(userInfo.role===1 || userInfo.role===2) && row.calcStatus===1"
                                         link type="warning" size="small" @click="openSalaryEditDialog(row)">编辑草稿</el-button>
                                     <el-button v-if="userInfo.role===1 && row.calcStatus===2" link type="success"
                                         size="small" @click="auditSalaryRecord(row)">单笔审核</el-button>
-                                    <el-button v-if="userInfo.role===1 && row.calcStatus===2" link type="danger"
-                                        size="small" @click="rejectSalaryRecord(row)">驳回</el-button>
                                     <el-button v-if="canSubmitSalaryFeedbackForRow(row)" link type="warning"
                                         size="small" @click="openSalaryFeedbackDialog(row)">反馈</el-button>
                                     <el-button link type="primary" size="small"
@@ -3274,9 +3279,9 @@
                         <el-table-column label="审核状态" min-width="112">
                             <template #default="{row}">
                                 <el-tag
-                                    :type="row.calcStatus === 4 ? 'success' : (row.calcStatus === 3 ? 'primary' : 'warning')"
+                                    :type="row.calcStatus === 4 ? 'success' : (row.calcStatus === 3 ? 'success' : 'warning')"
                                     size="small">
-                                    {{ row.calcStatus === 4 ? '已发放' : (row.calcStatus === 3 ? '已审核' : '待审核') }}
+                                    {{ row.calcStatus === 4 ? '已审核' : (row.calcStatus === 3 ? '已审核' : '待审核') }}
                                 </el-tag>
                             </template>
                         </el-table-column>
@@ -4073,7 +4078,7 @@
                             <el-col :span="12"><el-form-item label="迟到次数"><el-input-number
                                         v-model="attendForm.lateTimes" :min="0" :step="1"
                                         style="width:100%"></el-input-number></el-form-item></el-col>
-                            <el-col :span="12"><el-form-item label="早次数"><el-input-number
+                            <el-col :span="12"><el-form-item label="早退次数"><el-input-number
                                         v-model="attendForm.earlyLeaveTimes" :min="0" :step="1"
                                         style="width:100%"></el-input-number></el-form-item></el-col>
                             <el-col :span="12"><el-form-item label="加班小时"><el-input-number
@@ -6293,6 +6298,41 @@
                             isManager: isManagerRecord(item)
                         }));
                 });
+                const formatDayValue = (value) => {
+                    const amount = Number(value || 0);
+                    if (!Number.isFinite(amount)) return value || '0';
+                    return Number.isInteger(amount)
+                        ? String(amount)
+                        : amount.toFixed(2).replace(/\.?0+$/, '');
+                };
+                const hasValue = (value) => value !== null && value !== undefined && value !== '';
+                const formatDateText = (value) => {
+                    if (!hasValue(value)) return '-';
+                    return String(value).replace('T', ' ').slice(0, 10);
+                };
+                const getPersonalLeaveDays = (row) => {
+                    const weightedLeaveDays = Number(row.leaveDays || 0);
+                    const sickLeaveDays = Number(row.sickLeaveDays || 0);
+                    const personalLeaveDays = weightedLeaveDays - sickLeaveDays * 0.5;
+                    return personalLeaveDays > 0 ? Number(personalLeaveDays.toFixed(2)) : 0;
+                };
+                const getAttendanceLeaveTooltip = (row) => `事假 ${formatDayValue(getPersonalLeaveDays(row))} 天，病假 ${formatDayValue(row.sickLeaveDays || 0)} 天`;
+                const getLeaveTypeText = (leaveType) => Number(leaveType) === 2 ? '病假' : (Number(leaveType) === 1 ? '事假' : '-');
+                const getApplyTypeText = (applyType, leaveType) => {
+                    const typeValue = Number(applyType);
+                    if (typeValue === 2) {
+                        const leaveTypeText = getLeaveTypeText(leaveType);
+                        return leaveTypeText === '-' ? '请假' : leaveTypeText;
+                    }
+                    return ['', '补签', '请假', '加班', '异常异议'][typeValue] || '-';
+                };
+                const getApplyDeductedLeaveDays = (row) => {
+                    if (Number(row.applyType) !== 2) return '-';
+                    if (!hasValue(row.leaveDays)) return '-';
+                    const leaveDays = Number(row.leaveDays || 0);
+                    const deductedLeaveDays = Number(row.leaveType) === 2 ? leaveDays * 0.5 : leaveDays;
+                    return `${formatDayValue(deductedLeaveDays)}天`;
+                };
                 const attendanceDisplayRows = computed(() => attendances.value.map(row => {
                     const employee = resolveEmployeeProfile(row.empId, row.empNo, row.managerNo);
                     return {
@@ -6302,6 +6342,10 @@
                         deptName: row.deptName || employee.deptName || '-',
                         deptId: row.deptId || employee.deptId || '',
                         avatar: row.avatar || employee.avatar || getStoredAvatar(row.empNo || employee.empNo || row.managerNo || employee.managerNo) || '',
+                        leaveDays: row.leaveDays ?? 0,
+                        sickLeaveDays: row.sickLeaveDays ?? 0,
+                        personalLeaveDays: getPersonalLeaveDays(row),
+                        leaveTooltip: getAttendanceLeaveTooltip(row),
                         earlyLeaveTimes: row.earlyLeaveTimes ?? 0,
                         overtimeHours: row.overtimeHours ?? 0,
                         registerDate: (row.recordDate || row.createTime || '').toString().slice(0, 10) || '-',
@@ -6320,12 +6364,7 @@
                     return new Promise((resolve) => {
                         axios.get('/api/employee/page?size=1000').then(r => {
                             if (r.data.code === 200) {
-                                const rows = r.data.data?.records || [];
-                                const selfEmployee = getSelfSelectableEmployee();
-                                if (selfEmployee && !rows.some(item => String(item.id) === String(selfEmployee.id))) {
-                                    rows.unshift(selfEmployee);
-                                }
-                                allEmployees.value = rows;
+                                allEmployees.value = r.data.data?.records || [];
                             }
                             resolve();
                         }).catch(() => resolve());
@@ -6428,8 +6467,10 @@
                             createDetailItem('出勤天数', row.attendDays || 0),
                             createDetailItem('旷工天数', row.absentDays || 0),
                             createDetailItem('迟到次数', row.lateTimes || 0),
-                            createDetailItem('早次数', row.earlyLeaveTimes || 0),
-                            createDetailItem('请假天数', row.leaveDays || 0),
+                            createDetailItem('早退次数', row.earlyLeaveTimes || 0),
+                            createDetailItem('事假天数', formatDayValue(row.personalLeaveDays || 0)),
+                            createDetailItem('病假天数', formatDayValue(row.sickLeaveDays || 0)),
+                            createDetailItem('折算请假天数', formatDayValue(row.leaveDays || 0)),
                             createDetailItem('加班时长', row.overtimeHours || 0),
                             createDetailItem('登记日期', row.registerDate || '-', 'muted'),
                             createDetailItem('经理账号', row.managerNo || '-', 'muted'),
@@ -6459,6 +6500,9 @@
                         avatar: row.avatar || employee.avatar || getStoredAvatar(row.empNo || employee.empNo || row.managerNo || employee.managerNo) || '',
                         managerNo: row.managerNo || employee.managerNo || '-',
                         managerName: row.managerName || employee.managerName || '-',
+                        leaveTypeText: getLeaveTypeText(row.leaveType),
+                        leaveDaysText: getApplyDeductedLeaveDays(row),
+                        applyDateText: formatDateText(row.applyDate),
                         createTimeText: formatDateTime(row.createTime),
                         reasonText: row.reason || '-',
                         reviewComment: row.reviewComment || row.replyContent || '-'
@@ -6487,10 +6531,12 @@
                         empNo: row.empNo || '-',
                         empName: row.empName || '考勤申请审批',
                         deptName: row.deptName || '-',
-                        applyTypeText: ['', '补签', '请假', '加班', '异常异议'][row.applyType] || '-',
-                        createTime: row.createTime || '-',
+                        applyTypeText: getApplyTypeText(row.applyType, row.leaveType),
+                        createTime: row.createTimeText || formatDateTime(row.createTime),
                         statusText: ['待审批', '审核通过', '审核驳回'][row.status] || '待审批',
-                        summary: (row.reason || '暂无申请说明') + ' · ' + (row.managerName || '未分配经理')
+                        summary: (Number(row.applyType) === 2
+                            ? `${getApplyTypeText(row.applyType, row.leaveType)} ${hasValue(row.leaveDays) ? `${formatDayValue(row.leaveDays)} 天` : '-'}（折算 ${getApplyDeductedLeaveDays(row)}）`
+                            : (row.reason || '暂无申请说明')) + ' · ' + (row.managerName || '未分配经理')
                     });
                     applyReviewDialogVisible.value = true;
                 };
@@ -6512,10 +6558,15 @@
                     });
                 };
                 const showApplyDetail = (row) => {
+                    const leaveDetailItems = Number(row.applyType) === 2 ? [
+                        createDetailItem('请假类型', getLeaveTypeText(row.leaveType)),
+                        createDetailItem('请假天数', `${formatDayValue(row.leaveDays || 0)}天`),
+                        createDetailItem('折算请假天数', getApplyDeductedLeaveDays(row))
+                    ] : [];
                     openDetailDialog({
                         eyebrow: '考勤申请详情',
                         title: row.empName || '考勤申请详情',
-                        subtitle: `${['', '补签', '请假', '加班', '异常异议'][row.applyType] || '-'} · ${row.createTime || '-'}`,
+                        subtitle: `${getApplyTypeText(row.applyType, row.leaveType)} · ${row.createTimeText || formatDateTime(row.createTime)}`,
                         avatar: row.avatar || '',
                         avatarFallback: (row.empName || '?')[0],
                         sectionTitle: '申请信息',
@@ -6525,8 +6576,10 @@
                             createDetailTag(['待审批', '审核通过', '审核驳回'][row.status] || '-', row.status === 1 ? 'success' : (row.status === 2 ? 'danger' : 'warning'))
                         ],
                         items: [
-                            createDetailItem('申请类型', ['', '补签', '请假', '加班', '异常异议'][row.applyType] || '-'),
-                            createDetailItem('申请时间', row.createTime || '-', 'muted'),
+                            createDetailItem('申请类型', getApplyTypeText(row.applyType, row.leaveType)),
+                            ...leaveDetailItems,
+                            createDetailItem('涉及日期', row.applyDateText || formatDateText(row.applyDate), 'muted'),
+                            createDetailItem('申请时间', row.createTimeText || formatDateTime(row.createTime), 'muted'),
                             createDetailItem('申请事由', row.reason || '-'),
                             createDetailItem('经理账号', row.managerNo || '-', 'muted'),
                             createDetailItem('部门经理', row.managerName || '-'),
@@ -7168,18 +7221,6 @@
                 const salaryDraftDialogVisible = ref(false);
                 const salaryDraftDialogLoading = ref(false);
                 const salaryDraftForm = reactive({ yearMonth: '', empId: '' });
-                const getSelfSelectableEmployee = () => {
-                    const selfEmpId = Number(userInfo.value.empId || selfInfo.empId || 0);
-                    if (!selfEmpId) return null;
-                    return {
-                        id: selfEmpId,
-                        empNo: userInfo.value.empNo || selfInfo.empNo || userInfo.value.username || '-',
-                        realName: userInfo.value.realName || selfInfo.realName || '本人',
-                        userId: Number(userInfo.value.userId || userInfo.value.id || 0) || undefined,
-                        role: 2,
-                        isSelf: true
-                    };
-                };
                 const salaryEditDialogVisible = ref(false);
                 const salaryEditSaving = ref(false);
                 const salaryEditForm = reactive({
@@ -7207,9 +7248,14 @@
                 const salaryDraftSelectablePeople = computed(() => {
                     const seen = new Set();
                     const rows = [];
-                    const selfEmployee = getSelfSelectableEmployee();
-                    if (selfEmployee) {
-                        rows.push(selfEmployee);
+                    const selfEmpId = Number(userInfo.value.empId || 0);
+                    if (selfEmpId) {
+                        rows.push({
+                            id: selfEmpId,
+                            empNo: userInfo.value.empNo || userInfo.value.username || '-',
+                            realName: userInfo.value.realName || '本人',
+                            isSelf: true
+                        });
                     }
                     (allEmployees.value || []).forEach(item => {
                         rows.push({
@@ -7255,20 +7301,6 @@
                     if (!Number.isFinite(amount)) return value;
                     return amount > 0 ? `-${amount}` : `${amount}`;
                 };
-                const getSalaryCalcStatusText = (status) => ({
-                    1: '草稿',
-                    2: '待审核',
-                    3: '已审核',
-                    4: '已发放',
-                    5: '已驳回'
-                }[Number(status)] || '未知');
-                const getSalaryCalcStatusTagType = (status) => ({
-                    1: 'info',
-                    2: 'warning',
-                    3: 'primary',
-                    4: 'success',
-                    5: 'danger'
-                }[Number(status)] || 'info');
                 const salaryDisplayRows = computed(() => salaries.value
                     .map(row => {
                         const employee = resolveEmployeeProfile(row.empId, row.empNo, row.managerNo);
@@ -7469,11 +7501,11 @@
                 const batchPublishSalary = () => {
                     let ids = salarySelections.value.map(s => s.id);
                     if (ids.length === 0) {
-                        ids = salaries.value.filter(s => s.calcStatus === 1 || s.calcStatus === 5).map(s => s.id);
+                        ids = salaries.value.filter(s => s.calcStatus === 1).map(s => s.id);
                     }
-                    if (ids.length === 0) return ElementPlus.ElMessage.warning('当前账单中没有可提交审核的草稿/驳回记录');
+                    if (ids.length === 0) return ElementPlus.ElMessage.warning('当前账单中没有可提交审核的草稿记录');
                     axios.put('/api/salary/batch-publish', ids).then(r => {
-                        if (r.data.code === 200) { ElementPlus.ElMessage.success('已提交审核，账单状态已更新为待审核'); loadSalaries(); loadPayments(paymentCurrent.value); }
+                        if (r.data.code === 200) { ElementPlus.ElMessage.success('已提交审核，账单状已更新为待审核'); loadSalaries(); loadPayments(paymentCurrent.value); }
                     });
                 };
                 const canSubmitSalaryFeedbackForRow = (row) => {
@@ -7491,7 +7523,7 @@
                         deptName: row.deptName || '',
                         yearMonth: row.yearMonth || '',
                         netSalary: `￥${Number(row.netSalary || 0).toFixed(2)}`,
-                        calcStatus: getSalaryCalcStatusText(row.calcStatus),
+                        calcStatus: row.calcStatus === 4 ? '已发放' : (row.calcStatus === 3 ? '已审核' : (row.calcStatus === 2 ? '待审核' : '草稿')),
                         avatar: row.avatar || profile.avatar || getStoredAvatar(row.empNo || profile.empNo || row.managerNo || profile.managerNo) || ''
                     });
                     Object.assign(salaryFeedbackForm, {
@@ -7544,7 +7576,7 @@
                         sectionTitle: '薪资构成',
                         tags: [
                             createDetailTag(row.empNo || '未绑定工号', 'primary'),
-                            createDetailTag(getSalaryCalcStatusText(row.calcStatus), getSalaryCalcStatusTagType(row.calcStatus))
+                            createDetailTag(row.calcStatus === 4 ? '已发放' : (row.calcStatus === 3 ? '已审核' : (row.calcStatus === 2 ? '待审核' : '草稿')), row.calcStatus === 4 ? 'success' : (row.calcStatus === 3 ? 'primary' : (row.calcStatus === 2 ? 'warning' : 'info')))
                         ],
                         items: [
                             createDetailItem('银行卡号', row.bankCard || row.bankAccount || '-', 'muted'),
@@ -7628,7 +7660,7 @@
                     }).finally(() => paymentLoading.value = false);
                 };
                 const executePayment = (row) => {
-                    if (row.calcStatus !== 3) return ElementPlus.ElMessage.warning('只有【已审核】状态的账单才可发放，请先完成二审');
+                    if (row.calcStatus < 2) return ElementPlus.ElMessage.warning('该账单未公开定表，不可打款');
                     ElementPlus.ElMessageBox.confirm(`准备向账户 ${row.bankAccount || '【未绑定对公账户】'} 汇款 ${row.netSalary} 元，是否连通银行接口执行？`, '安全支付网关接入中...').then(() => {
                         const loadInstance = ElementPlus.ElLoading.service({ text: '正在验证网银密钥与讯...' });
                         setTimeout(() => {
@@ -7647,30 +7679,6 @@
                         axios.put(`/api/salary/${row.id}/audit`).then(r => {
                             if (r.data.code === 200) { ElementPlus.ElMessage.success('审核通过'); loadSalaries(); loadPayments(paymentCurrent.value); }
                             else ElementPlus.ElMessage.error(r.data.message || '审核失败');
-                        });
-                    }).catch(() => { });
-                };
-                const rejectSalaryRecord = (row) => {
-                    if (row.calcStatus !== 2) return ElementPlus.ElMessage.warning('只能对【待审核】状态进行驳回');
-                    ElementPlus.ElMessageBox.prompt(
-                        `请填写 ${row.empName} 的驳回原因（可选）`,
-                        '单笔驳回',
-                        {
-                            confirmButtonText: '确认驳回',
-                            cancelButtonText: '取消',
-                            inputPlaceholder: '例如：考勤数据需复核、津贴填写错误'
-                        }
-                    ).then(({ value }) => {
-                        axios.put(`/api/salary/${row.id}/reject`, null, {
-                            params: { reason: (value || '').trim() }
-                        }).then(r => {
-                            if (r.data.code === 200) {
-                                ElementPlus.ElMessage.success('已驳回，账单已退回经理修改');
-                                loadSalaries();
-                                loadPayments(paymentCurrent.value);
-                            } else {
-                                ElementPlus.ElMessage.error(r.data.message || '驳回失败');
-                            }
                         });
                     }).catch(() => { });
                 };
@@ -7746,31 +7754,6 @@
                         axios.put('/api/salary/batch-audit', ids).then(r => {
                             if (r.data.code === 200) { ElementPlus.ElMessage.success('批量审核完成'); loadSalaries(); loadPayments(paymentCurrent.value); }
                             else ElementPlus.ElMessage.error(r.data.message || '批量审核失败');
-                        });
-                    }).catch(() => { });
-                };
-                const batchRejectSalary = () => {
-                    const ids = salarySelections.value.filter(item => item.calcStatus === 2).map(item => item.id);
-                    if (ids.length === 0) return ElementPlus.ElMessage.warning('请先勾选状态为【待审核】的记录');
-                    ElementPlus.ElMessageBox.prompt(
-                        `确认批量驳回这 ${ids.length} 条薪资记录吗？驳回后将退回经理修改。`,
-                        '批量驳回',
-                        {
-                            confirmButtonText: '确认驳回',
-                            cancelButtonText: '取消',
-                            inputPlaceholder: '可统一填写驳回原因'
-                        }
-                    ).then(({ value }) => {
-                        axios.put('/api/salary/batch-reject', ids, {
-                            params: { reason: (value || '').trim() }
-                        }).then(r => {
-                            if (r.data.code === 200) {
-                                ElementPlus.ElMessage.success('批量驳回完成');
-                                loadSalaries();
-                                loadPayments(paymentCurrent.value);
-                            } else {
-                                ElementPlus.ElMessage.error(r.data.message || '批量驳回失败');
-                            }
                         });
                     }).catch(() => { });
                 };
@@ -8327,7 +8310,7 @@
                     loadEmployees, resetEmpSearch, handleEmpSelection, openEmpForm, syncEmpDeptSalary, saveEmployee, deleteEmp, batchDeleteEmp, triggerImport, handleImportFile, exportExcel,
                     avatarInput, avatarUploading, triggerAvatarUpload, handleAvatarFile,
                     // --- 考勤 ---
-                    attendances, attendTotal, attendCurrent, attendSize, attendLoading, attendSearch, attendSelections, attendImportMonth, attendDialogVisible, attendForm, attendImportInput, allEmployees, attendanceSelectablePeople, attendanceDisplayRows, loadAttendances, openAttendForm, saveAttend, deleteAttend, handleAttendSelection, batchDeleteAttendances, triggerAttendImport, handleAttendImport, loadAllEmployeesForSelect, showAttendDetail, exportAttendanceCsv,
+                    attendances, attendTotal, attendCurrent, attendSize, attendLoading, attendSearch, attendSelections, attendImportMonth, attendDialogVisible, attendForm, attendImportInput, allEmployees, attendanceSelectablePeople, attendanceDisplayRows, loadAttendances, openAttendForm, saveAttend, deleteAttend, handleAttendSelection, batchDeleteAttendances, triggerAttendImport, handleAttendImport, loadAllEmployeesForSelect, showAttendDetail, exportAttendanceCsv, formatDayValue, getAttendanceLeaveTooltip, getApplyTypeText,
                     // --- 公告 ---
                     noticeList, noticeTotal, noticeCurrent, noticeSearch, noticeLoading, noticeDialogVisible, noticeDetailLoading, noticeDetail, noticeSelections, noticeForm, loadNotices, loadNoticeDetail, backFromNoticeDetail, openHomeNoticeEntry, openNoticeForm, openNoticeDetail, saveNotice, deleteNotice, handleNoticeSelection, batchDeleteNotice, handleNoticeImageChange,
                     localPageSize, websiteForm, loadWebsiteContent, saveWebsiteContent, resetWebsiteContent, handleWebsiteImageChange, aboutPreviewRows, aboutCurrent, aboutTotal, aboutPageRows, carouselPreviewRows, systemIntroRows, systemLogs, systemLogTotal, systemLogLoading, loadSystemLogs,
@@ -8345,7 +8328,7 @@
                     taxRecords, taxTotal, taxCurrent, taxSize, taxLoading, taxSearch, taxSelections, taxDialogVisible, taxDetailDialogVisible, taxForm, taxDisplayRows, loadTaxRecords, openTaxDetail, openTaxForm, saveTaxRecord, deleteTaxRecord, handleTaxSelection, batchDeleteTaxRecords, exportTaxCsv,
                     performances, perfTotal, perfCurrent, perfSize, perfLoading, perfSearch, perfSelections, perfDialogVisible, perfForm, perfContext, performanceDisplayRows, calcPerfTotal, calcPerfGrade, loadPerformances, openPerfForm, savePerformance, openPerformanceDetail, deletePerformance, handlePerfSelection, batchDeletePerformances, exportPerformanceCsv,
                     // --- 薪资计算发放 ---
-                    salaries, salaryTotal, salaryCurrent, salarySize, salaryLoading, salarySearch, salaryDisplayRows, handleSalarySelection, loadSalaries, batchCalcSalary, generateSalaryDrafts, openSalaryDraftDialog, salaryDraftDialogVisible, salaryDraftDialogLoading, salaryDraftForm, salaryDraftSelectablePeople, createSalaryDraft, salaryEditDialogVisible, salaryEditSaving, salaryEditForm, salaryEditPreview, openSalaryEditDialog, saveSalaryDraft, batchPublishSalary, canSubmitSalaryFeedbackForRow, openSalaryFeedbackDialog, submitSalaryFeedback, openSalaryDetail, deleteSalaryRecord, batchDeleteSalaryRecords, exportSalaryCsv, auditSalaryRecord, rejectSalaryRecord, batchAuditSalary, batchRejectSalary, getSalaryCalcStatusText, getSalaryCalcStatusTagType,
+                    salaries, salaryTotal, salaryCurrent, salarySize, salaryLoading, salarySearch, salaryDisplayRows, handleSalarySelection, loadSalaries, batchCalcSalary, generateSalaryDrafts, openSalaryDraftDialog, salaryDraftDialogVisible, salaryDraftDialogLoading, salaryDraftForm, salaryDraftSelectablePeople, createSalaryDraft, salaryEditDialogVisible, salaryEditSaving, salaryEditForm, salaryEditPreview, openSalaryEditDialog, saveSalaryDraft, batchPublishSalary, canSubmitSalaryFeedbackForRow, openSalaryFeedbackDialog, submitSalaryFeedback, openSalaryDetail, deleteSalaryRecord, batchDeleteSalaryRecords, exportSalaryCsv, auditSalaryRecord, batchAuditSalary,
                     payments, paymentTotal, paymentCurrent, paymentSize, paymentLoading, paymentSearch, paymentDisplayRows, loadPayments, executePayment, publishSalarySlip, batchPublishSalarySlip, exportPaymentCsv, paymentSelections, paymentIssueFileInput, paymentIssueUploading, paymentIssueUploadingRowId, getIssueFileName, triggerPaymentIssueFileUpload, handlePaymentIssueFileChange, paymentGatewayVisible, paymentProcessing, paymentSuccess, selectedPaymentChannel, gatewayTotalAmount, gatewayTargetCount, handlePaymentSelection, batchDeletePaymentRecords, openBatchPaymentGateway, openSinglePaymentGateway, triggerSimulatedPayment, formatNegativeAmount,
                     switchMenu, handleSystemMenuCommand, logout, handleUserMenuCommand
                 };
