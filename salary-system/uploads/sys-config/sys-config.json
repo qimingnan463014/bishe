@@ -1,0 +1,3 @@
+{
+  "website_content" : "{\"portalTitle\":\"基于Java的员工薪资管理系统设计与实现\",\"aboutTitle\":\"关于我们\",\"aboutSubtitle\":\"\",\"aboutContent\":\"欢迎访问员工薪资管理系统门户。这里用于展示企业网站的轮播图、关于我们介绍和通知公告栏目内容，方便管理员统一维护网站首页展示信息。\",\"systemIntroTitle\":\"系统简介\",\"systemIntroContent\":\"本系统主要用于管理员、部门经理和员工对薪资、考勤、绩效及公告信息进行统一管理。\",\"systemIntroImage\":\"/api/front_assets/aboutus_picture1.jpg\",\"noticeSectionTitle\":\"通知公告\",\"carouselImages\":[\"/api/front_assets/picture1.jpg\",\"/api/front_assets/picture2.jpg\",\"/api/front_assets/picture3.jpg\"],\"aboutImages\":[\"/api/front_assets/aboutus_picture1.jpg\",\"/api/front_assets/aboutus_picture2.jpg\"]}"
+}
