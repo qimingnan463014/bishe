@@ -59,16 +59,6 @@ public interface SalaryService extends IService<SalaryRecord> {
      */
     void auditBatch(List<Long> ids, Integer role);
 
-    /**
-     * 驳回薪资：待审核(2) → 已驳回(5)
-     */
-    void rejectSalary(Long salaryId, Integer role, String reason);
-
-    /**
-     * 批量驳回
-     */
-    void rejectBatch(List<Long> ids, Integer role, String reason);
-
 
     // ====================================================
     //  ★ 状态流转：支付（仅管理员 Admin 可操作）
