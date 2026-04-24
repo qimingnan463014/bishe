@@ -1,11 +1,13 @@
 package com.salary.controller;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.salary.common.PageResult;
 import com.salary.common.Result;
 import com.salary.entity.Employee;
 import com.salary.entity.SalaryRecord;
 import com.salary.mapper.EmployeeMapper;
 import com.salary.service.SalaryService;
+import com.salary.util.ExcelAvatarExportUtil;
 import com.salary.util.JwtUtil;
 import io.jsonwebtoken.Claims;
 import io.swagger.annotations.Api;
@@ -25,21 +27,26 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
 /**
  * Salary Controller
  *
- * Status flow:  Draft(1) -> Published(2) -> Audited(3) -> Paid(4)
+ * Status flow: Draft(1) -> Published(2) -> Audited(3) -> Paid(4)
  * Role rules:
  *   Admin(1)   - full access, only one who can call pay
  *   Manager(2) - query own dept, publish salary
@@ -81,6 +88,126 @@ public class SalaryController {
                 current, size, yearMonth, empNo, realName, deptId, calcStatus, managerId, excludeEmpNo, excludeDraft));
     }
 
+    @ApiOperation("导出个税与社保 Excel")
+    @GetMapping("/tax-export")
+    public void exportTax(HttpServletResponse response,
+                          @RequestParam(required = false) String realName,
+                          @RequestParam(required = false) Long deptId,
+                          HttpServletRequest request) {
+        RoleScope scope = resolveRoleScope(request);
+        List<SalaryRecord> records = salaryService.page(
+                1, 50000, null, null, realName, deptId, null,
+                scope.managerId, scope.excludeEmpNo, scope.excludeDraft).getRecords();
+        EmployeeLookup lookup = loadEmployeeLookup();
+        records.removeIf(row -> !matchKeyword(resolveEmployeeName(row, lookup), realName));
+        ExcelAvatarExportUtil.export(
+                response,
+                "工资个税与社保.xlsx",
+                "工资个税与社保",
+                Arrays.asList(
+                        ExcelAvatarExportUtil.text("员工姓名", 12, row -> resolveEmployeeName(row, lookup)),
+                        ExcelAvatarExportUtil.avatar("头像", 12, row -> resolveEmployee(row, lookup).getAvatar()),
+                        ExcelAvatarExportUtil.text("部门", 14, row -> ExcelAvatarExportUtil.firstNonBlank(row.getDeptName(), resolveEmployee(row, lookup).getDeptName(), "-")),
+                        ExcelAvatarExportUtil.text("薪资基数", 14, row -> ExcelAvatarExportUtil.formatNumber(resolveDisplayBaseSalary(row, lookup))),
+                        ExcelAvatarExportUtil.text("公积金", 12, row -> ExcelAvatarExportUtil.formatNumber(calcByRatio(resolveCalcBase(row, lookup), "0.12"))),
+                        ExcelAvatarExportUtil.text("医疗保险", 12, row -> ExcelAvatarExportUtil.formatNumber(calcByRatio(resolveCalcBase(row, lookup), "0.02"))),
+                        ExcelAvatarExportUtil.text("失业保险", 12, row -> ExcelAvatarExportUtil.formatNumber(calcByRatio(resolveCalcBase(row, lookup), "0.003"))),
+                        ExcelAvatarExportUtil.text("养老保险", 12, row -> ExcelAvatarExportUtil.formatNumber(calcByRatio(resolveCalcBase(row, lookup), "0.08"))),
+                        ExcelAvatarExportUtil.text("总社保扣款", 14, row -> ExcelAvatarExportUtil.formatNumber(row.getSocialSecurityEmp())),
+                        ExcelAvatarExportUtil.text("个税扣缴", 12, row -> ExcelAvatarExportUtil.formatNumber(row.getIncomeTax())),
+                        ExcelAvatarExportUtil.text("扣除日期", 14, row -> ExcelAvatarExportUtil.formatDate(firstNonNull(row.getRecordDate(), row.getPayDate(), row.getCreateTime()))),
+                        ExcelAvatarExportUtil.text("经理账号", 14, row -> ExcelAvatarExportUtil.firstNonBlank(row.getManagerNo(), resolveEmployee(row, lookup).getManagerNo(), "-")),
+                        ExcelAvatarExportUtil.text("部门经理", 14, row -> ExcelAvatarExportUtil.firstNonBlank(row.getManagerName(), resolveEmployee(row, lookup).getManagerName(), "-"))
+                ),
+                records
+        );
+    }
+
+    @ApiOperation("导出薪资核算 Excel")
+    @GetMapping("/export")
+    public void exportSalary(HttpServletResponse response,
+                             @RequestParam(required = false) String yearMonth,
+                             @RequestParam(required = false) String empNo,
+                             @RequestParam(required = false) String realName,
+                             @RequestParam(required = false) Long deptId,
+                             @RequestParam(required = false) Integer calcStatus,
+                             @RequestParam(required = false) String managerName,
+                             HttpServletRequest request) {
+        RoleScope scope = resolveRoleScope(request);
+        List<SalaryRecord> records = salaryService.page(
+                1, 50000, yearMonth, empNo, realName, deptId, calcStatus,
+                scope.managerId, scope.excludeEmpNo, scope.excludeDraft).getRecords();
+        EmployeeLookup lookup = loadEmployeeLookup();
+        records.removeIf(row -> !matchKeyword(
+                ExcelAvatarExportUtil.firstNonBlank(row.getManagerName(), resolveEmployee(row, lookup).getManagerName(), "-"),
+                managerName));
+        ExcelAvatarExportUtil.export(
+                response,
+                "薪资核算.xlsx",
+                "薪资核算",
+                Arrays.asList(
+                        ExcelAvatarExportUtil.text("月份", 12, SalaryRecord::getYearMonth),
+                        ExcelAvatarExportUtil.text("工号", 12, row -> ExcelAvatarExportUtil.firstNonBlank(row.getEmpNo(), resolveEmployee(row, lookup).getEmpNo(), "-")),
+                        ExcelAvatarExportUtil.text("姓名", 12, row -> resolveEmployeeName(row, lookup)),
+                        ExcelAvatarExportUtil.avatar("头像", 12, row -> resolveEmployee(row, lookup).getAvatar()),
+                        ExcelAvatarExportUtil.text("部门", 14, row -> ExcelAvatarExportUtil.firstNonBlank(row.getDeptName(), resolveEmployee(row, lookup).getDeptName(), "-")),
+                        ExcelAvatarExportUtil.text("银行卡号", 22, row -> ExcelAvatarExportUtil.firstNonBlank(row.getBankAccount(), resolveEmployee(row, lookup).getBankAccount(), "-")),
+                        ExcelAvatarExportUtil.text("基本工资", 14, row -> ExcelAvatarExportUtil.formatNumber(resolveDisplayBaseSalary(row, lookup))),
+                        ExcelAvatarExportUtil.text("加班工资", 14, row -> ExcelAvatarExportUtil.formatNumber(row.getOvertimePay())),
+                        ExcelAvatarExportUtil.text("绩效奖金", 14, row -> ExcelAvatarExportUtil.formatNumber(row.getPerfBonus())),
+                        ExcelAvatarExportUtil.text("津贴", 12, row -> ExcelAvatarExportUtil.formatNumber(row.getAllowance())),
+                        ExcelAvatarExportUtil.text("五险一金", 14, row -> formatNegativeNumber(row.getSocialSecurityEmp())),
+                        ExcelAvatarExportUtil.text("个税", 12, row -> formatNegativeNumber(row.getIncomeTax())),
+                        ExcelAvatarExportUtil.text("扣款金额", 14, row -> formatNegativeNumber(resolveDeductAmount(row))),
+                        ExcelAvatarExportUtil.text("实发工资", 14, row -> ExcelAvatarExportUtil.formatNumber(row.getNetSalary())),
+                        ExcelAvatarExportUtil.text("状态", 12, row -> salaryStatusText(row.getCalcStatus()))
+                ),
+                records
+        );
+    }
+
+    @ApiOperation("导出薪资发放 Excel")
+    @GetMapping("/payment-export")
+    public void exportPayment(HttpServletResponse response,
+                              @RequestParam(required = false) String yearMonth,
+                              @RequestParam(required = false) String empNo,
+                              @RequestParam(required = false) String realName,
+                              @RequestParam(required = false) Long deptId,
+                              @RequestParam(required = false) Integer payStatus,
+                              HttpServletRequest request) {
+        RoleScope scope = resolveRoleScope(request);
+        List<SalaryRecord> records = salaryService.page(
+                1, 50000, yearMonth, empNo, realName, deptId, payStatus,
+                scope.managerId, scope.excludeEmpNo, scope.excludeDraft).getRecords();
+        EmployeeLookup lookup = loadEmployeeLookup();
+        ExcelAvatarExportUtil.export(
+                response,
+                "薪资发放.xlsx",
+                "薪资发放",
+                Arrays.asList(
+                        ExcelAvatarExportUtil.text("月份", 12, SalaryRecord::getYearMonth),
+                        ExcelAvatarExportUtil.text("工号", 12, row -> ExcelAvatarExportUtil.firstNonBlank(row.getEmpNo(), resolveEmployee(row, lookup).getEmpNo(), "-")),
+                        ExcelAvatarExportUtil.text("姓名", 12, row -> resolveEmployeeName(row, lookup)),
+                        ExcelAvatarExportUtil.avatar("头像", 12, row -> resolveEmployee(row, lookup).getAvatar()),
+                        ExcelAvatarExportUtil.text("部门", 14, row -> ExcelAvatarExportUtil.firstNonBlank(row.getDeptName(), resolveEmployee(row, lookup).getDeptName(), "-")),
+                        ExcelAvatarExportUtil.text("基本工资", 14, row -> ExcelAvatarExportUtil.formatNumber(resolveDisplayBaseSalary(row, lookup))),
+                        ExcelAvatarExportUtil.text("加班工资", 14, row -> ExcelAvatarExportUtil.formatNumber(row.getOvertimePay())),
+                        ExcelAvatarExportUtil.text("绩效奖金", 14, row -> ExcelAvatarExportUtil.formatNumber(row.getPerfBonus())),
+                        ExcelAvatarExportUtil.text("津贴", 12, row -> ExcelAvatarExportUtil.formatNumber(row.getAllowance())),
+                        ExcelAvatarExportUtil.text("五险一金", 14, row -> formatNegativeNumber(row.getSocialSecurityEmp())),
+                        ExcelAvatarExportUtil.text("个税", 12, row -> formatNegativeNumber(row.getIncomeTax())),
+                        ExcelAvatarExportUtil.text("扣款金额", 14, row -> formatNegativeNumber(resolveDeductAmount(row))),
+                        ExcelAvatarExportUtil.text("实发工资", 14, row -> ExcelAvatarExportUtil.formatNumber(row.getNetSalary())),
+                        ExcelAvatarExportUtil.text("审核状态", 12, row -> paymentAuditText(row.getCalcStatus())),
+                        ExcelAvatarExportUtil.text("发放日期", 14, row -> ExcelAvatarExportUtil.formatDate(row.getPayDate())),
+                        ExcelAvatarExportUtil.text("是否支付", 12, row -> Integer.valueOf(4).equals(row.getCalcStatus()) ? "已支付" : "未支付"),
+                        ExcelAvatarExportUtil.text("发布状态", 12, row -> Integer.valueOf(1).equals(row.getSlipPublished()) ? "已发布" : "未发布"),
+                        ExcelAvatarExportUtil.text("发放文件", 18, row -> ExcelAvatarExportUtil.firstNonBlank(ExcelAvatarExportUtil.fileNameOf(row.getIssueFile()), "-"))
+                ),
+                records
+        );
+    }
+
     @ApiOperation("获取记录总数")
     @GetMapping("/stat/total")
     public Result<Long> count() {
@@ -89,20 +216,24 @@ public class SalaryController {
 
     @ApiOperation("获取月度总薪资走势（近12个月）")
     @GetMapping("/stat/trend")
-    public Result<java.util.List<java.util.Map<String, Object>>> getTrend(
+    public Result<List<Map<String, Object>>> getTrend(
             @RequestParam(required = false) String yearMonth) {
         return Result.success(salaryService.getMonthlyTrend(yearMonth));
     }
 
-    @ApiOperation("获取指定月份的薪资构成（雷达图/饼图用）")
+    @ApiOperation("获取指定月份的薪资结构")
     @GetMapping("/stat/structure")
-    public Result<java.util.Map<String, Object>> getStructure(@RequestParam String yearMonth) {
-        return Result.success(salaryService.getSalaryStructure(yearMonth));
+    public Result<Map<String, Object>> getStructure(@RequestParam String yearMonth,
+                                                    HttpServletRequest request) {
+        Integer role = getRole(request);
+        String managerNo = role == 2 ? getUsername(request) : null;
+        String excludeEmpNo = role == 2 ? getUsername(request) : null;
+        return Result.success(salaryService.getSalaryStructure(yearMonth, managerNo, excludeEmpNo));
     }
 
     @ApiOperation("获取各部门平均薪资对比")
     @GetMapping("/stat/dept-avg")
-    public Result<java.util.List<java.util.Map<String, Object>>> getDeptAvg(
+    public Result<List<Map<String, Object>>> getDeptAvg(
             @RequestParam(required = false) String yearMonth) {
         return Result.success(salaryService.getDeptAvgSalary(yearMonth));
     }
@@ -155,7 +286,7 @@ public class SalaryController {
         Integer role = getRole(request);
         if (role == 2) {
             Long managerId = getUserId(request);
-            java.util.List<Employee> team = employeeMapper.selectByManagerId(managerId);
+            List<Employee> team = employeeMapper.selectByManagerId(managerId);
             for (Employee emp : team) {
                 salaryService.calculateSalary(emp.getId(), yearMonth);
             }
@@ -227,7 +358,6 @@ public class SalaryController {
         return Result.successMsg("Batch salary slips published");
     }
 
-
     @ApiOperation("Manual update salary record (auto-recalculates gross and net pay)")
     @PutMapping("/manual-update")
     public Result<Void> manualUpdate(@RequestBody SalaryRecord record) {
@@ -265,6 +395,139 @@ public class SalaryController {
         }
     }
 
+    private RoleScope resolveRoleScope(HttpServletRequest request) {
+        Integer role = getRole(request);
+        Long managerId = role == 2 ? getUserId(request) : null;
+        String excludeEmpNo = role == 2 ? getUsername(request) : null;
+        Boolean excludeDraft = role == 1;
+        return new RoleScope(managerId, excludeEmpNo, excludeDraft);
+    }
+
+    private EmployeeLookup loadEmployeeLookup() {
+        Map<Long, Employee> employeeById = new HashMap<>();
+        Map<String, Employee> employeeByNo = new HashMap<>();
+        for (Employee employee : employeeMapper.selectList(new LambdaQueryWrapper<Employee>().eq(Employee::getStatus, 1))) {
+            employeeById.put(employee.getId(), employee);
+            employeeByNo.put(employee.getEmpNo(), employee);
+        }
+        return new EmployeeLookup(employeeById, employeeByNo);
+    }
+
+    private Employee resolveEmployee(SalaryRecord row, EmployeeLookup lookup) {
+        if (row.getEmpId() != null && lookup.employeeById.containsKey(row.getEmpId())) {
+            return lookup.employeeById.get(row.getEmpId());
+        }
+        if (StringUtils.hasText(row.getEmpNo()) && lookup.employeeByNo.containsKey(row.getEmpNo())) {
+            return lookup.employeeByNo.get(row.getEmpNo());
+        }
+        return new Employee();
+    }
+
+    private String resolveEmployeeName(SalaryRecord row, EmployeeLookup lookup) {
+        return ExcelAvatarExportUtil.firstNonBlank(row.getEmpName(), resolveEmployee(row, lookup).getRealName(), "-");
+    }
+
+    private BigDecimal resolveDisplayBaseSalary(SalaryRecord row, EmployeeLookup lookup) {
+        BigDecimal salary = row.getBaseSalary();
+        if (salary != null && salary.compareTo(BigDecimal.ZERO) > 0) {
+            return salary;
+        }
+        return firstNonNull(resolveEmployee(row, lookup).getBaseSalary(), BigDecimal.ZERO);
+    }
+
+    private BigDecimal resolveCalcBase(SalaryRecord row, EmployeeLookup lookup) {
+        BigDecimal baseSalary = resolveDisplayBaseSalary(row, lookup);
+        if (baseSalary.compareTo(BigDecimal.ZERO) > 0) {
+            return baseSalary;
+        }
+        BigDecimal socialSecurityEmp = firstNonNull(row.getSocialSecurityEmp(), BigDecimal.ZERO);
+        if (socialSecurityEmp.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+        return socialSecurityEmp.divide(new BigDecimal("0.223"), 2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal calcByRatio(BigDecimal base, String ratio) {
+        if (base == null) {
+            return BigDecimal.ZERO;
+        }
+        return base.multiply(new BigDecimal(ratio)).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal resolveDeductAmount(SalaryRecord row) {
+        if (row.getTotalDeduct() != null && row.getTotalDeduct().compareTo(BigDecimal.ZERO) > 0) {
+            return row.getTotalDeduct();
+        }
+        BigDecimal total = BigDecimal.ZERO;
+        if (row.getSocialSecurityEmp() != null) {
+            total = total.add(row.getSocialSecurityEmp());
+        }
+        if (row.getAttendDeduct() != null) {
+            total = total.add(row.getAttendDeduct());
+        }
+        if (row.getOtherDeduct() != null) {
+            total = total.add(row.getOtherDeduct());
+        }
+        if (row.getIncomeTax() != null) {
+            total = total.add(row.getIncomeTax());
+        }
+        return total;
+    }
+
+    private String formatNegativeNumber(BigDecimal value) {
+        BigDecimal amount = firstNonNull(value, BigDecimal.ZERO);
+        if (amount.compareTo(BigDecimal.ZERO) == 0) {
+            return "0";
+        }
+        if (amount.compareTo(BigDecimal.ZERO) > 0) {
+            return "-" + ExcelAvatarExportUtil.formatNumber(amount);
+        }
+        return ExcelAvatarExportUtil.formatNumber(amount);
+    }
+
+    private String salaryStatusText(Integer status) {
+        if (status == null) {
+            return "-";
+        }
+        if (status == 1) {
+            return "草稿";
+        }
+        if (status == 2) {
+            return "待审核";
+        }
+        if (status == 3) {
+            return "已审核";
+        }
+        if (status == 4) {
+            return "已发放";
+        }
+        return "未知";
+    }
+
+    private String paymentAuditText(Integer status) {
+        if (status == null) {
+            return "-";
+        }
+        return status >= 3 ? "已审核" : "待审核";
+    }
+
+    private boolean matchKeyword(String source, String keyword) {
+        return !StringUtils.hasText(keyword) || (source != null && source.contains(keyword));
+    }
+
+    @SafeVarargs
+    private final <T> T firstNonNull(T... values) {
+        if (values == null) {
+            return null;
+        }
+        for (T value : values) {
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
+    }
+
     private Long getUserId(HttpServletRequest req) {
         Claims c = jwtUtil.parseToken(jwtUtil.extractToken(req.getHeader("Authorization")));
         return Long.valueOf(c.get("userId").toString());
@@ -278,5 +541,27 @@ public class SalaryController {
     private String getUsername(HttpServletRequest req) {
         Claims c = jwtUtil.parseToken(jwtUtil.extractToken(req.getHeader("Authorization")));
         return String.valueOf(c.get("username"));
+    }
+
+    private static final class RoleScope {
+        private final Long managerId;
+        private final String excludeEmpNo;
+        private final Boolean excludeDraft;
+
+        private RoleScope(Long managerId, String excludeEmpNo, Boolean excludeDraft) {
+            this.managerId = managerId;
+            this.excludeEmpNo = excludeEmpNo;
+            this.excludeDraft = excludeDraft;
+        }
+    }
+
+    private static final class EmployeeLookup {
+        private final Map<Long, Employee> employeeById;
+        private final Map<String, Employee> employeeByNo;
+
+        private EmployeeLookup(Map<Long, Employee> employeeById, Map<String, Employee> employeeByNo) {
+            this.employeeById = employeeById;
+            this.employeeByNo = employeeByNo;
+        }
     }
 }

@@ -7,7 +7,9 @@ import com.salary.entity.Performance;
 import com.salary.mapper.EmployeeMapper;
 import com.salary.service.PerformanceService;
 import com.salary.service.SysLogService;
+import com.salary.util.ExcelAvatarExportUtil;
 import com.salary.util.JwtUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import io.jsonwebtoken.Claims;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -23,6 +25,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
 /**
@@ -61,6 +67,49 @@ public class PerformanceController {
         Integer role = Integer.valueOf(c.get("role").toString());
         Long managerId = role == 2 ? Long.valueOf(c.get("userId").toString()) : null;
         return Result.success(performanceService.page(current, size, yearMonth, empNo, deptId, managerId));
+    }
+
+    @ApiOperation("导出绩效 Excel")
+    @GetMapping("/export")
+    public void export(HttpServletResponse response,
+                       @RequestParam(required = false) String yearMonth,
+                       @RequestParam(required = false) String empName,
+                       @RequestParam(required = false) Long deptId,
+                       @RequestParam(required = false) String managerName,
+                       HttpServletRequest request) {
+        Claims c = claims(request);
+        Integer role = Integer.valueOf(c.get("role").toString());
+        Long managerId = role == 2 ? Long.valueOf(c.get("userId").toString()) : null;
+        java.util.List<Performance> records = performanceService.page(1, 50000, yearMonth, null, deptId, managerId).getRecords();
+        Map<Long, Employee> employeeById = new HashMap<>();
+        Map<String, Employee> employeeByNo = new HashMap<>();
+        for (Employee employee : employeeMapper.selectList(new LambdaQueryWrapper<Employee>().eq(Employee::getStatus, 1))) {
+            employeeById.put(employee.getId(), employee);
+            employeeByNo.put(employee.getEmpNo(), employee);
+        }
+        records.removeIf(row -> !matchKeyword(ExcelAvatarExportUtil.firstNonBlank(row.getEmpName(), resolveEmployee(row, employeeById, employeeByNo).getRealName(), "-"), empName)
+                || !matchKeyword(ExcelAvatarExportUtil.firstNonBlank(row.getManagerName(), "-"), managerName));
+        ExcelAvatarExportUtil.export(
+                response,
+                "绩效评分.xlsx",
+                "绩效评分",
+                Arrays.asList(
+                        ExcelAvatarExportUtil.text("姓名", 12, row -> ExcelAvatarExportUtil.firstNonBlank(row.getEmpName(), resolveEmployee(row, employeeById, employeeByNo).getRealName(), "-")),
+                        ExcelAvatarExportUtil.avatar("头像", 12, row -> resolveEmployee(row, employeeById, employeeByNo).getAvatar()),
+                        ExcelAvatarExportUtil.text("部门", 14, row -> ExcelAvatarExportUtil.firstNonBlank(resolveEmployee(row, employeeById, employeeByNo).getDeptName(), "-")),
+                        ExcelAvatarExportUtil.text("绩效月份", 12, Performance::getYearMonth),
+                        ExcelAvatarExportUtil.text("工作态度", 12, row -> ExcelAvatarExportUtil.formatNumber(row.getWorkAttitude())),
+                        ExcelAvatarExportUtil.text("业务技能", 12, row -> ExcelAvatarExportUtil.formatNumber(row.getBusinessSkill())),
+                        ExcelAvatarExportUtil.text("工作绩效", 12, row -> ExcelAvatarExportUtil.formatNumber(row.getWorkPerformance())),
+                        ExcelAvatarExportUtil.text("奖惩加减分", 14, row -> ExcelAvatarExportUtil.formatNumber(row.getBonusDeduct())),
+                        ExcelAvatarExportUtil.text("总得分", 12, row -> ExcelAvatarExportUtil.formatNumber(row.getScore())),
+                        ExcelAvatarExportUtil.text("评价等级", 12, Performance::getGrade),
+                        ExcelAvatarExportUtil.text("添加时间", 14, row -> ExcelAvatarExportUtil.formatDate(row.getCreateTime())),
+                        ExcelAvatarExportUtil.text("部门经理", 14, row -> ExcelAvatarExportUtil.firstNonBlank(row.getManagerName(), "-")),
+                        ExcelAvatarExportUtil.text("评审评语", 24, row -> ExcelAvatarExportUtil.firstNonBlank(row.getEvalComment(), "-"))
+                ),
+                records
+        );
     }
 
     @ApiOperation("Get performance detail by id")
@@ -141,5 +190,22 @@ public class PerformanceController {
 
     private Claims claims(HttpServletRequest req) {
         return jwtUtil.parseToken(jwtUtil.extractToken(req.getHeader("Authorization")));
+    }
+
+    private Employee resolveEmployee(Performance row,
+                                     Map<Long, Employee> employeeById,
+                                     Map<String, Employee> employeeByNo) {
+        if (row.getEmpId() != null && employeeById.containsKey(row.getEmpId())) {
+            return employeeById.get(row.getEmpId());
+        }
+        if (row.getEmpNo() != null && employeeByNo.containsKey(row.getEmpNo())) {
+            return employeeByNo.get(row.getEmpNo());
+        }
+        return new Employee();
+    }
+
+    private boolean matchKeyword(String source, String keyword) {
+        return !org.springframework.util.StringUtils.hasText(keyword)
+                || (source != null && source.contains(keyword));
     }
 }

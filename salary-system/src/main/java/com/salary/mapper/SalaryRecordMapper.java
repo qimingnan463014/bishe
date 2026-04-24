@@ -56,7 +56,9 @@ public interface SalaryRecordMapper extends BaseMapper<SalaryRecord> {
     /**
      * 统计当月薪资构成（基本、加班、绩效、补助、扣除）
      */
-    java.util.Map<String, Object> sumCurrentMonthStructure(@Param("yearMonth") String yearMonth);
+    java.util.Map<String, Object> sumCurrentMonthStructure(@Param("yearMonth") String yearMonth,
+                                                           @Param("managerNo") String managerNo,
+                                                           @Param("excludeEmpNo") String excludeEmpNo);
 
     /**
      * 各部门人均薪资对比

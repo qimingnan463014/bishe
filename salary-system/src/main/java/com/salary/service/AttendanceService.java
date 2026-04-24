@@ -52,9 +52,17 @@ public interface AttendanceService extends IService<AttendanceRecord> {
             Long managerId);
 
     /**
+     * Import monthly attendance summary Excel and upsert attendance records directly.
+     */
+    void importSummaryExcel(
+            org.springframework.web.multipart.MultipartFile file,
+            String yearMonth,
+            Long managerId);
+
+    /**
      * 获取指定月份的考勤状态分布统计
      */
-    java.util.Map<String, Object> getAttendanceStatus(String yearMonth);
+    java.util.Map<String, Object> getAttendanceStatus(String yearMonth, String managerNo, String excludeEmpNo);
 
     /**
      * 将审批通过的请假申请同步到当月考勤记录。

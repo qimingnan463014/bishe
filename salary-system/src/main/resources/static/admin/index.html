@@ -1771,7 +1771,7 @@
                             <div>
                                 <div style="font-size:32px; font-weight:bold; color:#303133;">{{ stats.employeeCount }}
                                 </div>
-                                <div style="font-size:14px; color:#909399; margin-top:5px;">员工总数</div>
+                                <div style="font-size:14px; color:#909399; margin-top:5px;">{{ isManagerDashboard ? '本部门员工数' : '员工总数' }}</div>
                             </div>
                         </el-card>
                     </el-col>
@@ -1783,7 +1783,7 @@
                             <div>
                                 <div style="font-size:32px; font-weight:bold; color:#303133;">{{ stats.salaryCount }}
                                 </div>
-                                <div style="font-size:14px; color:#909399; margin-top:5px;">薪资核算总数</div>
+                                <div style="font-size:14px; color:#909399; margin-top:5px;">{{ isManagerDashboard ? '本部门薪资核算数' : '薪资核算总数' }}</div>
                             </div>
                         </el-card>
                     </el-col>
@@ -1795,7 +1795,7 @@
                             <div>
                                 <div style="font-size:32px; font-weight:bold; color:#303133;">{{ stats.paymentCount }}
                                 </div>
-                                <div style="font-size:14px; color:#909399; margin-top:5px;">薪资发放总数</div>
+                                <div style="font-size:14px; color:#909399; margin-top:5px;">{{ isManagerDashboard ? '本部门薪资发放数' : '薪资发放总数' }}</div>
                             </div>
                         </el-card>
                     </el-col>
@@ -1827,7 +1827,7 @@
 
                 <!-- 绗笁鎺掞細鍙屽浘琛?-->
                 <el-row :gutter="20" style="margin-bottom: 20px;">
-                    <el-col :span="12">
+                    <el-col v-if="!isManagerDashboard" :span="12">
                         <el-card shadow="hover">
                             <template #header>
                                 <div class="dashboard-card-header">
@@ -1837,11 +1837,11 @@
                             <div id="echart-top1" class="dashboard-chart"></div>
                         </el-card>
                     </el-col>
-                    <el-col :span="12">
+                    <el-col :span="isManagerDashboard ? 24 : 12">
                         <el-card shadow="hover">
                             <template #header>
                                 <div class="dashboard-card-header">
-                                    <span class="dashboard-card-title">当月薪资结构占比</span>
+                                    <span class="dashboard-card-title">{{ isManagerDashboard ? '本部门当月薪资结构占比' : '当月薪资结构占比' }}</span>
                                     <el-date-picker v-model="salaryStructureMonth" type="month" size="small"
                                         format="YYYY-MM" value-format="YYYY-MM" placeholder="选择月份"
                                         class="dashboard-card-picker" />
@@ -1853,7 +1853,7 @@
                 </el-row>
 
                 <!-- 第四排：横跨全图 -->
-                <el-row :gutter="20" style="margin-bottom: 20px;">
+                <el-row v-if="!isManagerDashboard" :gutter="20" style="margin-bottom: 20px;">
                     <el-col :span="24">
                         <el-card shadow="hover">
                             <template #header>
@@ -1871,11 +1871,11 @@
 
                 <!-- 第五排：最后两张图表 -->
                 <el-row :gutter="20" style="margin-bottom: 20px;">
-                    <el-col :span="10">
+                    <el-col :span="isManagerDashboard ? 24 : 10">
                         <el-card shadow="hover">
                             <template #header>
                                 <div class="dashboard-card-header">
-                                    <span class="dashboard-card-title">当月整体考勤状态</span>
+                                    <span class="dashboard-card-title">{{ isManagerDashboard ? '本部门当月考勤状态' : '当月整体考勤状态' }}</span>
                                     <el-date-picker v-model="attendanceStatusMonth" type="month" size="small"
                                         format="YYYY-MM" value-format="YYYY-MM" placeholder="选择月份"
                                         @change="loadAttendanceStatusChart" class="dashboard-card-picker" />
@@ -1884,7 +1884,7 @@
                             <div id="echart-bot1" class="dashboard-chart"></div>
                         </el-card>
                     </el-col>
-                    <el-col :span="14">
+                    <el-col v-if="!isManagerDashboard" :span="14">
                         <el-card shadow="hover">
                             <template #header>
                                 <div class="dashboard-card-header">
@@ -2178,7 +2178,7 @@
                         <el-pagination v-model:current-page="empCurrent" v-model:page-size="empSize"
                             :page-sizes="[10, 20, 50, 100]" :total="empTotal"
                             layout="total, sizes, prev, pager, next, jumper" @current-change="loadEmployees"
-                            @size-change="() => loadEmployees(1)">
+                            @size-change="(size) => loadEmployees(1, size)">
                         </el-pagination>
                     </div>
                 </div>
@@ -2438,7 +2438,7 @@
                             v-model:current-page="p.systemLogs.current" v-model:page-size="p.systemLogs.size"
                             :total="systemLogTotal" layout="total, sizes, prev, pager, next, jumper"
                             :page-sizes="[10, 20, 50, 100]" @current-change="loadSystemLogs"
-                            @size-change="() => loadSystemLogs(1)"></el-pagination></div>
+                            @size-change="(size) => loadSystemLogs(1, size)"></el-pagination></div>
                 </div>
             </div>
 
@@ -2620,7 +2620,7 @@
                     <el-date-picker v-model="attendImportMonth" type="month" format="YYYY-MM" value-format="YYYY-MM"
                         placeholder="导入月份" style="width:150px;" clearable teleported
                         popper-class="numeric-month-popper"></el-date-picker>
-                    <el-button type="success" size="small" @click="triggerAttendImport">导入打卡机数据（Excel）</el-button>
+                    <el-button type="success" size="small" @click="triggerAttendImport">导入考勤汇总（Excel）</el-button>
                     <el-button type="primary" size="small" @click="openAttendForm()">添加</el-button>
                     <el-button type="danger" size="small" @click="batchDeleteAttendances">删除</el-button>
                     <el-button type="warning" size="small" @click="exportAttendanceCsv">导出</el-button>
@@ -2675,7 +2675,7 @@
                     <div style="margin-top:20px;display:flex;justify-content:flex-end;">
                         <el-pagination v-model:current-page="attendCurrent" v-model:page-size="attendSize"
                             :total="attendTotal" layout="total, sizes, prev, pager, next, jumper"
-                            @current-change="loadAttendances" @size-change="() => loadAttendances(1)"
+                            @current-change="loadAttendances" @size-change="(size) => loadAttendances(1, size)"
                             :page-sizes="[10, 20, 50, 100]"></el-pagination>
                     </div>
                 </div>
@@ -2761,7 +2761,7 @@
                     <div style="margin-top:20px;display:flex;justify-content:flex-end;">
                         <el-pagination v-model:current-page="applyCurrent" v-model:page-size="applySize"
                             :total="applyTotal" layout="total, sizes, prev, pager, next, jumper"
-                            @current-change="loadApplies" @size-change="() => loadApplies(1)"
+                            @current-change="loadApplies" @size-change="(size) => loadApplies(1, size)"
                             :page-sizes="[10, 20, 50, 100]"></el-pagination>
                     </div>
                 </div>
@@ -2817,7 +2817,7 @@
                     <div style="margin-top:20px;display:flex;justify-content:flex-end;">
                         <el-pagination v-model:current-page="anomalyCurrent" v-model:page-size="anomalySize"
                             :total="anomalyTotal" layout="total, sizes, prev, pager, next, jumper"
-                            @current-change="loadAnomalies" @size-change="() => loadAnomalies(1)"
+                            @current-change="loadAnomalies" @size-change="(size) => loadAnomalies(1, size)"
                             :page-sizes="[10, 20, 50, 100]"></el-pagination>
                     </div>
                 </div>
@@ -2895,7 +2895,7 @@
                     <div style="margin-top:20px;display:flex;justify-content:flex-end;">
                         <el-pagination v-model:current-page="complaintCurrent" v-model:page-size="complaintSize"
                             :total="complaintTotal" layout="total, sizes, prev, pager, next, jumper"
-                            @current-change="loadComplaintRecords" @size-change="() => loadComplaintRecords(1)"
+                            @current-change="loadComplaintRecords" @size-change="(size) => loadComplaintRecords(1, size)"
                             :page-sizes="[10, 20, 50, 100]"></el-pagination>
                     </div>
                 </div>
@@ -2967,7 +2967,7 @@
                     <div style="margin-top:20px;display:flex;justify-content:flex-end;">
                         <el-pagination v-model:current-page="feedbackCurrent" v-model:page-size="feedbackSize"
                             :total="feedbackTotal" layout="total, sizes, prev, pager, next, jumper"
-                            @current-change="loadFeedbacks" @size-change="() => loadFeedbacks(1)"
+                            @current-change="loadFeedbacks" @size-change="(size) => loadFeedbacks(1, size)"
                             :page-sizes="[10, 20, 50, 100]"></el-pagination>
                     </div>
                 </div>
@@ -3025,7 +3025,7 @@
                     <div style="margin-top:20px;display:flex;justify-content:flex-end;">
                         <el-pagination v-model:current-page="taxCurrent" v-model:page-size="taxSize" :total="taxTotal"
                             layout="total, sizes, prev, pager, next, jumper" @current-change="loadTaxRecords"
-                            @size-change="() => loadTaxRecords(1)" :page-sizes="[10, 20, 50, 100]"></el-pagination>
+                            @size-change="(size) => loadTaxRecords(1, size)" :page-sizes="[10, 20, 50, 100]"></el-pagination>
                     </div>
                 </div>
             </div>
@@ -3094,7 +3094,7 @@
                     <div style="margin-top:20px;display:flex;justify-content:flex-end;">
                         <el-pagination v-model:current-page="perfCurrent" v-model:page-size="perfSize"
                             :total="perfTotal" layout="total, sizes, prev, pager, next, jumper"
-                            @current-change="loadPerformances" @size-change="() => loadPerformances(1)"
+                            @current-change="loadPerformances" @size-change="(size) => loadPerformances(1, size)"
                             :page-sizes="[10, 20, 50, 100]"></el-pagination>
                     </div>
                 </div>
@@ -3208,7 +3208,7 @@
                     <div style="margin-top:20px;display:flex;justify-content:flex-end;">
                         <el-pagination v-model:current-page="salaryCurrent" v-model:page-size="salarySize"
                             :total="salaryTotal" layout="total, sizes, prev, pager, next, jumper"
-                            @current-change="loadSalaries" @size-change="() => loadSalaries(1)"
+                            @current-change="loadSalaries" @size-change="(size) => loadSalaries(1, size)"
                             :page-sizes="[10, 20, 50, 100]"></el-pagination>
                     </div>
                 </div>
@@ -3329,7 +3329,7 @@
                     <div style="margin-top:20px;display:flex;justify-content:flex-end;">
                         <el-pagination v-model:current-page="paymentCurrent" v-model:page-size="paymentSize"
                             :total="paymentTotal" layout="total, sizes, prev, pager, next, jumper"
-                            @current-change="loadPayments" @size-change="() => loadPayments(1)"
+                            @current-change="loadPayments" @size-change="(size) => loadPayments(1, size)"
                             :page-sizes="[10, 20, 50, 100]"></el-pagination>
                     </div>
                 </div>
@@ -3784,6 +3784,79 @@
         <input type="file" ref="paymentIssueFileInput" style="display:none;"
             accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.zip"
             @change="handlePaymentIssueFileChange">
+
+        <el-dialog v-model="importPreviewVisible" width="1120px" top="5vh" class="modern-dialog">
+            <div class="dialog-header-gradient">
+                <div class="dialog-title-icon"><el-icon><UploadFilled /></el-icon></div>
+                <div>
+                    <div class="dialog-title-text">员工导入预览</div>
+                    <div class="dialog-title-subtext">系统已按工号完成预检，重复工号可勾选更新，未勾选的重复记录将跳过</div>
+                </div>
+            </div>
+            <div class="detail-section">
+                <div class="score-metrics-grid" style="grid-template-columns: repeat(5, minmax(0, 1fr));">
+                    <div class="score-metric-card">
+                        <span class="score-metric-card__label">总行数</span>
+                        <span class="score-metric-card__value">{{ importPreviewSummary.totalRows }}</span>
+                    </div>
+                    <div class="score-metric-card">
+                        <span class="score-metric-card__label">新增</span>
+                        <span class="score-metric-card__value">{{ importPreviewSummary.newRows }}</span>
+                    </div>
+                    <div class="score-metric-card">
+                        <span class="score-metric-card__label">已存在</span>
+                        <span class="score-metric-card__value">{{ importPreviewSummary.existingRows }}</span>
+                    </div>
+                    <div class="score-metric-card">
+                        <span class="score-metric-card__label">可导入</span>
+                        <span class="score-metric-card__value">{{ importPreviewSummary.importableRows }}</span>
+                    </div>
+                    <div class="score-metric-card">
+                        <span class="score-metric-card__label">无效</span>
+                        <span class="score-metric-card__value">{{ importPreviewSummary.invalidRows }}</span>
+                    </div>
+                </div>
+                <el-alert
+                    type="info"
+                    :closable="false"
+                    show-icon
+                    title="说明：新增员工会直接导入；已存在员工默认跳过，勾选“更新”后才会覆盖当前档案；无效行不会导入。"
+                    style="margin:16px 0 18px;"
+                />
+                <div class="table-card compact-table-card">
+                    <el-table :data="importPreviewRows" stripe border size="small" style="width:100%;min-width:100%;">
+                        <el-table-column prop="rowNo" label="Excel行号" width="88" align="center"></el-table-column>
+                        <el-table-column prop="empNo" label="工号" width="92" align="center"></el-table-column>
+                        <el-table-column prop="realName" label="姓名" width="108" align="center"></el-table-column>
+                        <el-table-column prop="deptName" label="部门" min-width="120" align="center"></el-table-column>
+                        <el-table-column prop="positionName" label="岗位" min-width="120" align="center"></el-table-column>
+                        <el-table-column prop="roleStr" label="角色" width="88" align="center"></el-table-column>
+                        <el-table-column prop="currentSummary" label="当前系统数据" min-width="300" show-overflow-tooltip></el-table-column>
+                        <el-table-column label="状态" width="98" align="center">
+                            <template #default="{ row }">
+                                <el-tag v-if="!row.importable" type="danger" effect="light">无效</el-tag>
+                                <el-tag v-else-if="row.existing" type="warning" effect="light">已存在</el-tag>
+                                <el-tag v-else type="success" effect="light">新增</el-tag>
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="更新" width="96" align="center">
+                            <template #default="{ row }">
+                                <el-checkbox v-if="row.importable && row.existing" v-model="row.updateExisting">更新</el-checkbox>
+                                <span v-else-if="row.importable">新增</span>
+                                <span v-else>-</span>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="message" label="备注" min-width="200" show-overflow-tooltip></el-table-column>
+                    </el-table>
+                </div>
+            </div>
+            <div class="dialog-footer-bar">
+                <div class="payment-dialog-actions">
+                    <el-button @click="closeImportPreview">取消</el-button>
+                    <el-button type="primary" :loading="importPreviewSubmitting" @click="confirmImportPreview">确认导入</el-button>
+                </div>
+            </div>
+        </el-dialog>
 
         <!-- 弹窗：关于我们 -->
         <el-dialog v-model="aboutDialogVisible" width="1080px" top="5vh" class="modern-dialog">
@@ -4675,8 +4748,8 @@
                             <el-row :gutter="20">
                                 <el-col :span="24"><el-form-item label="员工姓名"><el-select v-model="perfForm.empId"
                                             filterable placeholder="请择员工" style="width:100%;"
-                                            @click="loadAllEmployeesForSelect"><el-option v-for="e in allEmployees"
-                                                :key="e.id" :label="e.realName + ' (' + e.empNo + ')'"
+                                            @click="loadAllEmployeesForSelect"><el-option v-for="e in performanceSelectablePeople"
+                                                :key="e.id" :label="e.realName + ' (' + e.empNo + ')' + (e.isManager ? ' [经理]' : '')"
                                                 :value="e.id"></el-option></el-select></el-form-item></el-col>
                                 <el-col :span="24"><el-form-item label="绩效月份"><el-date-picker
                                             v-model="perfForm.yearMonth" type="month" format="YYYY-MM"
@@ -4848,6 +4921,7 @@
                     saveAdminAuth(getAdminToken(), userInfo.value);
                     return normalizedRole;
                 };
+                const isManagerDashboard = computed(() => Number(userInfo.value.role || 0) === 2);
                 const syncAdminUserInfo = (payload = {}) => {
                     userInfo.value = { ...userInfo.value, ...payload };
                     saveAdminAuth(getAdminToken(), userInfo.value);
@@ -5096,6 +5170,12 @@
                 const renderSalaryStructureChart = (structure = {}) => {
                     const inst = ensureChartInstance('top2', 'echart-top2');
                     if (!inst) return;
+                    const pieData = [
+                        { value: Number(structure.baseSalary || 0), name: '基本工资' },
+                        { value: Number(structure.perfBonus || 0), name: '绩效奖金' },
+                        { value: Number(structure.overtimePay || 0), name: '加班补贴' },
+                        { value: Number(structure.allowance || 0), name: '津贴' }
+                    ];
                     inst.setOption({
                         tooltip: {
                             trigger: 'item',
@@ -5133,6 +5213,46 @@
                             }
                         }],
                         grid: { left: 60, right: 40, top: 24, bottom: 30 }
+                    }, true);
+                };
+                const renderSalaryStructureChartFixed = (structure = {}) => {
+                    const inst = ensureChartInstance('top2', 'echart-top2');
+                    if (!inst) return;
+                    const pieData = [
+                        { value: Number(structure.baseSalary || 0), name: '基本工资' },
+                        { value: Number(structure.perfBonus || 0), name: '绩效奖金' },
+                        { value: Number(structure.overtimePay || 0), name: '加班补贴' },
+                        { value: Number(structure.allowance || 0), name: '津贴' }
+                    ];
+                    const total = pieData.reduce((sum, item) => sum + (Number(item.value) || 0), 0);
+                    inst.clear();
+                    inst.setOption({
+                        tooltip: {
+                            trigger: 'item',
+                            formatter: ({ name, value, percent }) =>
+                                `${name}<br/>金额：${Number(value || 0).toFixed(2)}<br/>占比：${Number(percent || 0).toFixed(2)}%`
+                        },
+                        legend: { bottom: 10, left: 'center' },
+                        series: [{
+                            name: '薪资类型',
+                            type: 'pie',
+                            radius: ['40%', '70%'],
+                            center: ['50%', '46%'],
+                            data: pieData,
+                            stillShowZeroSum: false,
+                            label: { formatter: '{b}\n{d}%' },
+                            itemStyle: { borderRadius: 10, borderColor: '#fff', borderWidth: 2 }
+                        }],
+                        graphic: total > 0 ? [] : [{
+                            type: 'text',
+                            left: 'center',
+                            top: 'middle',
+                            style: {
+                                text: '暂无薪资数据',
+                                fill: '#909399',
+                                font: '14px Microsoft YaHei'
+                            }
+                        }]
                     }, true);
                 };
                 const renderAttendanceStatusChart = (attendStatus = {}) => {
@@ -5207,8 +5327,24 @@
                     }, true);
                 };
                 const loadDashboardStats = () => {
-                    axios.get('/api/employee/stat/total').then(r => { if (r.data?.code === 200) stats.employeeCount = r.data.data; });
-                    axios.get('/api/salary/stat/total').then(r => { if (r.data?.code === 200) stats.salaryCount = r.data.data; });
+                    const employeeCountRequest = isManagerDashboard.value
+                        ? axios.get('/api/employee/page', { params: { current: 1, size: 1 } })
+                        : axios.get('/api/employee/stat/total');
+                    employeeCountRequest.then(r => {
+                        if (r.data?.code === 200) {
+                            stats.employeeCount = isManagerDashboard.value ? (r.data?.data?.total || 0) : (r.data?.data || 0);
+                        }
+                    }).catch(() => { stats.employeeCount = 0; });
+
+                    const salaryCountRequest = isManagerDashboard.value
+                        ? axios.get('/api/salary/page', { params: { current: 1, size: 1 } })
+                        : axios.get('/api/salary/stat/total');
+                    salaryCountRequest.then(r => {
+                        if (r.data?.code === 200) {
+                            stats.salaryCount = isManagerDashboard.value ? (r.data?.data?.total || 0) : (r.data?.data || 0);
+                        }
+                    }).catch(() => { stats.salaryCount = 0; });
+
                     axios.get('/api/salary/page', { params: { current: 1, size: 1, calcStatus: 4 } }).then(r => {
                         if (r.data?.code === 200) stats.paymentCount = r.data?.data?.total || 0;
                     }).catch(() => { stats.paymentCount = 0; });
@@ -5231,8 +5367,8 @@
                 };
                 const loadSalaryStructureChart = () => {
                     return axios.get('/api/salary/stat/structure', { params: { yearMonth: salaryStructureMonth.value } })
-                        .then(r => renderSalaryStructureChart(r.data?.data || {}))
-                        .catch(() => renderSalaryStructureChart({}));
+                        .then(r => renderSalaryStructureChartFixed(r.data?.data || {}))
+                        .catch(() => renderSalaryStructureChartFixed({}));
                 };
                 const loadMonthlyTrendChart = () => {
                     return axios.get('/api/salary/stat/trend', { params: { yearMonth: monthlyTrendMonth.value } })
@@ -5251,14 +5387,11 @@
                 };
                 const loadDashboard = () => {
                     loadDashboardStats();
-                    return Promise.all([
-                        loadHomeNotices(),
-                        loadDeptDistChart(),
-                        loadSalaryStructureChart(),
-                        loadMonthlyTrendChart(),
-                        loadAttendanceStatusChart(),
-                        loadDeptAvgSalaryChart()
-                    ]).catch(err => {
+                    const tasks = [loadHomeNotices(), loadSalaryStructureChart(), loadAttendanceStatusChart()];
+                    if (!isManagerDashboard.value) {
+                        tasks.push(loadDeptDistChart(), loadMonthlyTrendChart(), loadDeptAvgSalaryChart());
+                    }
+                    return Promise.all(tasks).catch(err => {
                         console.error('Dashboard load failed:', err);
                     });
                 };
@@ -5854,8 +5987,9 @@
                     if (!action) return Promise.resolve();
                     return axios.post('/api/sys-log/manual', { module, action }).catch(() => null);
                 };
-                const loadSystemLogs = (page = p.systemLogs.current) => {
+                const loadSystemLogs = (page = p.systemLogs.current, size = p.systemLogs.size) => {
                     p.systemLogs.current = page || 1;
+                    if (size) p.systemLogs.size = size;
                     systemLogLoading.value = true;
                     return axios.get('/api/sys-log/page', {
                         params: {
@@ -6298,6 +6432,33 @@
                             isManager: isManagerRecord(item)
                         }));
                 });
+                const performanceSelectablePeople = computed(() => {
+                    const seen = new Set();
+                    const role = Number(userInfo.value.role || 0);
+                    const selfEmpIdKey = normalizeLookupKey(selfInfo.empId || selfInfo.id);
+                    const selfUserIdKey = normalizeLookupKey(userInfo.value.userId || userInfo.value.id);
+                    return [...(deptManagers.value || []), ...(allEmployees.value || [])]
+                        .filter(item => item && item.id)
+                        .filter(item => {
+                            const key = String(item.id);
+                            if (seen.has(key)) return false;
+                            seen.add(key);
+                            return true;
+                        })
+                        .filter(item => {
+                            if (role !== 2) return true;
+                            if (!isManagerRecord(item)) return true;
+                            const rowIdKey = normalizeLookupKey(item.id);
+                            const rowUserIdKey = normalizeLookupKey(item.userId || item.user_id);
+                            return rowIdKey === selfEmpIdKey || rowUserIdKey === selfUserIdKey;
+                        })
+                        .map(item => ({
+                            id: item.id,
+                            empNo: item.empNo || '-',
+                            realName: item.realName || item.empName || '-',
+                            isManager: isManagerRecord(item)
+                        }));
+                });
                 const formatDayValue = (value) => {
                     const amount = Number(value || 0);
                     if (!Number.isFinite(amount)) return value || '0';
@@ -6370,8 +6531,9 @@
                         }).catch(() => resolve());
                     });
                 };
-                const loadAttendances = (page = attendCurrent.value) => {
+                const loadAttendances = (page = attendCurrent.value, size = attendSize.value) => {
                     attendCurrent.value = page;
+                    if (size) attendSize.value = size;
                     attendLoading.value = true;
                     axios.get('/api/attendance/page', { params: { current: page, size: attendSize.value, yearMonth: attendSearch.yearMonth, empNo: attendSearch.empNo, deptId: attendSearch.deptId } }).then(r => {
                         if (r.data.code === 200) {
@@ -6442,8 +6604,8 @@
                     const fd = new FormData();
                     fd.append('file', file);
                     fd.append('yearMonth', attendImportMonth.value);
-                    axios.post('/api/attendance/import/clock', fd, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => {
-                        if (r.data.code === 200) { ElementPlus.ElMessage.success('导入结算完成'); loadAttendances(1); }
+                    axios.post('/api/attendance/import/summary', fd, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => {
+                        if (r.data.code === 200) { ElementPlus.ElMessage.success('考勤汇总导入完成'); loadAttendances(1); }
                         else ElementPlus.ElMessage.error(r.data.message || '导入失败');
                     }).catch(err => ElementPlus.ElMessage.error(err.response?.data?.message || '网络错误'))
                         .finally(() => { loadInstance.close(); e.target.value = ''; });
@@ -6516,8 +6678,9 @@
                     const matchStatus = applySearch.status === '' || String(row.status) === String(applySearch.status);
                     return matchMonth && matchName && matchDept && matchType && matchStatus;
                 }));
-                const loadApplies = (page = applyCurrent.value) => {
+                const loadApplies = (page = applyCurrent.value, size = applySize.value) => {
                     applyCurrent.value = page;
+                    if (size) applySize.value = size;
                     applyLoading.value = true;
                     axios.get('/api/attendance-apply/page', { params: { current: page, size: applySize.value, status: applySearch.status, applyType: applySearch.applyType, empName: applySearch.empName, realName: applySearch.empName, deptId: applySearch.deptId } }).then(r => {
                         if (r.data.code === 200) { applies.value = r.data.data?.records || []; applyTotal.value = r.data.data?.total || 0; }
@@ -6614,8 +6777,9 @@
                 const anomalyForm = reactive({ id: '', status: 1, processResult: '' });
                 const anomalyContext = reactive({ yearMonth: '', typeText: '', title: '', description: '', statusText: '', remark: '' });
 
-                const loadAnomalies = (page = anomalyCurrent.value) => {
+                const loadAnomalies = (page = anomalyCurrent.value, size = anomalySize.value) => {
                     anomalyCurrent.value = page;
+                    if (size) anomalySize.value = size;
                     anomalyLoading.value = true;
                     axios.get('/api/anomaly/page', { params: { current: page, size: anomalySize.value, status: anomalySearch.status } }).then(r => {
                         if (r.data.code === 200) { anomalies.value = r.data.data?.records || []; anomalyTotal.value = r.data.data?.total || 0; }
@@ -6747,8 +6911,9 @@
                     (complaintCurrent.value - 1) * complaintSize.value,
                     complaintCurrent.value * complaintSize.value
                 ));
-                const loadFeedbacks = (page = feedbackCurrent.value) => {
+                const loadFeedbacks = (page = feedbackCurrent.value, size = feedbackSize.value) => {
                     feedbackCurrent.value = page;
+                    if (size) feedbackSize.value = size;
                     feedbackSelections.value = [];
                     feedbackLoading.value = true;
                     if (!allEmployees.value.length) {
@@ -6799,8 +6964,9 @@
                         timeText: String(row.createTime || row.replyTime || '-').slice(0, 10)
                     };
                 };
-                const loadComplaintRecords = (page = complaintCurrent.value) => {
+                const loadComplaintRecords = (page = complaintCurrent.value, size = complaintSize.value) => {
                     complaintCurrent.value = page;
+                    if (size) complaintSize.value = size;
                     complaintSelections.value = [];
                     complaintLoading.value = true;
                     const ensureEmployees = allEmployees.value.length ? Promise.resolve() : loadAllEmployeesForSelect();
@@ -7004,8 +7170,9 @@
                     const matchDept = !taxSearch.deptId || String(row.deptId || '') === String(taxSearch.deptId);
                     return matchName && matchDept;
                 }));
-                const loadTaxRecords = (page = taxCurrent.value) => {
+                const loadTaxRecords = (page = taxCurrent.value, size = taxSize.value) => {
                     taxCurrent.value = page;
+                    if (size) taxSize.value = size;
                     taxLoading.value = true;
                     axios.get('/api/salary/page', {
                         params: {
@@ -7107,8 +7274,9 @@
                     return Math.max(0, Math.min(100, Math.round(total * 10) / 10));
                 };
 
-                const loadPerformances = (page = perfCurrent.value) => {
+                const loadPerformances = (page = perfCurrent.value, size = perfSize.value) => {
                     perfCurrent.value = page;
+                    if (size) perfSize.value = size;
                     perfLoading.value = true;
                     axios.get('/api/performance/page', { params: { current: page, size: perfSize.value, empName: perfSearch.empName, realName: perfSearch.empName, deptId: perfSearch.deptId, managerName: perfSearch.managerName } }).then(r => {
                         if (r.data.code === 200) { performances.value = r.data.data?.records || []; perfTotal.value = r.data.data?.total || 0; }
@@ -7154,6 +7322,8 @@
                     req.then(r => {
                         if (r.data.code === 200) { ElementPlus.ElMessage.success(params.id ? '修改成功' : '录入成功'); perfDialogVisible.value = false; loadPerformances(); }
                         else { ElementPlus.ElMessage.error(r.data.message || '保存失败'); }
+                    }).catch(error => {
+                        ElementPlus.ElMessage.error(error?.response?.data?.message || '保存失败');
                     });
                 };
 
@@ -7337,8 +7507,9 @@
                     })
                     .filter(row => !salarySearch.managerName || String(row.managerName || '').includes(salarySearch.managerName)));
 
-                const loadSalaries = (page = salaryCurrent.value) => {
+                const loadSalaries = (page = salaryCurrent.value, size = salarySize.value) => {
                     salaryCurrent.value = page;
+                    if (size) salarySize.value = size;
                     salaryLoading.value = true;
                     axios.get('/api/salary/page', { params: { current: page, size: salarySize.value, yearMonth: salarySearch.yearMonth, empNo: salarySearch.empNo, empName: salarySearch.empName, realName: salarySearch.empName, deptId: salarySearch.deptId, managerName: salarySearch.managerName, calcStatus: salarySearch.calcStatus } }).then(r => {
                         if (r.data.code === 200) { salaries.value = r.data.data?.records || []; salaryTotal.value = r.data.data?.total || 0; }
@@ -7641,8 +7812,9 @@
                     };
                 }));
 
-                const loadPayments = (page = paymentCurrent.value) => {
+                const loadPayments = (page = paymentCurrent.value, size = paymentSize.value) => {
                     paymentCurrent.value = page;
+                    if (size) paymentSize.value = size;
                     paymentLoading.value = true;
                     axios.get('/api/salary/page', {
                         params: {
@@ -7882,6 +8054,10 @@
                 const isEmpDetailMode = computed(() => empDialogMode.value === 'detail');
                 const empForm = reactive({ id: '', empNo: '', realName: '', gender: 1, phone: '', idCard: '', deptId: '', managerId: '', bankCard: '', baseSalary: 0, hireDate: '', initialPassword: '', avatar: '', role: '', position: '', positionName: '' });
                 const importInput = ref(null);
+                const importPreviewVisible = ref(false);
+                const importPreviewSubmitting = ref(false);
+                const importPreviewRows = ref([]);
+                const importPreviewSummary = reactive({ totalRows: 0, newRows: 0, existingRows: 0, importableRows: 0, invalidRows: 0 });
                 const avatarInput = ref(null);
                 const avatarUploading = ref(false);
                 const empSelections = ref([]);
@@ -7916,8 +8092,9 @@
                     if (deptSalary != null && deptSalary !== '') empForm.baseSalary = deptSalary;
                 };
 
-                const loadEmployees = (page = empCurrent.value) => {
+                const loadEmployees = (page = empCurrent.value, size = empSize.value) => {
                     empCurrent.value = page;
+                    if (size) empSize.value = size;
                     empLoading.value = true;
                     axios.get('/api/employee/page', { params: { current: page, size: empSize.value, ...empSearch, status: 1 } }).then(r => {
                         if (r.data.code === 200) {
@@ -8076,25 +8253,129 @@
                     }).catch(() => { });
                 };
                 const triggerImport = () => importInput.value.click();
+                const resetImportPreview = () => {
+                    importPreviewRows.value = [];
+                    Object.assign(importPreviewSummary, { totalRows: 0, newRows: 0, existingRows: 0, importableRows: 0, invalidRows: 0 });
+                };
+                const closeImportPreview = () => {
+                    importPreviewVisible.value = false;
+                    importPreviewSubmitting.value = false;
+                    resetImportPreview();
+                };
                 const handleImportFile = (e) => {
                     const file = e.target.files[0];
                     if (!file) return;
                     const fd = new FormData();
                     fd.append('file', file);
                     const loadInstance = ElementPlus.ElLoading.service({ text: '正在解析Excel导入...' });
-                    axios.post('/api/employee/import', fd).then(r => {
-                        if (r.data.code === 200) { ElementPlus.ElMessage.success('导入成功'); loadEmployees(1); }
-                        else ElementPlus.ElMessage.error(r.data.message || '导入失败');
+                    axios.post('/api/employee/import/preview', fd).then(r => {
+                        if (r.data.code === 200) {
+                            const data = r.data.data || {};
+                            importPreviewRows.value = data.items || [];
+                            Object.assign(importPreviewSummary, {
+                                totalRows: data.totalRows || 0,
+                                newRows: data.newRows || 0,
+                                existingRows: data.existingRows || 0,
+                                importableRows: data.importableRows || 0,
+                                invalidRows: data.invalidRows || 0
+                            });
+                            importPreviewVisible.value = true;
+                        } else {
+                            ElementPlus.ElMessage.error(r.data.message || '导入预检失败');
+                        }
                     }).catch(err => ElementPlus.ElMessage.error(err.response?.data?.message || '网络错误'))
                         .finally(() => { loadInstance.close(); e.target.value = ''; });
                 };
+                const confirmImportPreview = () => {
+                    if (!importPreviewRows.value.length) {
+                        ElementPlus.ElMessage.warning('当前没有可导入的数据');
+                        return;
+                    }
+                    importPreviewSubmitting.value = true;
+                    axios.post('/api/employee/import/confirm', importPreviewRows.value).then(r => {
+                        if (r.data.code === 200) {
+                            const data = r.data.data || {};
+                            ElementPlus.ElMessage.success(`导入完成：新增${data.insertedRows || 0}条，更新${data.updatedRows || 0}条，跳过${data.skippedRows || 0}条`);
+                            closeImportPreview();
+                            loadEmployees(1);
+                            loadDeptManagers(1);
+                            loadAllEmployeesForSelect();
+                        } else {
+                            ElementPlus.ElMessage.error(r.data.message || '导入失败');
+                        }
+                    }).catch(err => {
+                        ElementPlus.ElMessage.error(err.response?.data?.message || '导入失败');
+                    }).finally(() => {
+                        importPreviewSubmitting.value = false;
+                    });
+                };
+                const parseExportFileName = (contentDisposition, fallbackName = '导出数据.xlsx') => {
+                    const decodeHeaderFileName = (value) => {
+                        if (!value) return fallbackName;
+                        const normalized = String(value).trim().replace(/^"(.*)"$/, '$1');
+                        try {
+                            return decodeURIComponent(normalized.replace(/\+/g, '%20'));
+                        } catch (error) {
+                            return normalized;
+                        }
+                    };
+                    if (!contentDisposition) return fallbackName;
+                    const utf8Match = contentDisposition.match(/filename\*\s*=\s*UTF-8''([^;]+)/i);
+                    if (utf8Match?.[1]) {
+                        return decodeHeaderFileName(utf8Match[1]);
+                    }
+                    const normalMatch = contentDisposition.match(/filename\s*=\s*"?([^\";]+)"?/i);
+                    return decodeHeaderFileName(normalMatch?.[1] || fallbackName);
+                };
+                const downloadExportFile = async (baseUrl, params = {}, fallbackName = '导出数据.xlsx') => {
+                    try {
+                        const response = await axios.get(baseUrl, {
+                            params,
+                            responseType: 'blob'
+                        });
+                        const contentType = response.headers?.['content-type'] || '';
+                        if (contentType.includes('application/json')) {
+                            const text = await response.data.text();
+                            let message = '导出失败';
+                            try {
+                                const json = JSON.parse(text);
+                                message = json.message || message;
+                            } catch (error) {
+                                message = text || message;
+                            }
+                            ElementPlus.ElMessage.error(message);
+                            return;
+                        }
+                        const fileName = parseExportFileName(response.headers?.['content-disposition'], fallbackName);
+                        const blobUrl = window.URL.createObjectURL(response.data);
+                        const link = document.createElement('a');
+                        link.href = blobUrl;
+                        link.download = fileName;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        window.URL.revokeObjectURL(blobUrl);
+                    } catch (error) {
+                        const blob = error?.response?.data;
+                        if (blob instanceof Blob) {
+                            try {
+                                const text = await blob.text();
+                                const json = JSON.parse(text);
+                                ElementPlus.ElMessage.error(json.message || '导出失败');
+                                return;
+                            } catch (parseError) {
+                                // ignore parse error and fall through
+                            }
+                        }
+                        ElementPlus.ElMessage.error(error?.response?.data?.message || '导出失败');
+                    }
+                };
                 const exportExcel = () => {
-                    const query = new URLSearchParams();
-                    if (empSearch.empNo) query.append('empNo', empSearch.empNo);
-                    if (empSearch.realName) query.append('realName', empSearch.realName);
-                    if (empSearch.deptId) query.append('deptId', empSearch.deptId);
-                    const url = '/api/employee/export' + (query.toString() ? `?${query.toString()}` : '');
-                    window.open(url, '_blank');
+                    downloadExportFile('/api/employee/export', {
+                        empNo: empSearch.empNo,
+                        realName: empSearch.realName,
+                        deptId: empSearch.deptId
+                    }, '员工信息.xlsx');
                 };
 
                 const exportRowsToCsv = (filename, columns, rows) => {
@@ -8114,101 +8395,62 @@
                     XLSX.writeFile(workbook, excelFilename);
                 };
 
+                const openExportUrl = (baseUrl, params = {}, fallbackName = '导出数据.xlsx') => {
+                    const filteredParams = {};
+                    Object.entries(params).forEach(([key, value]) => {
+                        if (value !== undefined && value !== null && value !== '') {
+                            filteredParams[key] = value;
+                        }
+                    });
+                    downloadExportFile(baseUrl, filteredParams, fallbackName);
+                };
                 const exportAttendanceCsv = () => {
-                    exportRowsToCsv('考勤数据.csv', [
-                        { label: '登记编号', value: 'recordNo' },
-                        { label: '月份', value: 'yearMonth' },
-                        { label: '工号', value: 'empNo' },
-                        { label: '姓名', value: 'empName' },
-                        { label: '部门', value: 'deptName' },
-                        { label: '出勤天数', value: 'attendDays' },
-                        { label: '旷工天数', value: 'absentDays' },
-                        { label: '迟到天数', value: 'lateTimes' },
-                        { label: '早天数', value: 'earlyLeaveTimes' },
-                        { label: '请假天数', value: 'leaveDays' },
-                        { label: '加班小时', value: 'overtimeHours' },
-                        { label: '登记日期', value: 'createTime' },
-                        { label: '经理账号', value: 'managerNo' },
-                        { label: '经理姓名', value: 'managerName' }
-                    ], attendanceDisplayRows.value);
+                    openExportUrl('/api/attendance/export', {
+                        recordNo: attendSearch.recordNo,
+                        yearMonth: attendSearch.yearMonth,
+                        empNo: attendSearch.empNo,
+                        empName: attendSearch.empName,
+                        deptId: attendSearch.deptId
+                    }, '考勤数据.xlsx');
                 };
                 const exportTaxCsv = () => {
-                    exportRowsToCsv('工资个税与社保.csv', [
-                        { label: '员工姓名', value: 'empName' },
-                        { label: '部门', value: 'deptName' },
-                        { label: '薪资基数', value: 'baseSalary' },
-                        { label: '扣除公积金', value: 'housingFund' },
-                        { label: '医疗保险', value: 'medicalInsurance' },
-                        { label: '失业保险', value: 'unemploymentInsurance' },
-                        { label: '养老保险', value: 'pensionInsurance' },
-                        { label: '扣除社保', value: 'socialSecurityEmp' },
-                        { label: '扣除个税', value: 'incomeTax' },
-                        { label: '扣除日期', value: 'deductDate' },
-                        { label: '经理账号', value: 'managerNo' },
-                        { label: '经理姓名', value: 'managerName' }
-                    ], taxDisplayRows.value);
+                    openExportUrl('/api/salary/tax-export', {
+                        realName: taxSearch.empName,
+                        deptId: taxSearch.deptId
+                    }, '工资个税与社保.xlsx');
                 };
                 const exportPerformanceCsv = () => {
-                    exportRowsToCsv('绩效评分.csv', [
-                        { label: '姓名', value: 'empName' },
-                        { label: '部门', value: 'deptName' },
-                        { label: '绩效月份', value: 'yearMonth' },
-                        { label: '员工考勤', value: 'attendanceScore' },
-                        { label: '工作态度', value: 'attitudeScore' },
-                        { label: '业务技能', value: 'skillScore' },
-                        { label: '工作绩效', value: 'performanceScore' },
-                        { label: '奖惩加减分', value: 'bonusPenaltyScore' },
-                        { label: '总得分', value: row => row.score },
-                        { label: '评价等级', value: 'grade' },
-                        { label: '添加时间', value: 'createTime' },
-                        { label: '经理账号', value: 'managerNo' },
-                        { label: '经理姓名', value: 'managerName' }
-                    ], performanceDisplayRows.value);
+                    openExportUrl('/api/performance/export', {
+                        empName: perfSearch.empName,
+                        deptId: perfSearch.deptId,
+                        managerName: perfSearch.managerName
+                    }, '绩效评分.xlsx');
                 };
                 const exportDeptManagerCsv = () => {
-                    exportRowsToCsv('部门经理.csv', [
-                        { label: '经理账号', value: row => row.managerNo || row.empNo },
-                        { label: '经理姓名', value: 'realName' },
-                        { label: '性别', value: row => row.gender === 1 ? '男' : '女' },
-                        { label: '手机', value: 'phone' },
-                        { label: '部门', value: 'deptName' }
-                    ], managerDisplayRows.value);
+                    openExportUrl('/api/employee/manager-export', {
+                        empNo: managerSearch.managerNo,
+                        realName: managerSearch.managerName,
+                        deptId: managerSearch.deptId
+                    }, '部门经理信息.xlsx');
                 };
                 const exportSalaryCsv = () => {
-                    exportRowsToCsv('薪资核算.csv', [
-                        { label: '月份', value: 'yearMonth' },
-                        { label: '工号', value: 'empNo' },
-                        { label: '姓名', value: 'empName' },
-                        { label: '部门', value: 'deptName' },
-                        { label: '银行卡号', value: 'bankCard' },
-                        { label: '基本工资', value: 'baseSalary' },
-                        { label: '加班工资', value: 'overtimePay' },
-                        { label: '绩效奖金', value: 'perfBonus' },
-                        { label: '津贴', value: 'allowance' },
-                        { label: '五险一金', value: row => formatNegativeAmount(row.socialSecurityEmp) },
-                        { label: '个税', value: row => formatNegativeAmount(row.incomeTax) },
-                        { label: '扣款金额', value: row => formatNegativeAmount(row.deductAmount) },
-                        { label: '实发工资', value: 'netSalary' },
-                    ], salaryDisplayRows.value);
+                    openExportUrl('/api/salary/export', {
+                        yearMonth: salarySearch.yearMonth,
+                        empNo: salarySearch.empNo,
+                        realName: salarySearch.empName,
+                        deptId: salarySearch.deptId,
+                        calcStatus: salarySearch.calcStatus,
+                        managerName: salarySearch.managerName
+                    }, '薪资核算.xlsx');
                 };
                 const exportPaymentCsv = () => {
-                    exportRowsToCsv('薪资发放.csv', [
-                        { label: '月份', value: 'yearMonth' },
-                        { label: '工号', value: 'empNo' },
-                        { label: '姓名', value: 'empName' },
-                        { label: '部门', value: 'deptName' },
-                        { label: '基本工资', value: 'baseSalary' },
-                        { label: '加班工资', value: 'overtimePay' },
-                        { label: '绩效奖金', value: 'perfBonus' },
-                        { label: '津贴', value: 'allowance' },
-                        { label: '五险一金', value: row => formatNegativeAmount(row.socialSecurityEmp) },
-                        { label: '个税', value: row => formatNegativeAmount(row.incomeTax) },
-                        { label: '扣款金额', value: row => formatNegativeAmount(row.deductAmount) },
-                        { label: '实发工资', value: 'netSalary' },
-                        { label: '发放日期', value: 'payDate' },
-                        { label: '是否支付', value: row => row.isPaid ? '已支付' : '未支付' },
-                        { label: '发放文件', value: 'issueFile' }
-                    ], paymentDisplayRows.value);
+                    openExportUrl('/api/salary/payment-export', {
+                        yearMonth: paymentSearch.yearMonth,
+                        empNo: paymentSearch.empNo,
+                        realName: paymentSearch.empName,
+                        deptId: paymentSearch.deptId,
+                        payStatus: paymentSearch.payStatus
+                    }, '薪资发放.xlsx');
                 };
                 const goWebsiteHome = () => {
                     window.location.href = '../home.html';
@@ -8216,12 +8458,7 @@
 
                 const backupDatabase = () => {
                     ElementPlus.ElMessageBox.confirm('确认立即备份数据库吗？', '系统提示', { type: 'warning' }).then(() => {
-                        axios.post('/api/system/backup').then(r => {
-                            if (r.data?.code === 200) ElementPlus.ElMessage.success('数据库备份成功');
-                            else ElementPlus.ElMessage.warning(r.data?.message || '当前后端未配置自动备份接口');
-                        }).catch(() => {
-                            ElementPlus.ElMessage.warning('当前后端未配置自动备份接口，请先手动备份数据库');
-                        });
+                        downloadExportFile('/api/system/backup', {}, 'bishe-backup.sql');
                     }).catch(() => { });
                 };
                 const handleUserMenuCommand = (command) => {
@@ -8299,6 +8536,7 @@
 
                 return {
                     p, userInfo, menus, currentMenu, currentMenuLabel, stats, notices,
+                    isManagerDashboard,
                     salaryStructureMonth, monthlyTrendMonth, attendanceStatusMonth, deptAvgSalaryMonth,
                     loadSalaryStructureChart, loadMonthlyTrendChart, loadAttendanceStatusChart, loadDeptAvgSalaryChart,
                     selfInfo, selfEditForm, selfEditDialogVisible, loadSelfInfo, openSelfEditForm, saveSelfInfo,
@@ -8306,11 +8544,11 @@
                     pwdForm, updatePassword,
                     departments, deptLoading, deptDialogVisible, deptForm, deptSelections, loadDepartments, openDeptForm, saveDept, deleteDept, handleDeptSelection, batchDeleteDept, getManagerName, formatDateTime,
                     managerSearch, deptManagers, deptManagerLoading, deptManagerSelections, managerDisplayRows, loadDeptManagers, openDeptManagerForm, deleteDeptManager, handleDeptManagerSelection, batchDeleteDeptManagers, exportDeptManagerCsv,
-                    employees, empTotal, empCurrent, empLoading, empSearch, empDialogVisible, empDialogMode, isEmpDetailMode, empDialogTitle, empDialogSubmitText, empBaseSalaryText, empForm, importInput, empSelections, employeeDisplayRows,
-                    loadEmployees, resetEmpSearch, handleEmpSelection, openEmpForm, syncEmpDeptSalary, saveEmployee, deleteEmp, batchDeleteEmp, triggerImport, handleImportFile, exportExcel,
+                    employees, empTotal, empCurrent, empLoading, empSearch, empDialogVisible, empDialogMode, isEmpDetailMode, empDialogTitle, empDialogSubmitText, empBaseSalaryText, empForm, importInput, importPreviewVisible, importPreviewSubmitting, importPreviewRows, importPreviewSummary, empSelections, employeeDisplayRows,
+                    loadEmployees, resetEmpSearch, handleEmpSelection, openEmpForm, syncEmpDeptSalary, saveEmployee, deleteEmp, batchDeleteEmp, triggerImport, handleImportFile, closeImportPreview, confirmImportPreview, exportExcel,
                     avatarInput, avatarUploading, triggerAvatarUpload, handleAvatarFile,
                     // --- 考勤 ---
-                    attendances, attendTotal, attendCurrent, attendSize, attendLoading, attendSearch, attendSelections, attendImportMonth, attendDialogVisible, attendForm, attendImportInput, allEmployees, attendanceSelectablePeople, attendanceDisplayRows, loadAttendances, openAttendForm, saveAttend, deleteAttend, handleAttendSelection, batchDeleteAttendances, triggerAttendImport, handleAttendImport, loadAllEmployeesForSelect, showAttendDetail, exportAttendanceCsv, formatDayValue, getAttendanceLeaveTooltip, getApplyTypeText,
+                    attendances, attendTotal, attendCurrent, attendSize, attendLoading, attendSearch, attendSelections, attendImportMonth, attendDialogVisible, attendForm, attendImportInput, allEmployees, attendanceSelectablePeople, performanceSelectablePeople, attendanceDisplayRows, loadAttendances, openAttendForm, saveAttend, deleteAttend, handleAttendSelection, batchDeleteAttendances, triggerAttendImport, handleAttendImport, loadAllEmployeesForSelect, showAttendDetail, exportAttendanceCsv, formatDayValue, getAttendanceLeaveTooltip, getApplyTypeText,
                     // --- 公告 ---
                     noticeList, noticeTotal, noticeCurrent, noticeSearch, noticeLoading, noticeDialogVisible, noticeDetailLoading, noticeDetail, noticeSelections, noticeForm, loadNotices, loadNoticeDetail, backFromNoticeDetail, openHomeNoticeEntry, openNoticeForm, openNoticeDetail, saveNotice, deleteNotice, handleNoticeSelection, batchDeleteNotice, handleNoticeImageChange,
                     localPageSize, websiteForm, loadWebsiteContent, saveWebsiteContent, resetWebsiteContent, handleWebsiteImageChange, aboutPreviewRows, aboutCurrent, aboutTotal, aboutPageRows, carouselPreviewRows, systemIntroRows, systemLogs, systemLogTotal, systemLogLoading, loadSystemLogs,

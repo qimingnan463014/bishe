@@ -871,6 +871,8 @@
                                     show-password placeholder="当前密码"></el-input></el-form-item>
                             <el-form-item label="新密码" required><el-input v-model=" pwdForm.newHash" type="password"
                                     show-password placeholder="不少于6位"></el-input></el-form-item>
+                            <el-form-item label="确认密码" required><el-input v-model=" pwdForm.confirmHash" type="password"
+                                    show-password placeholder="请再次输入新密码"></el-input></el-form-item>
                             <el-form-item><el-button type="primary" @click="changePwd"
                                     style="width: 100%;">确认修改密码</el-button></el-form-item>
                         </el-form>
@@ -1243,6 +1245,8 @@
                         <el-form-item label="当前密码" required><el-input type="password" v-model="pwdForm.oldHash"
                                 show-password /></el-form-item>
                         <el-form-item label="新设密码" required><el-input type="password" v-model="pwdForm.newHash"
+                                show-password /></el-form-item>
+                        <el-form-item label="确认密码" required><el-input type="password" v-model="pwdForm.confirmHash"
                                 show-password /></el-form-item>
                     </el-form>
                 </div>
@@ -1853,6 +1857,8 @@
                         totalScore: '总得分',
                         score: '综合总分',
                         grade: '绩效等级',
+                        perfBonusRatio: '绩效奖金',
+                        status: '处理状态',
                         evaluateRemark: '评审评语',
                         evalComment: '评审评语',
                         attendDays: '出勤天数',
@@ -1916,6 +1922,9 @@
                         if (key === 'feedbackType') return getFeedbackTypeText(value);
                         if (key === 'status') {
                             if (Object.prototype.hasOwnProperty.call(row, 'applyType')) return getApplyStatusText(value);
+                            if (Object.prototype.hasOwnProperty.call(row, 'grade') || Object.prototype.hasOwnProperty.call(row, 'perfBonusRatio')) {
+                                return Number(value) >= 3 ? '已确认' : '已提交';
+                            }
                             if (Object.prototype.hasOwnProperty.call(row, 'feedbackType') || Object.prototype.hasOwnProperty.call(row, 'reportType') || row.sourceType) return getTicketStatusText(value);
                         }
                         if (key === 'calcStatus') return getSalaryStatusText(value);
@@ -2145,7 +2154,7 @@
                             const totalScore = detailRow.totalScore ?? detailRow.score ?? 0;
                             const grade = detailRow.grade || '-';
                             const remark = detailRow.evaluateRemark ?? detailRow.evalComment ?? '-';
-                            const usedKeys = ['yearMonth', 'workPerformance', 'businessSkill', 'workAttitude', 'bonusDeduct', 'totalScore', 'score', 'grade', 'evaluateRemark', 'evalComment', 'managerName'];
+                            const usedKeys = ['yearMonth', 'workPerformance', 'businessSkill', 'workAttitude', 'bonusDeduct', 'totalScore', 'score', 'grade', 'perfBonusRatio', 'status', 'evaluateRemark', 'evalComment', 'managerName'];
                             openDetailDialog({
                                 eyebrow: '绩效详情',
                                 title: employeeName,
@@ -2163,6 +2172,8 @@
                                     createDetailItem('工作态度', detailRow.workAttitude ?? '-'),
                                     createDetailItem('员工考勤', detailRow.bonusDeduct ?? 0),
                                     createDetailItem('总得分', totalScore, 'money'),
+                                    createDetailItem('绩效奖金', formatDetailAmount(detailRow.perfBonusRatio), 'money'),
+                                    createDetailItem('处理状态', getDetailDisplayValue('status', detailRow.status, detailRow), 'muted'),
                                     createDetailItem('部门经理', detailRow.managerName || '-', 'muted'),
                                     createDetailItem('评审评语', remark, 'muted', { span: 2 }),
                                     ...buildExtraDetailItems(detailRow, usedKeys)
@@ -2325,7 +2336,7 @@
 
                     // 密码
                     const pwdDialogVisible = ref(false);
-                    const pwdForm = reactive({ oldHash: '', newHash: '' });
+                    const pwdForm = reactive({ oldHash: '', newHash: '', confirmHash: '' });
 
                     // 表单实体
                     const applyDialogVisible = ref(false);
@@ -2769,11 +2780,22 @@
                     };
 
                     const changePwd = () => {
-                        if (!pwdForm.oldHash || !pwdForm.newHash) return ElementPlus.ElMessage.warning('密码不能为空');
+                        if (!pwdForm.oldHash || !pwdForm.newHash || !pwdForm.confirmHash) {
+                            return ElementPlus.ElMessage.warning('密码不能为空');
+                        }
+                        if (String(pwdForm.newHash).length < 6) {
+                            return ElementPlus.ElMessage.warning('新密码长度不能少于6位');
+                        }
+                        if (pwdForm.newHash !== pwdForm.confirmHash) {
+                            return ElementPlus.ElMessage.warning('两次输入的新密码不一致');
+                        }
                         axios.put('/api/auth/change-password', null, { params: { oldPassword: pwdForm.oldHash, newPassword: pwdForm.newHash } }).then(r => {
                             if (r.data.code === 200) {
                                 ElementPlus.ElMessage.success('密码重新上锁成功，请牢记新密码！');
                                 pwdDialogVisible.value = false;
+                                pwdForm.oldHash = '';
+                                pwdForm.newHash = '';
+                                pwdForm.confirmHash = '';
                             } else ElementPlus.ElMessage.error(r.data.message);
                         });
                     };

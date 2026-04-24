@@ -45,7 +45,15 @@
             SUM(COALESCE(absent_days, 0)) as absent,
             SUM(COALESCE(leave_days, 0)) as `leave`
         FROM t_attendance_record
-        WHERE `year_month` = #{yearMonth}
+        <where>
+            AND `year_month` = #{yearMonth}
+            <if test="managerNo != null and managerNo != ''">
+                AND manager_no = #{managerNo}
+            </if>
+            <if test="excludeEmpNo != null and excludeEmpNo != ''">
+                AND emp_no <![CDATA[<>]]> #{excludeEmpNo}
+            </if>
+        </where>
     </select>
 
 </mapper>

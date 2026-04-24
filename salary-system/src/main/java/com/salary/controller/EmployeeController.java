@@ -2,9 +2,15 @@ package com.salary.controller;
 
 import com.salary.common.PageResult;
 import com.salary.common.Result;
+import com.salary.dto.EmployeeImportExecuteResult;
+import com.salary.dto.EmployeeImportPreviewItem;
+import com.salary.dto.EmployeeImportPreviewResult;
+import com.salary.entity.Department;
 import com.salary.entity.Employee;
+import com.salary.mapper.DepartmentMapper;
 import com.salary.service.EmployeeService;
 import com.salary.service.SysLogService;
+import com.salary.util.ExcelAvatarExportUtil;
 import com.salary.util.JwtUtil;
 import io.jsonwebtoken.Claims;
 import io.swagger.annotations.Api;
@@ -29,7 +35,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -43,6 +53,7 @@ public class EmployeeController {
     private final EmployeeService employeeService;
     private final SysLogService sysLogService;
     private final JwtUtil jwtUtil;
+    private final DepartmentMapper departmentMapper;
     private static final Set<String> ALLOWED_IMAGE_EXTENSIONS = Set.of("jpg", "jpeg", "png", "webp");
     private static final Path AVATAR_UPLOAD_DIR = Paths.get(System.getProperty("user.dir"), "uploads", "avatar")
             .toAbsolutePath()
@@ -133,11 +144,16 @@ public class EmployeeController {
         return Result.successMsg("删除成功");
     }
 
-    @ApiOperation("通过 Excel 导入员工")
-    @PostMapping("/import")
-    public Result<Void> importExcel(@RequestParam("file") MultipartFile file) {
-        employeeService.importByExcel(file);
-        return Result.successMsg("导入成功");
+    @ApiOperation("预检 Excel 员工导入")
+    @PostMapping("/import/preview")
+    public Result<EmployeeImportPreviewResult> previewImport(@RequestParam("file") MultipartFile file) {
+        return Result.success(employeeService.previewImport(file));
+    }
+
+    @ApiOperation("确认执行 Excel 员工导入")
+    @PostMapping("/import/confirm")
+    public Result<EmployeeImportExecuteResult> confirmImport(@RequestBody List<EmployeeImportPreviewItem> items) {
+        return Result.success(employeeService.confirmImport(items));
     }
 
     @ApiOperation("上传员工头像")
@@ -173,6 +189,46 @@ public class EmployeeController {
                             @RequestParam(required = false) String realName,
                             @RequestParam(required = false) Long deptId) {
         employeeService.exportToExcel(response, empNo, realName, deptId);
+    }
+
+    @ApiOperation("导出部门经理 Excel")
+    @GetMapping("/manager-export")
+    public void exportManagerExcel(javax.servlet.http.HttpServletResponse response,
+                                   @RequestParam(required = false) String empNo,
+                                   @RequestParam(required = false) String realName,
+                                   @RequestParam(required = false) Long deptId) {
+        PageResult<Employee> pageResult = employeeService.pageManager(1, 50000, empNo, realName, deptId, 1);
+        Map<Long, Department> deptMap = new HashMap<>();
+        for (Department department : departmentMapper.selectList(null)) {
+            deptMap.put(department.getId(), department);
+        }
+        ExcelAvatarExportUtil.export(
+                response,
+                "部门经理信息.xlsx",
+                "部门经理信息",
+                Arrays.asList(
+                        ExcelAvatarExportUtil.text("经理账号", 14, Employee::getEmpNo),
+                        ExcelAvatarExportUtil.text("初始密码", 12, row -> ExcelAvatarExportUtil.firstNonBlank(row.getLoginPassword(), "123456")),
+                        ExcelAvatarExportUtil.text("姓名", 12, Employee::getRealName),
+                        ExcelAvatarExportUtil.text("性别", 10, row -> row.getGender() != null && row.getGender() == 2 ? "女" : "男"),
+                        ExcelAvatarExportUtil.text("手机", 14, Employee::getPhone),
+                        ExcelAvatarExportUtil.text("身份证号", 22, Employee::getIdCard),
+                        ExcelAvatarExportUtil.text("部门", 14, row -> ExcelAvatarExportUtil.firstNonBlank(row.getDeptName(), "-")),
+                        ExcelAvatarExportUtil.text("岗位", 14, row -> ExcelAvatarExportUtil.firstNonBlank(row.getPositionName(), "部门经理")),
+                        ExcelAvatarExportUtil.text("银行卡号", 22, row -> ExcelAvatarExportUtil.firstNonBlank(row.getBankAccount(), row.getBankCard(), "-")),
+                        ExcelAvatarExportUtil.text("基本工资", 14, row -> {
+                            Department department = deptMap.get(row.getDeptId());
+                            java.math.BigDecimal baseSalary = department == null || department.getBaseSalary() == null
+                                    ? java.math.BigDecimal.ZERO : department.getBaseSalary();
+                            java.math.BigDecimal positionSalary = department == null || department.getPositionSalary() == null
+                                    ? java.math.BigDecimal.ZERO : department.getPositionSalary();
+                            return ExcelAvatarExportUtil.formatNumber(baseSalary.add(positionSalary));
+                        }),
+                        ExcelAvatarExportUtil.text("入职日期", 14, row -> ExcelAvatarExportUtil.formatDate(row.getHireDate())),
+                        ExcelAvatarExportUtil.avatar("头像", 12, Employee::getAvatar)
+                ),
+                pageResult.getRecords()
+        );
     }
 
     private boolean isManagerRecord(Employee employee) {

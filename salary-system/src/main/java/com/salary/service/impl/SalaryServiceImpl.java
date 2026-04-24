@@ -727,8 +727,8 @@ public class SalaryServiceImpl extends ServiceImpl<SalaryRecordMapper, SalaryRec
     }
 
     @Override
-    public java.util.Map<String, Object> getSalaryStructure(String yearMonth) {
-        return salaryRecordMapper.sumCurrentMonthStructure(yearMonth);
+    public java.util.Map<String, Object> getSalaryStructure(String yearMonth, String managerNo, String excludeEmpNo) {
+        return salaryRecordMapper.sumCurrentMonthStructure(yearMonth, managerNo, excludeEmpNo);
     }
 
     @Override

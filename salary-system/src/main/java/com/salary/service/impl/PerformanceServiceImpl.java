@@ -52,12 +52,21 @@ public class PerformanceServiceImpl extends ServiceImpl<PerformanceMapper, Perfo
                                          String yearMonth, String empNo,
                                          Long deptId, Long managerId) {
         Page<Performance> page = new Page<>(current, size);
+        Employee managerEmployee = managerId != null ? employeeMapper.selectByUserId(managerId) : null;
+        Long managerEmpId = managerEmployee != null ? managerEmployee.getId() : null;
         LambdaQueryWrapper<Performance> qw = new LambdaQueryWrapper<Performance>()
-                .eq(yearMonth != null, Performance::getYearMonth, yearMonth)
-                .eq(empNo != null, Performance::getEmpNo, empNo)
+                .eq(yearMonth != null && !yearMonth.isEmpty(), Performance::getYearMonth, yearMonth)
+                .eq(empNo != null && !empNo.isEmpty(), Performance::getEmpNo, empNo)
                 .eq(deptId != null, Performance::getDeptId, deptId)
-                .eq(managerId != null, Performance::getManagerId, managerId)
                 .orderByDesc(Performance::getYearMonth);
+        if (managerId != null) {
+            qw.and(wrapper -> {
+                wrapper.eq(Performance::getManagerId, managerId);
+                if (managerEmpId != null && !managerEmpId.equals(managerId)) {
+                    wrapper.or().eq(Performance::getManagerId, managerEmpId);
+                }
+            });
+        }
         return PageResult.of(performanceMapper.selectPage(page, qw));
     }
 
@@ -247,9 +256,10 @@ public class PerformanceServiceImpl extends ServiceImpl<PerformanceMapper, Perfo
         perf.setEmpNo(emp.getEmpNo());
         perf.setEmpName(emp.getRealName());
         perf.setDeptId(emp.getDeptId());
-        if (managerId != null) {
-            perf.setManagerId(managerId);
-            User manager = userMapper.selectById(managerId);
+        Long effectiveManagerId = emp.getManagerId() != null ? emp.getManagerId() : managerId;
+        if (effectiveManagerId != null) {
+            perf.setManagerId(effectiveManagerId);
+            User manager = userMapper.selectById(effectiveManagerId);
             if (manager != null) {
                 perf.setManagerName(manager.getRealName());
             }

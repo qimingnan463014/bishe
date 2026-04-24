@@ -2,6 +2,9 @@ package com.salary.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.salary.common.PageResult;
+import com.salary.dto.EmployeeImportExecuteResult;
+import com.salary.dto.EmployeeImportPreviewItem;
+import com.salary.dto.EmployeeImportPreviewResult;
 import com.salary.entity.Employee;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -61,6 +64,16 @@ public interface EmployeeService extends IService<Employee> {
      * EasyExcel 批量导入员工
      */
     void importByExcel(MultipartFile file);
+
+    /**
+     * 预检 Excel 导入员工数据，返回新增/更新预览结果
+     */
+    EmployeeImportPreviewResult previewImport(MultipartFile file);
+
+    /**
+     * 根据预检结果确认执行导入
+     */
+    EmployeeImportExecuteResult confirmImport(List<EmployeeImportPreviewItem> items);
 
     /**
      * EasyExcel 导出员工列表

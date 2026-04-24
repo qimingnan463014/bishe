@@ -81,7 +81,15 @@
             SUM(overtime_pay) as overtimePay,
             SUM(allowance) as allowance
         FROM t_salary_record
-        WHERE `year_month` = #{yearMonth}
+        <where>
+            AND `year_month` = #{yearMonth}
+            <if test="managerNo != null and managerNo != ''">
+                AND manager_no = #{managerNo}
+            </if>
+            <if test="excludeEmpNo != null and excludeEmpNo != ''">
+                AND emp_no <![CDATA[<>]]> #{excludeEmpNo}
+            </if>
+        </where>
     </select>
 
     <!-- 各部门人均薪资对比 -->

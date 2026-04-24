@@ -8,11 +8,13 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.salary.common.PageResult;
 import com.salary.dto.AttendanceClockDTO;
+import com.salary.dto.AttendanceSummaryImportDTO;
 import com.salary.dto.AttendanceSummaryDTO;
 import com.salary.entity.AttendanceRecord;
 import com.salary.entity.AttendanceRule;
 import com.salary.entity.Department;
 import com.salary.entity.Employee;
+import com.salary.entity.User;
 import com.salary.mapper.AttendanceRecordMapper;
 import com.salary.mapper.AttendanceRuleMapper;
 import com.salary.mapper.DepartmentMapper;
@@ -103,7 +105,7 @@ public class AttendanceServiceImpl extends ServiceImpl<AttendanceRecordMapper, A
             throw new RuntimeException("员工 " + record.getEmpNo()
                     + " 已存在 " + record.getYearMonth() + " 考勤记录，请勿重复录入");
         }
-        record.setRecordNo(generateRecordNo());
+        record.setRecordNo(generateRecordNo(record.getYearMonth(), record.getEmpNo()));
         record.setManagerId(managerId);
         fillAttendanceDeduct(record);
         save(record);
@@ -201,6 +203,35 @@ public class AttendanceServiceImpl extends ServiceImpl<AttendanceRecordMapper, A
             }
         }
         return summaries;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void importSummaryExcel(MultipartFile file, String yearMonth, Long managerId) {
+        List<AttendanceSummaryImportDTO> rows = new ArrayList<>();
+        try {
+            EasyExcel.read(file.getInputStream(), AttendanceSummaryImportDTO.class,
+                    new ReadListener<AttendanceSummaryImportDTO>() {
+                        @Override
+                        public void invoke(AttendanceSummaryImportDTO data, AnalysisContext ctx) {
+                            rows.add(data);
+                        }
+
+                        @Override
+                        public void doAfterAllAnalysed(AnalysisContext ctx) {
+                            log.info("考勤汇总Excel解析完毕，共{}行", rows.size());
+                        }
+                    }).sheet().doRead();
+        } catch (Exception e) {
+            throw new RuntimeException("考勤汇总Excel解析失败：" + e.getMessage(), e);
+        }
+
+        for (AttendanceSummaryImportDTO row : rows) {
+            if (!StringUtils.hasText(row.getEmpNo())) {
+                continue;
+            }
+            upsertSummaryAttendanceRecord(row, yearMonth, managerId);
+        }
     }
 
     // ====================================================
@@ -351,12 +382,59 @@ public class AttendanceServiceImpl extends ServiceImpl<AttendanceRecordMapper, A
                 record.getAttendDeduct() == null ? "0.00" : record.getAttendDeduct().toPlainString()));
 
         if (exist == null) {
-            record.setRecordNo(generateRecordNo());
+            record.setRecordNo(generateRecordNo(record.getYearMonth(), record.getEmpNo()));
             save(record);
             log.info("新增考勤记录：empNo={} yearMonth={}", summary.getEmpNo(), yearMonth);
         } else {
             updateById(record);
             log.info("更新考勤记录：empNo={} yearMonth={}", summary.getEmpNo(), yearMonth);
+        }
+    }
+
+    private void upsertSummaryAttendanceRecord(AttendanceSummaryImportDTO summary,
+                                               String yearMonth,
+                                               Long managerId) {
+        Employee emp = employeeMapper.selectByEmpNo(summary.getEmpNo());
+        if (emp == null) {
+            throw new RuntimeException("员工不存在，无法导入考勤汇总：工号=" + summary.getEmpNo());
+        }
+
+        AttendanceRecord exist = attendanceRecordMapper.selectByEmpAndMonth(emp.getId(), yearMonth);
+        AttendanceRecord record = exist != null ? exist : new AttendanceRecord();
+        record.setEmpId(emp.getId());
+        record.setEmpNo(emp.getEmpNo());
+        record.setEmpName(StringUtils.hasText(summary.getEmpName()) ? summary.getEmpName().trim() : emp.getRealName());
+        record.setDeptId(emp.getDeptId());
+        record.setDeptName(defaultText(emp.getDeptName()));
+        record.setYearMonth(yearMonth);
+        record.setAttendDays(parseInteger(summary.getAttendDays()));
+        record.setAbsentDays(parseDecimal(summary.getAbsentDays()));
+        record.setLateTimes(parseInteger(summary.getLateTimes()));
+        record.setEarlyLeaveTimes(parseInteger(summary.getEarlyLeaveTimes()));
+        record.setLeaveDays(parseDecimal(summary.getLeaveDays()));
+        record.setSickLeaveDays(ZERO.setScale(2, RoundingMode.HALF_UP));
+        record.setOvertimeHours(parseDecimal(summary.getOvertimeHours()));
+        record.setAttendHours(calculateAttendHours(record));
+        record.setRecordDate(LocalDate.now());
+        applyManagerSnapshot(record, emp, managerId);
+        record.setStatus(1);
+        fillAttendanceDeduct(record);
+        record.setRemark(String.format("Excel汇总导入：出勤%d天；旷工%s天；迟到%d次；早退%d次；请假%s天；加班%s小时；考勤扣款%s元",
+                record.getAttendDays() == null ? 0 : record.getAttendDays(),
+                record.getAbsentDays() == null ? "0.00" : record.getAbsentDays().toPlainString(),
+                record.getLateTimes() == null ? 0 : record.getLateTimes(),
+                record.getEarlyLeaveTimes() == null ? 0 : record.getEarlyLeaveTimes(),
+                record.getLeaveDays() == null ? "0.00" : record.getLeaveDays().toPlainString(),
+                record.getOvertimeHours() == null ? "0.00" : record.getOvertimeHours().toPlainString(),
+                record.getAttendDeduct() == null ? "0.00" : record.getAttendDeduct().toPlainString()));
+
+        if (exist == null) {
+            record.setRecordNo(generateRecordNo(record.getYearMonth(), record.getEmpNo()));
+            save(record);
+            log.info("新增考勤汇总记录：empNo={} yearMonth={}", record.getEmpNo(), yearMonth);
+        } else {
+            updateById(record);
+            log.info("更新考勤汇总记录：empNo={} yearMonth={}", record.getEmpNo(), yearMonth);
         }
     }
 
@@ -384,14 +462,68 @@ public class AttendanceServiceImpl extends ServiceImpl<AttendanceRecordMapper, A
         }
     }
 
-    /** 生成考勤登记编号（9 + 毫秒时间戳后9位） */
-    private String generateRecordNo() {
-        return "9" + (System.currentTimeMillis() % 1_000_000_000L);
+    private Integer parseInteger(String value) {
+        if (!StringUtils.hasText(value)) {
+            return 0;
+        }
+        try {
+            return new BigDecimal(value.trim()).setScale(0, RoundingMode.HALF_UP).intValue();
+        } catch (Exception e) {
+            throw new RuntimeException("数字格式错误：" + value);
+        }
+    }
+
+    private BigDecimal parseDecimal(String value) {
+        if (!StringUtils.hasText(value)) {
+            return ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+        try {
+            return new BigDecimal(value.trim()).setScale(2, RoundingMode.HALF_UP);
+        } catch (Exception e) {
+            throw new RuntimeException("数字格式错误：" + value);
+        }
+    }
+
+    private BigDecimal calculateAttendHours(AttendanceRecord record) {
+        int attendDays = record.getAttendDays() == null ? 0 : record.getAttendDays();
+        BigDecimal overtimeHours = nvl(record.getOvertimeHours(), ZERO);
+        return BigDecimal.valueOf(attendDays)
+                .multiply(new BigDecimal("8"))
+                .add(overtimeHours)
+                .setScale(1, RoundingMode.HALF_UP);
+    }
+
+    private void applyManagerSnapshot(AttendanceRecord record, Employee emp, Long operatorUserId) {
+        record.setManagerId(emp.getManagerId());
+        record.setManagerNo(defaultText(emp.getManagerNo()));
+        record.setManagerName(defaultText(emp.getManagerName()));
+        if (record.getManagerId() != null || (hasText(record.getManagerNo()) && hasText(record.getManagerName()))) {
+            return;
+        }
+        if (operatorUserId == null) {
+            return;
+        }
+        User operator = userMapper.selectById(operatorUserId);
+        if (operator == null || operator.getRole() == null || operator.getRole() != 2) {
+            return;
+        }
+        record.setManagerId(operatorUserId);
+        record.setManagerNo(defaultText(operator.getUsername()));
+        record.setManagerName(defaultText(operator.getRealName()));
+    }
+
+    /** 生成统一的考勤登记编号：ATTYYYYMM-工号 */
+    private String generateRecordNo(String yearMonth, String empNo) {
+        String normalizedYearMonth = hasText(yearMonth)
+                ? yearMonth.replace("-", "").trim()
+                : LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMM"));
+        String normalizedEmpNo = hasText(empNo) ? empNo.trim() : "UNKNOWN";
+        return "ATT" + normalizedYearMonth + "-" + normalizedEmpNo;
     }
 
     @Override
-    public java.util.Map<String, Object> getAttendanceStatus(String yearMonth) {
-        return attendanceRecordMapper.countAttendanceStatus(yearMonth);
+    public java.util.Map<String, Object> getAttendanceStatus(String yearMonth, String managerNo, String excludeEmpNo) {
+        return attendanceRecordMapper.countAttendanceStatus(yearMonth, managerNo, excludeEmpNo);
     }
 
     @Override
@@ -454,7 +586,7 @@ public class AttendanceServiceImpl extends ServiceImpl<AttendanceRecordMapper, A
         fillAttendanceDeduct(record);
 
         if (existing == null) {
-            record.setRecordNo(generateRecordNo());
+            record.setRecordNo(generateRecordNo(record.getYearMonth(), record.getEmpNo()));
             save(record);
         } else {
             updateById(record);

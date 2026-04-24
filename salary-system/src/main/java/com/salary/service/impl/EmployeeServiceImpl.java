@@ -7,7 +7,10 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.salary.common.PageResult;
+import com.salary.dto.EmployeeImportExecuteResult;
 import com.salary.dto.EmployeeImportDTO;
+import com.salary.dto.EmployeeImportPreviewItem;
+import com.salary.dto.EmployeeImportPreviewResult;
 import com.salary.entity.Employee;
 import com.salary.entity.Department;
 import com.salary.entity.User;
@@ -16,6 +19,7 @@ import com.salary.mapper.EmployeeMapper;
 import com.salary.mapper.PositionMapper;
 import com.salary.mapper.UserMapper;
 import com.salary.service.EmployeeService;
+import com.salary.util.ExcelAvatarExportUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -25,10 +29,8 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.net.URLEncoder;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -144,91 +146,136 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee>
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void importByExcel(MultipartFile file) {
-        List<EmployeeImportDTO> dtoList = new ArrayList<>();
-        try {
-            EasyExcel.read(file.getInputStream(), EmployeeImportDTO.class,
-                    new ReadListener<EmployeeImportDTO>() {
-                        @Override
-                        public void invoke(EmployeeImportDTO data, AnalysisContext ctx) {
-                            dtoList.add(data);
-                        }
-                        @Override
-                        public void doAfterAllAnalysed(AnalysisContext ctx) {
-                            log.info("员工Excel解析完毕，共{}行", dtoList.size());
-                        }
-                    }).sheet().doRead();
-        } catch (Exception e) {
-            throw new RuntimeException("员工Excel解析失败：" + e.getMessage(), e);
+        EmployeeImportPreviewResult preview = previewImport(file);
+        List<EmployeeImportPreviewItem> items = preview.getItems() == null ? new ArrayList<>() : preview.getItems();
+        items.forEach(item -> {
+            if (Boolean.TRUE.equals(item.getExisting())) {
+                item.setUpdateExisting(false);
+            }
+        });
+        confirmImport(items);
+    }
+
+    @Override
+    public EmployeeImportPreviewResult previewImport(MultipartFile file) {
+        List<EmployeeImportDTO> dtoList = parseImportDtos(file);
+        EmployeeImportPreviewResult result = new EmployeeImportPreviewResult();
+        result.setTotalRows(dtoList.size());
+        if (dtoList.isEmpty()) {
+            return result;
         }
 
-        // 预加载部门、岗位 Map，避免循环查库
-        Map<String, Long> deptNameToId  = buildDeptNameMap();
-        Map<String, Long> posNameToId   = buildPositionNameMap();
-        Map<String, Long> empNoToUserId = new HashMap<>();
+        Map<String, Long> deptNameToId = buildDeptNameMap();
+        Map<Long, String> deptIdToName = buildDeptIdNameMap();
+        Map<String, Long> posNameToId = buildPositionNameMap();
+        Map<Long, String> posIdToName = buildPositionIdNameMap();
+        Set<String> managerEmpNosInFile = new HashSet<>();
+        Set<String> empNos = new HashSet<>();
+        for (EmployeeImportDTO dto : dtoList) {
+            normalizeImportDto(dto);
+            if (isManagerRole(dto.getRoleStr()) && StringUtils.hasText(dto.getEmpNo())) {
+                managerEmpNosInFile.add(dto.getEmpNo());
+            }
+            if (StringUtils.hasText(dto.getEmpNo())) {
+                empNos.add(dto.getEmpNo());
+            }
+        }
 
-        // 第一遍：经理账号先创建，员工绑定 managerId 需要
+        Map<String, Employee> existingByEmpNo = loadExistingEmployeesByEmpNo(empNos);
+        Map<Long, User> userById = loadRelatedUsers(existingByEmpNo.values());
+
+        for (int index = 0; index < dtoList.size(); index++) {
+            EmployeeImportDTO dto = dtoList.get(index);
+            EmployeeImportPreviewItem item = buildPreviewItem(
+                    dto,
+                    index + 2,
+                    deptNameToId,
+                    posNameToId,
+                    managerEmpNosInFile,
+                    existingByEmpNo,
+                    deptIdToName,
+                    posIdToName,
+                    userById
+            );
+            result.getItems().add(item);
+            if (Boolean.TRUE.equals(item.getExisting())) {
+                result.setExistingRows(result.getExistingRows() + 1);
+            } else {
+                result.setNewRows(result.getNewRows() + 1);
+            }
+            if (Boolean.TRUE.equals(item.getImportable())) {
+                result.setImportableRows(result.getImportableRows() + 1);
+            } else {
+                result.setInvalidRows(result.getInvalidRows() + 1);
+            }
+        }
+        return result;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public EmployeeImportExecuteResult confirmImport(List<EmployeeImportPreviewItem> items) {
+        EmployeeImportExecuteResult result = new EmployeeImportExecuteResult();
+        result.setTotalRows(items == null ? 0 : items.size());
+        if (items == null || items.isEmpty()) {
+            return result;
+        }
+
+        Map<String, Long> deptNameToId = buildDeptNameMap();
+        Map<String, Long> posNameToId = buildPositionNameMap();
+        Set<String> empNos = new HashSet<>();
+        for (EmployeeImportPreviewItem item : items) {
+            normalizePreviewItem(item);
+            if (StringUtils.hasText(item.getEmpNo())) {
+                empNos.add(item.getEmpNo());
+            }
+        }
+
+        Map<String, Employee> existingByEmpNo = loadExistingEmployeesByEmpNo(empNos);
         Map<String, Long> managerEmpNoToUserId = new HashMap<>();
-        for (EmployeeImportDTO dto : dtoList) {
-            if ("经理".equals(dto.getRoleStr())) {
-                Long userId = createUserIfAbsent(dto.getEmpNo(), dto.getRealName(),
-                        dto.getPhone(), 2, passwordEncoder); // role=2 经理
-                managerEmpNoToUserId.put(dto.getEmpNo(), userId);
+
+        for (EmployeeImportPreviewItem item : items) {
+            if (!canProcessImportItem(item, existingByEmpNo)) {
+                continue;
+            }
+            if (isManagerRole(item.getRoleStr())) {
+                Long userId = ensureUserForImport(item.getEmpNo(), item.getRealName(), 2);
+                managerEmpNoToUserId.put(item.getEmpNo(), userId);
             }
         }
 
-        // 第二遍：创建全部员工记录
-        List<Employee> toSave = new ArrayList<>();
-        for (EmployeeImportDTO dto : dtoList) {
-            try {
-                // 已存在的工号跳过
-                long cnt = lambdaQuery().eq(Employee::getEmpNo, dto.getEmpNo()).count();
-                if (cnt > 0) {
-                    log.warn("工号已存在，跳过导入：{}", dto.getEmpNo());
-                    continue;
-                }
+        for (EmployeeImportPreviewItem item : items) {
+            if (!Boolean.TRUE.equals(item.getImportable()) || !StringUtils.hasText(item.getEmpNo())) {
+                result.setSkippedRows(result.getSkippedRows() + 1);
+                continue;
+            }
 
-                // 确定角色与账号
-                int role = "经理".equals(dto.getRoleStr()) ? 2 : 3;
-                Long userId;
-                if (role == 2) {
-                    userId = managerEmpNoToUserId.get(dto.getEmpNo());
-                } else {
-                    userId = createUserIfAbsent(dto.getEmpNo(), dto.getRealName(),
-                            dto.getPhone(), 3, passwordEncoder);
-                }
-                empNoToUserId.put(dto.getEmpNo(), userId);
+            Employee existing = existingByEmpNo.get(item.getEmpNo());
+            if (existing != null && !Boolean.TRUE.equals(item.getUpdateExisting())) {
+                result.setSkippedRows(result.getSkippedRows() + 1);
+                continue;
+            }
 
-                // 构建员工档案
-                Employee emp = new Employee();
-                emp.setUserId(userId);
-                emp.setEmpNo(dto.getEmpNo());
-                emp.setRealName(dto.getRealName());
-                emp.setGender("女".equals(dto.getGenderStr()) ? 2 : 1);
-                emp.setPhone(dto.getPhone());
-                emp.setIdCard(dto.getIdCard());
-                emp.setDeptId(deptNameToId.get(dto.getDeptName()));
-                emp.setPositionId(posNameToId.get(dto.getPositionName()));
-                emp.setHireDate(parseDate(dto.getHireDate()));
-                emp.setRole(role);
-                emp.setPositionName(dto.getPositionName());
-                syncBaseSalaryWithDepartment(emp);
-                emp.setBankAccount(dto.getBankAccount());
-                emp.setBankName(dto.getBankName());
-                emp.setStatus(1); // 在职
-                // 绑定经理（若填了经理工号）
-                if (dto.getManagerNo() != null && managerEmpNoToUserId.containsKey(dto.getManagerNo())) {
-                    emp.setManagerId(managerEmpNoToUserId.get(dto.getManagerNo()));
-                }
-                toSave.add(emp);
-            } catch (Exception ex) {
-                log.error("员工 {} 导入失败：{}", dto.getEmpNo(), ex.getMessage());
+            int role = isManagerRole(item.getRoleStr()) ? 2 : 3;
+            Long userId = ensureUserForImport(item.getEmpNo(), item.getRealName(), role);
+            if (existing == null) {
+                Employee employee = new Employee();
+                employee.setUserId(userId);
+                applyImportFields(employee, item, deptNameToId, posNameToId, managerEmpNoToUserId);
+                save(employee);
+                existingByEmpNo.put(employee.getEmpNo(), employee);
+                result.setInsertedRows(result.getInsertedRows() + 1);
+            } else {
+                existing.setUserId(userId);
+                applyImportFields(existing, item, deptNameToId, posNameToId, managerEmpNoToUserId);
+                updateById(existing);
+                existingByEmpNo.put(existing.getEmpNo(), existing);
+                result.setUpdatedRows(result.getUpdatedRows() + 1);
             }
         }
-
-        if (!toSave.isEmpty()) {
-            saveBatch(toSave, 100); // MyBatis-Plus 批量插入
-            log.info("员工Excel导入完成，成功{}条", toSave.size());
-        }
+        log.info("员工导入确认完成：新增{}条，更新{}条，跳过{}条",
+                result.getInsertedRows(), result.getUpdatedRows(), result.getSkippedRows());
+        return result;
     }
 
     // ====================================================
@@ -238,25 +285,47 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee>
     @Override
     public void exportToExcel(HttpServletResponse response,
                                String empNo, String realName, Long deptId) {
-        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-        try {
-            response.setHeader("Content-Disposition",
-                    "attachment;filename=" + URLEncoder.encode("员工信息.xlsx", "UTF-8"));
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        List<Employee> list = employeeMapper.selectList(
-                new LambdaQueryWrapper<Employee>()
-                        .eq(StringUtils.hasText(empNo), Employee::getEmpNo, empNo)
-                        .like(StringUtils.hasText(realName), Employee::getRealName, realName)
-                        .eq(deptId != null, Employee::getDeptId, deptId)
-                        .eq(Employee::getStatus, 1));
-        try {
-            EasyExcel.write(response.getOutputStream(), Employee.class)
-                    .sheet("员工信息").doWrite(list);
-        } catch (IOException e) {
-            throw new RuntimeException("导出失败：" + e.getMessage(), e);
-        }
+        Page<Employee> page = new Page<>(1, 50000);
+        List<Employee> list = employeeMapper.selectPageWithDetails(page, empNo, realName, deptId, 1, null).getRecords();
+        ExcelAvatarExportUtil.export(
+                response,
+                "员工信息.xlsx",
+                "员工信息",
+                Arrays.asList(
+                        ExcelAvatarExportUtil.text("工号", 12, Employee::getEmpNo),
+                        ExcelAvatarExportUtil.text("密码", 12, row -> ExcelAvatarExportUtil.firstNonBlank(row.getLoginPassword(), row.getInitialPassword(), "123456")),
+                        ExcelAvatarExportUtil.text("姓名", 12, Employee::getRealName),
+                        ExcelAvatarExportUtil.text("性别", 10, row -> row.getGender() != null && row.getGender() == 2 ? "女" : "男"),
+                        ExcelAvatarExportUtil.text("手机", 14, Employee::getPhone),
+                        ExcelAvatarExportUtil.text("身份证号", 22, Employee::getIdCard),
+                        ExcelAvatarExportUtil.text("部门", 14, row -> ExcelAvatarExportUtil.firstNonBlank(row.getDeptName(), "-")),
+                        ExcelAvatarExportUtil.text("岗位", 14, row -> ExcelAvatarExportUtil.firstNonBlank(row.getPositionName(), "-")),
+                        ExcelAvatarExportUtil.text("银行卡号", 22, row -> ExcelAvatarExportUtil.firstNonBlank(row.getBankAccount(), row.getBankCard(), "-")),
+                        ExcelAvatarExportUtil.text("开户行", 18, row -> ExcelAvatarExportUtil.firstNonBlank(row.getBankName(), "-")),
+                        ExcelAvatarExportUtil.text("经理账号", 14, row -> ExcelAvatarExportUtil.firstNonBlank(row.getManagerNo(), "-")),
+                        ExcelAvatarExportUtil.text("部门经理", 14, row -> ExcelAvatarExportUtil.firstNonBlank(row.getManagerName(), "-")),
+                        ExcelAvatarExportUtil.text("基本工资", 14, row -> ExcelAvatarExportUtil.formatNumber(row.getBaseSalary())),
+                        ExcelAvatarExportUtil.avatar("头像", 12, Employee::getAvatar),
+                        ExcelAvatarExportUtil.text("入职日期", 14, row -> ExcelAvatarExportUtil.formatDate(row.getHireDate())),
+                        ExcelAvatarExportUtil.text("状态", 12, row -> {
+                            Integer status = row.getStatus();
+                            if (status == null) {
+                                return "-";
+                            }
+                            if (status == 1) {
+                                return "在职";
+                            }
+                            if (status == 2) {
+                                return "离职";
+                            }
+                            if (status == 3) {
+                                return "试用期";
+                            }
+                            return "未知";
+                        })
+                ),
+                list
+        );
     }
 
     // ====================================================
@@ -269,11 +338,9 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee>
                                      PasswordEncoder encoder) {
         User exist = userMapper.selectByUsernameWithPassword(empNo);
         if (exist != null) return exist.getId();
-        String initPwd = (phone != null && phone.length() >= 6)
-                ? phone.substring(phone.length() - 6) : "123456";
         User u = new User();
         u.setUsername(empNo);
-        u.setPassword(encoder.encode(initPwd));
+        u.setPassword(encoder.encode("123456"));
         u.setRealName(realName);
         u.setRole(role);
         u.setStatus(1);
@@ -330,6 +397,294 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee>
     private LocalDate parseDate(String s) {
         if (s == null || s.isBlank()) return null;
         try { return LocalDate.parse(s.trim(), DATE_FMT); } catch (Exception e) { return null; }
+    }
+
+    private void bindManager(Employee employee,
+                             String managerNo,
+                             Map<String, Long> managerEmpNoToUserId) {
+        if (employee == null) {
+            return;
+        }
+        if (StringUtils.hasText(managerNo)) {
+            String normalizedManagerNo = managerNo.trim();
+            Long managerUserId = managerEmpNoToUserId.get(normalizedManagerNo);
+            if (managerUserId != null) {
+                employee.setManagerId(managerUserId);
+                return;
+            }
+            User existingManager = userMapper.selectByUsernameWithPassword(normalizedManagerNo);
+            if (existingManager != null && existingManager.getRole() != null && existingManager.getRole() == 2) {
+                employee.setManagerId(existingManager.getId());
+                return;
+            }
+        }
+
+        if (employee.getDeptId() == null) {
+            return;
+        }
+        Department department = deptMapper.selectById(employee.getDeptId());
+        if (department != null && department.getManagerId() != null) {
+            employee.setManagerId(department.getManagerId());
+        }
+    }
+
+    private List<EmployeeImportDTO> parseImportDtos(MultipartFile file) {
+        List<EmployeeImportDTO> dtoList = new ArrayList<>();
+        try {
+            EasyExcel.read(file.getInputStream(), EmployeeImportDTO.class,
+                    new ReadListener<EmployeeImportDTO>() {
+                        @Override
+                        public void invoke(EmployeeImportDTO data, AnalysisContext ctx) {
+                            dtoList.add(data);
+                        }
+
+                        @Override
+                        public void doAfterAllAnalysed(AnalysisContext ctx) {
+                            log.info("员工Excel解析完毕，共{}行", dtoList.size());
+                        }
+                    }).sheet().doRead();
+        } catch (Exception e) {
+            throw new RuntimeException("员工Excel解析失败：" + e.getMessage(), e);
+        }
+        return dtoList;
+    }
+
+    private EmployeeImportPreviewItem buildPreviewItem(EmployeeImportDTO dto,
+                                                       int rowNo,
+                                                       Map<String, Long> deptNameToId,
+                                                       Map<String, Long> posNameToId,
+                                                       Set<String> managerEmpNosInFile,
+                                                       Map<String, Employee> existingByEmpNo,
+                                                       Map<Long, String> deptIdToName,
+                                                       Map<Long, String> posIdToName,
+                                                       Map<Long, User> userById) {
+        EmployeeImportPreviewItem item = new EmployeeImportPreviewItem();
+        item.setRowNo(rowNo);
+        item.setEmpNo(dto.getEmpNo());
+        item.setRealName(dto.getRealName());
+        item.setGenderStr(dto.getGenderStr());
+        item.setPhone(dto.getPhone());
+        item.setIdCard(dto.getIdCard());
+        item.setDeptName(dto.getDeptName());
+        item.setPositionName(dto.getPositionName());
+        item.setHireDate(dto.getHireDate());
+        item.setBankAccount(dto.getBankAccount());
+        item.setBankName(dto.getBankName());
+        item.setRoleStr(normalizeRoleStr(dto.getRoleStr()));
+        item.setManagerNo(dto.getManagerNo());
+
+        List<String> problems = new ArrayList<>();
+        List<String> notes = new ArrayList<>();
+        if (!StringUtils.hasText(dto.getEmpNo())) {
+            problems.add("工号不能为空");
+        }
+        if (!StringUtils.hasText(dto.getRealName())) {
+            problems.add("姓名不能为空");
+        }
+        if (!StringUtils.hasText(dto.getDeptName()) || !deptNameToId.containsKey(dto.getDeptName())) {
+            problems.add("部门不存在");
+        }
+        if (StringUtils.hasText(dto.getPositionName()) && !posNameToId.containsKey(dto.getPositionName())) {
+            problems.add("岗位不存在");
+        }
+        if (StringUtils.hasText(dto.getManagerNo())
+                && !managerEmpNosInFile.contains(dto.getManagerNo())) {
+            User manager = userMapper.selectByUsernameWithPassword(dto.getManagerNo());
+            if (manager == null || manager.getRole() == null || manager.getRole() != 2) {
+                notes.add("经理工号未匹配，将按部门经理兜底");
+            }
+        }
+
+        Employee existing = existingByEmpNo.get(dto.getEmpNo());
+        item.setExisting(existing != null);
+        item.setUpdateExisting(false);
+        item.setImportable(problems.isEmpty());
+        item.setMessage(problems.isEmpty() ? String.join("；", notes) : String.join("；", problems));
+        if (existing != null) {
+            item.setCurrentSummary(buildCurrentSummary(existing, deptIdToName, posIdToName, userById));
+        } else {
+            item.setCurrentSummary("-");
+        }
+        return item;
+    }
+
+    private Map<String, Employee> loadExistingEmployeesByEmpNo(Set<String> empNos) {
+        if (empNos == null || empNos.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        List<Employee> existingList = lambdaQuery().in(Employee::getEmpNo, empNos).list();
+        Map<String, Employee> result = new HashMap<>();
+        for (Employee employee : existingList) {
+            result.put(employee.getEmpNo(), employee);
+        }
+        return result;
+    }
+
+    private Map<Long, User> loadRelatedUsers(Collection<Employee> employees) {
+        if (employees == null || employees.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Set<Long> userIds = new HashSet<>();
+        for (Employee employee : employees) {
+            if (employee.getUserId() != null) {
+                userIds.add(employee.getUserId());
+            }
+            if (employee.getManagerId() != null) {
+                userIds.add(employee.getManagerId());
+            }
+        }
+        if (userIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Map<Long, User> userById = new HashMap<>();
+        for (User user : userMapper.selectBatchIds(userIds)) {
+            userById.put(user.getId(), user);
+        }
+        return userById;
+    }
+
+    private String buildCurrentSummary(Employee existing,
+                                       Map<Long, String> deptIdToName,
+                                       Map<Long, String> posIdToName,
+                                       Map<Long, User> userById) {
+        User user = existing.getUserId() == null ? null : userById.get(existing.getUserId());
+        User manager = existing.getManagerId() == null ? null : userById.get(existing.getManagerId());
+        String roleText = user != null && user.getRole() != null && user.getRole() == 2 ? "经理" : "员工";
+        String deptName = deptIdToName.getOrDefault(existing.getDeptId(), "-");
+        String positionName = posIdToName.getOrDefault(existing.getPositionId(), StringUtils.hasText(existing.getPositionName()) ? existing.getPositionName() : "-");
+        String managerNo = manager != null ? manager.getUsername() : "-";
+        return "姓名:" + safeText(existing.getRealName())
+                + " / 部门:" + safeText(deptName)
+                + " / 岗位:" + safeText(positionName)
+                + " / 角色:" + roleText
+                + " / 经理:" + safeText(managerNo);
+    }
+
+    private void normalizeImportDto(EmployeeImportDTO dto) {
+        if (dto == null) {
+            return;
+        }
+        dto.setEmpNo(normalizeText(dto.getEmpNo()));
+        dto.setRealName(normalizeText(dto.getRealName()));
+        dto.setGenderStr(normalizeText(dto.getGenderStr()));
+        dto.setPhone(normalizeText(dto.getPhone()));
+        dto.setIdCard(normalizeText(dto.getIdCard()));
+        dto.setDeptName(normalizeText(dto.getDeptName()));
+        dto.setPositionName(normalizeText(dto.getPositionName()));
+        dto.setHireDate(normalizeText(dto.getHireDate()));
+        dto.setBankAccount(normalizeText(dto.getBankAccount()));
+        dto.setBankName(normalizeText(dto.getBankName()));
+        dto.setRoleStr(normalizeRoleStr(dto.getRoleStr()));
+        dto.setManagerNo(normalizeText(dto.getManagerNo()));
+    }
+
+    private void normalizePreviewItem(EmployeeImportPreviewItem item) {
+        if (item == null) {
+            return;
+        }
+        item.setEmpNo(normalizeText(item.getEmpNo()));
+        item.setRealName(normalizeText(item.getRealName()));
+        item.setGenderStr(normalizeText(item.getGenderStr()));
+        item.setPhone(normalizeText(item.getPhone()));
+        item.setIdCard(normalizeText(item.getIdCard()));
+        item.setDeptName(normalizeText(item.getDeptName()));
+        item.setPositionName(normalizeText(item.getPositionName()));
+        item.setHireDate(normalizeText(item.getHireDate()));
+        item.setBankAccount(normalizeText(item.getBankAccount()));
+        item.setBankName(normalizeText(item.getBankName()));
+        item.setRoleStr(normalizeRoleStr(item.getRoleStr()));
+        item.setManagerNo(normalizeText(item.getManagerNo()));
+    }
+
+    private boolean canProcessImportItem(EmployeeImportPreviewItem item, Map<String, Employee> existingByEmpNo) {
+        if (!Boolean.TRUE.equals(item.getImportable()) || !StringUtils.hasText(item.getEmpNo())) {
+            return false;
+        }
+        Employee existing = existingByEmpNo.get(item.getEmpNo());
+        return existing == null || Boolean.TRUE.equals(item.getUpdateExisting());
+    }
+
+    private Long ensureUserForImport(String empNo, String realName, int role) {
+        User exist = userMapper.selectByUsernameWithPassword(empNo);
+        if (exist != null) {
+            boolean changed = false;
+            if (!Objects.equals(exist.getRealName(), realName)) {
+                exist.setRealName(realName);
+                changed = true;
+            }
+            if (!Objects.equals(exist.getRole(), role)) {
+                exist.setRole(role);
+                changed = true;
+            }
+            if (!Objects.equals(exist.getStatus(), 1)) {
+                exist.setStatus(1);
+                changed = true;
+            }
+            if (changed) {
+                userMapper.updateById(exist);
+            }
+            return exist.getId();
+        }
+        return createUserIfAbsent(empNo, realName, null, role, passwordEncoder);
+    }
+
+    private void applyImportFields(Employee employee,
+                                   EmployeeImportPreviewItem item,
+                                   Map<String, Long> deptNameToId,
+                                   Map<String, Long> posNameToId,
+                                   Map<String, Long> managerEmpNoToUserId) {
+        int role = isManagerRole(item.getRoleStr()) ? 2 : 3;
+        employee.setEmpNo(item.getEmpNo());
+        employee.setRealName(item.getRealName());
+        employee.setGender("女".equals(item.getGenderStr()) ? 2 : 1);
+        employee.setPhone(item.getPhone());
+        employee.setIdCard(item.getIdCard());
+        employee.setDeptId(deptNameToId.get(item.getDeptName()));
+        employee.setPositionId(StringUtils.hasText(item.getPositionName()) ? posNameToId.get(item.getPositionName()) : null);
+        employee.setHireDate(parseDate(item.getHireDate()));
+        employee.setRole(role);
+        employee.setPositionName(item.getPositionName());
+        employee.setBankAccount(item.getBankAccount());
+        employee.setBankName(item.getBankName());
+        employee.setStatus(1);
+        if (role == 2) {
+            employee.setManagerId(null);
+        } else {
+            bindManager(employee, item.getManagerNo(), managerEmpNoToUserId);
+        }
+        syncBaseSalaryWithDepartment(employee);
+    }
+
+    private Map<Long, String> buildDeptIdNameMap() {
+        Map<Long, String> map = new HashMap<>();
+        deptMapper.selectAllEnabled().forEach(d -> map.put(d.getId(), d.getDeptName()));
+        return map;
+    }
+
+    private Map<Long, String> buildPositionIdNameMap() {
+        Map<Long, String> map = new HashMap<>();
+        positionMapper.selectList(null).forEach(p -> map.put(p.getId(), p.getPositionName()));
+        return map;
+    }
+
+    private boolean isManagerRole(String roleStr) {
+        return "经理".equals(normalizeRoleStr(roleStr));
+    }
+
+    private String normalizeRoleStr(String roleStr) {
+        return "经理".equals(normalizeText(roleStr)) ? "经理" : "员工";
+    }
+
+    private String normalizeText(String text) {
+        if (text == null) {
+            return null;
+        }
+        String normalized = text.trim();
+        return normalized.isEmpty() ? null : normalized;
+    }
+
+    private String safeText(String text) {
+        return StringUtils.hasText(text) ? text : "-";
     }
 
     private BigDecimal parseMoney(String s) {

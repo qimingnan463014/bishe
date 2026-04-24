@@ -38,5 +38,7 @@ public interface AttendanceRecordMapper extends BaseMapper<AttendanceRecord> {
     /**
      * 统计指定月份的出勤状态分布（考勤人次）
      */
-    java.util.Map<String, Object> countAttendanceStatus(@Param("yearMonth") String yearMonth);
+    java.util.Map<String, Object> countAttendanceStatus(@Param("yearMonth") String yearMonth,
+                                                        @Param("managerNo") String managerNo,
+                                                        @Param("excludeEmpNo") String excludeEmpNo);
 }

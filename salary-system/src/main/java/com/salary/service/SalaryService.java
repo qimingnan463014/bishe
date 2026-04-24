@@ -103,7 +103,7 @@ public interface SalaryService extends IService<SalaryRecord> {
     List<java.util.Map<String, Object>> getMonthlyTrend(String yearMonth);
 
     /** 获取指定月份的薪资构成（基本、加班、绩效、补助、扣减） */
-    java.util.Map<String, Object> getSalaryStructure(String yearMonth);
+    java.util.Map<String, Object> getSalaryStructure(String yearMonth, String managerNo, String excludeEmpNo);
 
     /** 获取指定月份的各部门平均薪资对比 */
     List<java.util.Map<String, Object>> getDeptAvgSalary(String yearMonth);
