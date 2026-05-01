@@ -22,6 +22,7 @@ import com.salary.mapper.EmployeeMapper;
 import com.salary.mapper.SalaryRecordMapper;
 import com.salary.mapper.UserMapper;
 import com.salary.service.AttendanceService;
+import com.salary.service.SalaryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -71,8 +72,12 @@ public class AttendanceServiceImpl extends ServiceImpl<AttendanceRecordMapper, A
     private static final BigDecimal DEFAULT_SICK_LEAVE_DEDUCT_RATIO = new BigDecimal("0.5");
     private static final int DEFAULT_WORK_DAYS = 22;
     private static final BigDecimal ZERO = BigDecimal.ZERO;
+    private static final BigDecimal ONE = BigDecimal.ONE;
     private static final int LEAVE_TYPE_PERSONAL = 1;
     private static final int LEAVE_TYPE_SICK = 2;
+    private static final int SIGN_TYPE_MORNING = 1;
+    private static final int SIGN_TYPE_AFTERNOON = 2;
+    private static final int SIGN_TYPE_FULL_DAY = 3;
 
     private final AttendanceRecordMapper attendanceRecordMapper;
     private final SalaryRecordMapper     salaryRecordMapper;
@@ -80,6 +85,7 @@ public class AttendanceServiceImpl extends ServiceImpl<AttendanceRecordMapper, A
     private final AttendanceRuleMapper   attendanceRuleMapper;
     private final DepartmentMapper       departmentMapper;
     private final UserMapper             userMapper;
+    private final SalaryService          salaryService;
 
     // ====================================================
     //  查询 / 基础 CRUD
@@ -109,6 +115,7 @@ public class AttendanceServiceImpl extends ServiceImpl<AttendanceRecordMapper, A
         record.setManagerId(managerId);
         fillAttendanceDeduct(record);
         save(record);
+        recalculateSalaryAfterManualAttendanceChange(record.getEmpId(), record.getYearMonth());
     }
 
     @Override
@@ -120,6 +127,9 @@ public class AttendanceServiceImpl extends ServiceImpl<AttendanceRecordMapper, A
             throw new RuntimeException("该考勤已锁定，禁止修改");
         fillAttendanceDeduct(record);
         updateById(record);
+        Long targetEmpId = record.getEmpId() != null ? record.getEmpId() : exist.getEmpId();
+        String targetYearMonth = StringUtils.hasText(record.getYearMonth()) ? record.getYearMonth() : exist.getYearMonth();
+        recalculateSalaryAfterManualAttendanceChange(targetEmpId, targetYearMonth);
     }
 
     @Override
@@ -542,62 +552,75 @@ public class AttendanceServiceImpl extends ServiceImpl<AttendanceRecordMapper, A
             throw new RuntimeException("请假申请天数必须大于0");
         }
 
-        Employee emp = employeeMapper.selectById(apply.getEmpId());
-        if (emp == null) {
-            throw new RuntimeException("员工不存在，无法同步请假到考勤");
-        }
-        String yearMonth = apply.getApplyDate().format(DateTimeFormatter.ofPattern("yyyy-MM"));
-        AttendanceRecord existing = attendanceRecordMapper.selectByEmpAndMonth(emp.getId(), yearMonth);
-        AttendanceRecord record = existing != null ? existing : new AttendanceRecord();
-        Department dept = emp.getDeptId() == null ? null : departmentMapper.selectById(emp.getDeptId());
-        com.salary.entity.User reviewer = reviewerId == null ? null : userMapper.selectById(reviewerId);
+        AttendanceRecord record = prepareApplyAttendanceRecord(apply, reviewerId, reviewerName);
         BigDecimal deductedLeaveDays = toDeductedLeaveDays(apply.getLeaveType(), actualLeaveDays);
-
-        record.setEmpId(emp.getId());
-        record.setEmpNo(hasText(record.getEmpNo()) ? record.getEmpNo() : defaultText(emp.getEmpNo()));
-        record.setEmpName(hasText(record.getEmpName()) ? record.getEmpName() : defaultText(emp.getRealName()));
-        record.setDeptId(emp.getDeptId());
-        if (!hasText(record.getDeptName())) {
-            record.setDeptName(dept != null ? defaultText(dept.getDeptName()) : "");
-        }
-        record.setYearMonth(yearMonth);
-        record.setAttendDays(record.getAttendDays() == null ? 0 : record.getAttendDays());
-        record.setAbsentDays(nvl(record.getAbsentDays(), ZERO));
-        record.setLateTimes(record.getLateTimes() == null ? 0 : record.getLateTimes());
-        record.setEarlyLeaveTimes(record.getEarlyLeaveTimes() == null ? 0 : record.getEarlyLeaveTimes());
-        record.setOvertimeHours(nvl(record.getOvertimeHours(), ZERO));
-        record.setAttendHours(nvl(record.getAttendHours(), ZERO));
         record.setLeaveDays(nvl(record.getLeaveDays(), ZERO).add(deductedLeaveDays).setScale(2, RoundingMode.HALF_UP));
         if (Integer.valueOf(LEAVE_TYPE_SICK).equals(apply.getLeaveType())) {
             record.setSickLeaveDays(nvl(record.getSickLeaveDays(), ZERO).add(actualLeaveDays).setScale(2, RoundingMode.HALF_UP));
         } else {
             record.setSickLeaveDays(nvl(record.getSickLeaveDays(), ZERO).setScale(2, RoundingMode.HALF_UP));
         }
-        record.setRecordDate(record.getRecordDate() == null ? apply.getApplyDate() : record.getRecordDate());
-        record.setManagerId(reviewerId != null ? reviewerId : record.getManagerId());
-        if (reviewer != null) {
-            record.setManagerNo(reviewer.getUsername());
-            record.setManagerName(hasText(reviewerName) ? reviewerName : reviewer.getRealName());
-        } else if (hasText(reviewerName)) {
-            record.setManagerName(reviewerName);
-        }
-        record.setStatus(record.getStatus() == null ? 1 : record.getStatus());
         record.setRemark(buildLeaveSyncRemark(record, apply, actualLeaveDays, deductedLeaveDays));
-        fillAttendanceDeduct(record);
+        return persistApplyAttendanceRecord(record);
+    }
 
-        if (existing == null) {
-            record.setRecordNo(generateRecordNo(record.getYearMonth(), record.getEmpNo()));
-            save(record);
-        } else {
-            updateById(record);
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public AttendanceRecord syncApprovedSignToAttendance(com.salary.entity.AttendanceApply apply,
+                                                         Long reviewerId,
+                                                         String reviewerName) {
+        if (apply == null || !Integer.valueOf(1).equals(apply.getApplyType())) {
+            return null;
         }
-        return record;
+        Integer signType = apply.getSignType();
+        if (signType == null || signType < 1 || signType > 3) {
+            throw new RuntimeException("补签申请缺少有效的补签类型");
+        }
+        AttendanceRecord record = prepareApplyAttendanceRecord(apply, reviewerId, reviewerName);
+        int lateTimes = record.getLateTimes() == null ? 0 : record.getLateTimes();
+        int earlyLeaveTimes = record.getEarlyLeaveTimes() == null ? 0 : record.getEarlyLeaveTimes();
+        BigDecimal absentDays = nvl(record.getAbsentDays(), ZERO);
+
+        if (signType == SIGN_TYPE_MORNING) {
+            record.setLateTimes(Math.max(0, lateTimes - 1));
+        } else if (signType == SIGN_TYPE_AFTERNOON) {
+            record.setEarlyLeaveTimes(Math.max(0, earlyLeaveTimes - 1));
+        } else {
+            record.setAttendDays((record.getAttendDays() == null ? 0 : record.getAttendDays()) + 1);
+            if (absentDays.compareTo(ZERO) > 0) {
+                record.setAbsentDays(absentDays.subtract(ONE).max(ZERO).setScale(2, RoundingMode.HALF_UP));
+            }
+            record.setLateTimes(Math.max(0, lateTimes - 1));
+            record.setEarlyLeaveTimes(Math.max(0, earlyLeaveTimes - 1));
+        }
+
+        record.setRemark(buildSignSyncRemark(record, apply));
+        return persistApplyAttendanceRecord(record);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public AttendanceRecord syncApprovedOvertimeToAttendance(com.salary.entity.AttendanceApply apply,
+                                                             Long reviewerId,
+                                                             String reviewerName) {
+        if (apply == null || !Integer.valueOf(3).equals(apply.getApplyType())) {
+            return null;
+        }
+        BigDecimal overtimeHours = nvl(apply.getOvertimeHours(), ZERO).setScale(2, RoundingMode.HALF_UP);
+        if (overtimeHours.compareTo(ZERO) <= 0) {
+            throw new RuntimeException("加班申请缺少有效的加班时长");
+        }
+        AttendanceRecord record = prepareApplyAttendanceRecord(apply, reviewerId, reviewerName);
+        record.setOvertimeHours(nvl(record.getOvertimeHours(), ZERO).add(overtimeHours).setScale(2, RoundingMode.HALF_UP));
+        record.setRemark(buildOvertimeSyncRemark(record, apply, overtimeHours));
+        return persistApplyAttendanceRecord(record);
     }
 
     private void fillAttendanceDeduct(AttendanceRecord record) {
         if (record == null) {
             return;
         }
+        record.setAttendHours(calculateAttendHours(record));
         AttendanceRule rule = resolveActiveAttendanceRule();
         BigDecimal baseSalary = resolveEmployeeBaseSalary(record.getEmpId());
         BigDecimal daySalary = resolveDaySalary(baseSalary, rule);
@@ -612,6 +635,13 @@ public class AttendanceServiceImpl extends ServiceImpl<AttendanceRecordMapper, A
                 .add(lateDeduct)
                 .setScale(2, RoundingMode.HALF_UP);
         record.setAttendDeduct(totalDeduct);
+    }
+
+    private void recalculateSalaryAfterManualAttendanceChange(Long empId, String yearMonth) {
+        if (empId == null || !StringUtils.hasText(yearMonth)) {
+            return;
+        }
+        salaryService.calculateSalary(empId, yearMonth);
     }
 
     private AttendanceRule resolveActiveAttendanceRule() {
@@ -678,6 +708,97 @@ public class AttendanceServiceImpl extends ServiceImpl<AttendanceRecordMapper, A
             return actualLeaveDays.multiply(new BigDecimal("0.5")).setScale(2, RoundingMode.HALF_UP);
         }
         return actualLeaveDays.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private AttendanceRecord prepareApplyAttendanceRecord(com.salary.entity.AttendanceApply apply,
+                                                          Long reviewerId,
+                                                          String reviewerName) {
+        if (apply.getEmpId() == null || apply.getApplyDate() == null) {
+            throw new RuntimeException("申请缺少员工或日期信息，无法同步考勤");
+        }
+        Employee emp = employeeMapper.selectById(apply.getEmpId());
+        if (emp == null) {
+            throw new RuntimeException("员工不存在，无法同步申请到考勤");
+        }
+        String yearMonth = apply.getApplyDate().format(DateTimeFormatter.ofPattern("yyyy-MM"));
+        AttendanceRecord existing = attendanceRecordMapper.selectByEmpAndMonth(emp.getId(), yearMonth);
+        AttendanceRecord record = existing != null ? existing : new AttendanceRecord();
+        Department dept = emp.getDeptId() == null ? null : departmentMapper.selectById(emp.getDeptId());
+        Long recordManagerId = emp.getManagerId() != null ? emp.getManagerId() : (dept != null ? dept.getManagerId() : null);
+        User recordManager = recordManagerId == null ? null : userMapper.selectById(recordManagerId);
+
+        record.setEmpId(emp.getId());
+        record.setEmpNo(hasText(record.getEmpNo()) ? record.getEmpNo() : defaultText(emp.getEmpNo()));
+        record.setEmpName(hasText(record.getEmpName()) ? record.getEmpName() : defaultText(emp.getRealName()));
+        record.setDeptId(emp.getDeptId());
+        if (!hasText(record.getDeptName())) {
+            record.setDeptName(dept != null ? defaultText(dept.getDeptName()) : "");
+        }
+        record.setYearMonth(yearMonth);
+        record.setAttendDays(record.getAttendDays() == null ? 0 : record.getAttendDays());
+        record.setAbsentDays(nvl(record.getAbsentDays(), ZERO));
+        record.setLateTimes(record.getLateTimes() == null ? 0 : record.getLateTimes());
+        record.setEarlyLeaveTimes(record.getEarlyLeaveTimes() == null ? 0 : record.getEarlyLeaveTimes());
+        record.setLeaveDays(nvl(record.getLeaveDays(), ZERO));
+        record.setSickLeaveDays(nvl(record.getSickLeaveDays(), ZERO));
+        record.setOvertimeHours(nvl(record.getOvertimeHours(), ZERO));
+        record.setAttendHours(nvl(record.getAttendHours(), ZERO));
+        record.setRecordDate(record.getRecordDate() == null ? apply.getApplyDate() : record.getRecordDate());
+        record.setManagerId(recordManagerId);
+        if (recordManager != null) {
+            record.setManagerNo(defaultText(recordManager.getUsername()));
+            record.setManagerName(defaultText(recordManager.getRealName()));
+        } else if (recordManagerId == null) {
+            record.setManagerNo(hasText(record.getManagerNo()) ? record.getManagerNo() : "");
+            record.setManagerName(hasText(record.getManagerName()) ? record.getManagerName() : "");
+        }
+        record.setStatus(record.getStatus() == null ? 1 : record.getStatus());
+        return record;
+    }
+
+    private AttendanceRecord persistApplyAttendanceRecord(AttendanceRecord record) {
+        fillAttendanceDeduct(record);
+        if (record.getId() == null) {
+            record.setRecordNo(generateRecordNo(record.getYearMonth(), record.getEmpNo()));
+            save(record);
+        } else {
+            updateById(record);
+        }
+        return record;
+    }
+
+    private String buildSignSyncRemark(AttendanceRecord record, com.salary.entity.AttendanceApply apply) {
+        String signLabel;
+        Integer signType = apply.getSignType();
+        if (Integer.valueOf(SIGN_TYPE_MORNING).equals(signType)) {
+            signLabel = "上午补签";
+        } else if (Integer.valueOf(SIGN_TYPE_AFTERNOON).equals(signType)) {
+            signLabel = "下午补签";
+        } else {
+            signLabel = "全天补签";
+        }
+        String base = String.format("审批同步：%s；当前出勤%d天，迟到%d次，早退%d次，旷工%s天。",
+                signLabel,
+                record.getAttendDays() == null ? 0 : record.getAttendDays(),
+                record.getLateTimes() == null ? 0 : record.getLateTimes(),
+                record.getEarlyLeaveTimes() == null ? 0 : record.getEarlyLeaveTimes(),
+                nvl(record.getAbsentDays(), ZERO).stripTrailingZeros().toPlainString());
+        if (hasText(record.getRemark()) && !record.getRemark().contains(base)) {
+            return record.getRemark() + " " + base;
+        }
+        return base;
+    }
+
+    private String buildOvertimeSyncRemark(AttendanceRecord record,
+                                           com.salary.entity.AttendanceApply apply,
+                                           BigDecimal overtimeHours) {
+        String base = String.format("审批同步：加班%s小时；当前累计加班%s小时。",
+                overtimeHours.stripTrailingZeros().toPlainString(),
+                nvl(record.getOvertimeHours(), ZERO).stripTrailingZeros().toPlainString());
+        if (hasText(record.getRemark()) && !record.getRemark().contains(base)) {
+            return record.getRemark() + " " + base;
+        }
+        return base;
     }
 
     private String buildLeaveSyncRemark(AttendanceRecord record,

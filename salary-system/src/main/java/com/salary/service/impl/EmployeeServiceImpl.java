@@ -13,12 +13,14 @@ import com.salary.dto.EmployeeImportPreviewItem;
 import com.salary.dto.EmployeeImportPreviewResult;
 import com.salary.entity.Employee;
 import com.salary.entity.Department;
+import com.salary.entity.Position;
 import com.salary.entity.User;
 import com.salary.mapper.DepartmentMapper;
 import com.salary.mapper.EmployeeMapper;
 import com.salary.mapper.PositionMapper;
 import com.salary.mapper.UserMapper;
 import com.salary.service.EmployeeService;
+import com.salary.service.PositionService;
 import com.salary.util.ExcelAvatarExportUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -50,6 +52,7 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee>
     private final UserMapper        userMapper;
     private final DepartmentMapper  deptMapper;
     private final PositionMapper    positionMapper;
+    private final PositionService   positionService;
     private final PasswordEncoder   passwordEncoder;
 
     // ====================================================
@@ -99,8 +102,10 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee>
 
         // 2. 绑定 userId 保存员工档案
         employee.setUserId(user.getId());
+        assignManagerPositionIfNeeded(employee);
         syncBaseSalaryWithDepartment(employee);
         save(employee);
+        syncDepartmentManagerBinding(employee);
     }
 
     @Override
@@ -116,8 +121,10 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee>
         if (employee.getDeptId() == null) {
             employee.setDeptId(exist.getDeptId());
         }
+        assignManagerPositionIfNeeded(employee);
         syncBaseSalaryWithDepartment(employee);
         updateById(employee);
+        syncDepartmentManagerBinding(employee);
     }
 
     @Override
@@ -167,7 +174,7 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee>
 
         Map<String, Long> deptNameToId = buildDeptNameMap();
         Map<Long, String> deptIdToName = buildDeptIdNameMap();
-        Map<String, Long> posNameToId = buildPositionNameMap();
+        Map<String, Long> deptPositionNameToId = buildDeptPositionNameMap();
         Map<Long, String> posIdToName = buildPositionIdNameMap();
         Set<String> managerEmpNosInFile = new HashSet<>();
         Set<String> empNos = new HashSet<>();
@@ -190,7 +197,7 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee>
                     dto,
                     index + 2,
                     deptNameToId,
-                    posNameToId,
+                    deptPositionNameToId,
                     managerEmpNosInFile,
                     existingByEmpNo,
                     deptIdToName,
@@ -222,7 +229,7 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee>
         }
 
         Map<String, Long> deptNameToId = buildDeptNameMap();
-        Map<String, Long> posNameToId = buildPositionNameMap();
+        Map<String, Long> deptPositionNameToId = buildDeptPositionNameMap();
         Set<String> empNos = new HashSet<>();
         for (EmployeeImportPreviewItem item : items) {
             normalizePreviewItem(item);
@@ -261,14 +268,16 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee>
             if (existing == null) {
                 Employee employee = new Employee();
                 employee.setUserId(userId);
-                applyImportFields(employee, item, deptNameToId, posNameToId, managerEmpNoToUserId);
+                applyImportFields(employee, item, deptNameToId, deptPositionNameToId, managerEmpNoToUserId);
                 save(employee);
+                syncDepartmentManagerBinding(employee);
                 existingByEmpNo.put(employee.getEmpNo(), employee);
                 result.setInsertedRows(result.getInsertedRows() + 1);
             } else {
                 existing.setUserId(userId);
-                applyImportFields(existing, item, deptNameToId, posNameToId, managerEmpNoToUserId);
+                applyImportFields(existing, item, deptNameToId, deptPositionNameToId, managerEmpNoToUserId);
                 updateById(existing);
+                syncDepartmentManagerBinding(existing);
                 existingByEmpNo.put(existing.getEmpNo(), existing);
                 result.setUpdatedRows(result.getUpdatedRows() + 1);
             }
@@ -394,6 +403,16 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee>
         return map;
     }
 
+    private Map<String, Long> buildDeptPositionNameMap() {
+        Map<String, Long> map = new HashMap<>();
+        positionMapper.selectList(null).forEach(p -> {
+            if (p.getDeptId() != null && StringUtils.hasText(p.getPositionName())) {
+                map.put(buildDeptPositionKey(p.getDeptId(), p.getPositionName()), p.getId());
+            }
+        });
+        return map;
+    }
+
     private LocalDate parseDate(String s) {
         if (s == null || s.isBlank()) return null;
         try { return LocalDate.parse(s.trim(), DATE_FMT); } catch (Exception e) { return null; }
@@ -452,7 +471,7 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee>
     private EmployeeImportPreviewItem buildPreviewItem(EmployeeImportDTO dto,
                                                        int rowNo,
                                                        Map<String, Long> deptNameToId,
-                                                       Map<String, Long> posNameToId,
+                                                       Map<String, Long> deptPositionNameToId,
                                                        Set<String> managerEmpNosInFile,
                                                        Map<String, Employee> existingByEmpNo,
                                                        Map<Long, String> deptIdToName,
@@ -475,17 +494,23 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee>
 
         List<String> problems = new ArrayList<>();
         List<String> notes = new ArrayList<>();
+        boolean managerRole = isManagerRole(dto.getRoleStr());
+        Long deptId = StringUtils.hasText(dto.getDeptName()) ? deptNameToId.get(dto.getDeptName()) : null;
         if (!StringUtils.hasText(dto.getEmpNo())) {
             problems.add("工号不能为空");
         }
         if (!StringUtils.hasText(dto.getRealName())) {
             problems.add("姓名不能为空");
         }
-        if (!StringUtils.hasText(dto.getDeptName()) || !deptNameToId.containsKey(dto.getDeptName())) {
+        if (deptId == null) {
             problems.add("部门不存在");
         }
-        if (StringUtils.hasText(dto.getPositionName()) && !posNameToId.containsKey(dto.getPositionName())) {
-            problems.add("岗位不存在");
+        if (managerRole) {
+            notes.add("经理岗位将按所属部门自动绑定");
+        } else if (!StringUtils.hasText(dto.getPositionName())) {
+            problems.add("岗位不能为空");
+        } else if (deptId == null || !deptPositionNameToId.containsKey(buildDeptPositionKey(deptId, dto.getPositionName()))) {
+            problems.add("岗位不存在或不属于该部门");
         }
         if (StringUtils.hasText(dto.getManagerNo())
                 && !managerEmpNosInFile.contains(dto.getManagerNo())) {
@@ -631,7 +656,7 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee>
     private void applyImportFields(Employee employee,
                                    EmployeeImportPreviewItem item,
                                    Map<String, Long> deptNameToId,
-                                   Map<String, Long> posNameToId,
+                                   Map<String, Long> deptPositionNameToId,
                                    Map<String, Long> managerEmpNoToUserId) {
         int role = isManagerRole(item.getRoleStr()) ? 2 : 3;
         employee.setEmpNo(item.getEmpNo());
@@ -640,19 +665,56 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee>
         employee.setPhone(item.getPhone());
         employee.setIdCard(item.getIdCard());
         employee.setDeptId(deptNameToId.get(item.getDeptName()));
-        employee.setPositionId(StringUtils.hasText(item.getPositionName()) ? posNameToId.get(item.getPositionName()) : null);
         employee.setHireDate(parseDate(item.getHireDate()));
         employee.setRole(role);
-        employee.setPositionName(item.getPositionName());
+        if (role == 2) {
+            employee.setManagerId(null);
+            assignManagerPositionIfNeeded(employee);
+        } else {
+            Long positionId = resolveDeptPositionId(employee.getDeptId(), item.getPositionName(), deptPositionNameToId);
+            if (positionId == null) {
+                throw new RuntimeException("岗位不存在或不属于该部门：" + safeText(item.getPositionName()));
+            }
+            employee.setPositionId(positionId);
+            employee.setPositionName(item.getPositionName());
+            bindManager(employee, item.getManagerNo(), managerEmpNoToUserId);
+        }
         employee.setBankAccount(item.getBankAccount());
         employee.setBankName(item.getBankName());
         employee.setStatus(1);
-        if (role == 2) {
-            employee.setManagerId(null);
-        } else {
-            bindManager(employee, item.getManagerNo(), managerEmpNoToUserId);
-        }
         syncBaseSalaryWithDepartment(employee);
+    }
+
+    private void assignManagerPositionIfNeeded(Employee employee) {
+        if (!isManagerEmployee(employee, null) || employee.getDeptId() == null) {
+            return;
+        }
+        Position managerPosition = positionService.ensureManagerPosition(employee.getDeptId());
+        employee.setPositionId(managerPosition.getId());
+        employee.setPositionName(managerPosition.getPositionName());
+    }
+
+    private void syncDepartmentManagerBinding(Employee employee) {
+        if (!isManagerEmployee(employee, null) || employee.getDeptId() == null || employee.getUserId() == null) {
+            return;
+        }
+        Department dept = deptMapper.selectById(employee.getDeptId());
+        if (dept == null || Objects.equals(dept.getManagerId(), employee.getUserId())) {
+            return;
+        }
+        dept.setManagerId(employee.getUserId());
+        deptMapper.updateById(dept);
+    }
+
+    private Long resolveDeptPositionId(Long deptId, String positionName, Map<String, Long> deptPositionNameToId) {
+        if (deptId == null || !StringUtils.hasText(positionName) || deptPositionNameToId == null) {
+            return null;
+        }
+        return deptPositionNameToId.get(buildDeptPositionKey(deptId, positionName));
+    }
+
+    private String buildDeptPositionKey(Long deptId, String positionName) {
+        return deptId + "#" + normalizeText(positionName);
     }
 
     private Map<Long, String> buildDeptIdNameMap() {

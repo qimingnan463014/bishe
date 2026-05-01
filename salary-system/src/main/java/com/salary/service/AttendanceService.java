@@ -68,4 +68,14 @@ public interface AttendanceService extends IService<AttendanceRecord> {
      * 将审批通过的请假申请同步到当月考勤记录。
      */
     AttendanceRecord syncApprovedLeaveToAttendance(AttendanceApply apply, Long reviewerId, String reviewerName);
+
+    /**
+     * 将审批通过的补签申请同步到当月考勤记录。
+     */
+    AttendanceRecord syncApprovedSignToAttendance(AttendanceApply apply, Long reviewerId, String reviewerName);
+
+    /**
+     * 将审批通过的加班申请同步到当月考勤记录。
+     */
+    AttendanceRecord syncApprovedOvertimeToAttendance(AttendanceApply apply, Long reviewerId, String reviewerName);
 }

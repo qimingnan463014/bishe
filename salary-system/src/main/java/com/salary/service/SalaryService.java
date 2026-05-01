@@ -23,6 +23,9 @@ public interface SalaryService extends IService<SalaryRecord> {
     /** 批量计算某月所有员工薪资（一键算薪） */
     void batchCalculate(String yearMonth, Long deptId);
 
+    /** 从指定生效月份起重算未最终发放的工资记录 */
+    void recalculateByEffectiveMonth(String effectiveMonth);
+
     /** 发放薪资（状态→已发放，生成发放记录），仅内部调用 */
     void issueSalary(Long salaryRecordId, Long operatorId);
 
@@ -95,6 +98,12 @@ public interface SalaryService extends IService<SalaryRecord> {
 
     /** 手动修改薪资记录 */
     void manualUpdate(SalaryRecord record);
+
+    /** 删除单条薪资记录（仅草稿/已驳回） */
+    void deleteSalary(Long salaryId, Integer role, Long operatorId);
+
+    /** 批量删除薪资记录（仅草稿/已驳回） */
+    void batchDeleteSalaries(List<Long> ids, Integer role, Long operatorId);
 
     /** 更新薪资发放附件 */
     void updateIssueFile(Long salaryId, String issueFile, Integer role);

@@ -928,9 +928,9 @@
                                     <el-tag>{{ getApplyTypeText(row.applyType, row.leaveType) }}</el-tag>
                                 </template>
                             </el-table-column>
-                            <el-table-column prop="leaveDays" label="请假天数" min-width="110">
+                            <el-table-column prop="leaveDays" label="申请量/时长" min-width="120">
                                 <template #default="{row}">
-                                    <span>{{ getApplyLeaveDaysText(row) }}</span>
+                                    <span>{{ getApplyMetricText(row) }}</span>
                                 </template>
                             </el-table-column>
                             <el-table-column prop="reason" label="详细阐述事由" show-overflow-tooltip></el-table-column>
@@ -1349,7 +1349,16 @@
                                 <el-option label="排班异常异议" :value="4"></el-option>
                             </el-select>
                         </el-form-item>
-                        <template v-if="applyForm.applyType === 2">
+                        <template v-if="applyForm.applyType === 1">
+                            <el-form-item label="补签类型" required>
+                                <el-select v-model="applyForm.signType" style="width:100%">
+                                    <el-option label="上午补签" :value="1"></el-option>
+                                    <el-option label="下午补签" :value="2"></el-option>
+                                    <el-option label="全天补签" :value="3"></el-option>
+                                </el-select>
+                            </el-form-item>
+                        </template>
+                        <template v-else-if="applyForm.applyType === 2">
                             <el-form-item label="请假类型" required>
                                 <el-select v-model="applyForm.leaveType" style="width:100%">
                                     <el-option label="事假" :value="1"></el-option>
@@ -1358,6 +1367,12 @@
                             </el-form-item>
                             <el-form-item label="请假天数" required>
                                 <el-input-number v-model="applyForm.leaveDays" :min="0.5" :step="0.5"
+                                    :precision="1" style="width:100%" />
+                            </el-form-item>
+                        </template>
+                        <template v-else-if="applyForm.applyType === 3">
+                            <el-form-item label="加班时长" required>
+                                <el-input-number v-model="applyForm.overtimeHours" :min="0.5" :step="0.5"
                                     :precision="1" style="width:100%" />
                             </el-form-item>
                         </template>
@@ -1728,6 +1743,7 @@
                         return String(value).replace('T', ' ').slice(0, 10);
                     };
                     const getLeaveTypeText = (leaveType) => Number(leaveType) === 2 ? '病假' : (Number(leaveType) === 1 ? '事假' : '-');
+                    const getSignTypeText = (signType) => ['', '上午补签', '下午补签', '全天补签'][Number(signType)] || '-';
                     const getApplyTypeText = (value, leaveType) => {
                         const applyType = Number(value);
                         if (applyType === 2) {
@@ -1742,6 +1758,17 @@
                         const leaveDays = Number(row?.leaveDays || 0);
                         const deductedLeaveDays = Number(row?.leaveType) === 2 ? leaveDays * 0.5 : leaveDays;
                         return `${formatDayValue(deductedLeaveDays)}天`;
+                    };
+                    const getApplyMetricText = (row) => {
+                        const applyType = Number(row?.applyType);
+                        if (applyType === 1) return getSignTypeText(row?.signType);
+                        if (applyType === 2) {
+                            return hasValue(row?.leaveDays) ? `${formatDayValue(row?.leaveDays || 0)}天` : '-';
+                        }
+                        if (applyType === 3) {
+                            return hasValue(row?.overtimeHours) ? `${formatDayValue(row?.overtimeHours || 0)}小时` : '-';
+                        }
+                        return '-';
                     };
                     const getApplyLeaveDaysText = (row) => Number(row?.applyType) === 2
                         ? (hasValue(row?.leaveDays) ? `${formatDayValue(row?.leaveDays || 0)}天` : '-')
@@ -1955,12 +1982,16 @@
                         const avatar = getDetailAvatar(detailRow);
                         const avatarFallback = (employeeName || detailRow.title || '?')[0];
                         if (type === 'attendance_apply') {
-                            const leaveDetailItems = Number(detailRow.applyType) === 2 ? [
+                            const typeDetailItems = Number(detailRow.applyType) === 1 ? [
+                                createDetailItem('补签类型', getSignTypeText(detailRow.signType))
+                            ] : (Number(detailRow.applyType) === 2 ? [
                                 createDetailItem('请假类型', getLeaveTypeText(detailRow.leaveType)),
                                 createDetailItem('请假天数', getApplyLeaveDaysText(detailRow)),
                                 createDetailItem('折算请假天数', getApplyDeductedLeaveDays(detailRow))
-                            ] : [];
-                            const usedKeys = ['applyDate', 'applyType', 'leaveType', 'leaveDays', 'reason', 'status', 'createTime', 'reviewTime', 'reviewComment', 'managerNo', 'managerName', 'attendanceId', 'proof'];
+                            ] : (Number(detailRow.applyType) === 3 ? [
+                                createDetailItem('加班时长', hasValue(detailRow.overtimeHours) ? `${formatDayValue(detailRow.overtimeHours)}小时` : '-')
+                            ] : []));
+                            const usedKeys = ['applyDate', 'applyType', 'leaveType', 'signType', 'leaveDays', 'overtimeHours', 'reason', 'status', 'createTime', 'reviewTime', 'reviewComment', 'managerNo', 'managerName', 'reviewUserId', 'reviewUserName', 'attendanceId', 'proof'];
                             openDetailDialog({
                                 eyebrow: '考勤申请',
                                 title: employeeName,
@@ -1976,7 +2007,7 @@
                                     createDetailItem('工号', employeeNo, 'muted'),
                                     createDetailItem('申请日期', detailRow.applyDate || '-', 'muted'),
                                     createDetailItem('申请类型', getApplyTypeText(detailRow.applyType, detailRow.leaveType)),
-                                    ...leaveDetailItems,
+                                    ...typeDetailItems,
                                     createDetailItem('审批状态', getApplyStatusText(detailRow.status)),
                                     createDetailItem('提交时间', formatDateTimeText(detailRow.createTime), 'muted'),
                                     createDetailItem('审批时间', formatDateTimeText(detailRow.reviewTime), 'muted'),
@@ -1984,6 +2015,8 @@
                                     createDetailItem('审批意见', detailRow.reviewComment || '-', 'muted', { span: 2 }),
                                     createDetailItem('经理工号', detailRow.managerNo || '-', 'muted'),
                                     createDetailItem('部门经理', detailRow.managerName || '-', 'muted'),
+                                    createDetailItem('审批人编号', detailRow.reviewUserId || '-', 'muted'),
+                                    createDetailItem('审批人姓名', detailRow.reviewUserName || '-', 'muted'),
                                     ...buildExtraDetailItems(detailRow, usedKeys)
                                 ]
                             });
@@ -2243,6 +2276,7 @@
                             attendanceId: '关联考勤记录',
                             proof: '证明材料',
                             reviewUserId: '审批人编号',
+                            reviewUserName: '审批人姓名',
                             reviewComment: '审批意见',
                             reviewTime: '审批时间',
                             replyUserName: '回复人员',
@@ -2340,7 +2374,7 @@
 
                     // 表单实体
                     const applyDialogVisible = ref(false);
-                    const applyForm = reactive({ applyDate: '', applyType: 1, leaveType: 1, leaveDays: 1, reason: '' });
+                    const applyForm = reactive({ applyDate: '', applyType: 1, leaveType: 1, signType: 1, leaveDays: 1, overtimeHours: 1, reason: '' });
 
                     const anomalyDialogVisible = ref(false);
                     const anomalyForm = reactive({ yearMonth: '', reportType: 1, title: '', description: '' });
@@ -2802,20 +2836,28 @@
 
                     // --- 表单触发行动 ---
                     const openApplyForm = () => {
-                        Object.assign(applyForm, { applyDate: '', applyType: 1, leaveType: 1, leaveDays: 1, reason: '' });
+                        Object.assign(applyForm, { applyDate: '', applyType: 1, leaveType: 1, signType: 1, leaveDays: 1, overtimeHours: 1, reason: '' });
                         applyDialogVisible.value = true;
                     };
                     const submitApply = () => {
                         if (!applyForm.applyDate) return ElementPlus.ElMessage.warning('日期必须指明');
+                        if (Number(applyForm.applyType) === 1) {
+                            if (![1, 2, 3].includes(Number(applyForm.signType))) return ElementPlus.ElMessage.warning('请选择补签类型');
+                        }
                         if (Number(applyForm.applyType) === 2) {
                             if (![1, 2].includes(Number(applyForm.leaveType))) return ElementPlus.ElMessage.warning('请选择事假或病假');
                             if (Number(applyForm.leaveDays || 0) <= 0) return ElementPlus.ElMessage.warning('请填写有效的请假天数');
                         }
+                        if (Number(applyForm.applyType) === 3) {
+                            if (Number(applyForm.overtimeHours || 0) <= 0) return ElementPlus.ElMessage.warning('请填写有效的加班时长');
+                        }
                         const payload = {
                             ...applyForm,
                             empId: userInfo.value.id,
+                            signType: Number(applyForm.applyType) === 1 ? Number(applyForm.signType) : null,
                             leaveType: Number(applyForm.applyType) === 2 ? Number(applyForm.leaveType) : null,
-                            leaveDays: Number(applyForm.applyType) === 2 ? Number(applyForm.leaveDays || 0) : null
+                            leaveDays: Number(applyForm.applyType) === 2 ? Number(applyForm.leaveDays || 0) : null,
+                            overtimeHours: Number(applyForm.applyType) === 3 ? Number(applyForm.overtimeHours || 0) : null
                         };
                         axios.post('/api/attendance-apply', payload).then(r => {
                             if (r.data.code === 200) {
@@ -2881,7 +2923,7 @@
                         applyDialogVisible, applyForm,
                         anomalyDialogVisible, anomalyForm,
                         feedbackDialogVisible, feedbackForm, salaryFeedbackDialogVisible, salaryFeedbackForm,
-                        handleSelect, handleCommand, viewNotice, changePwd, formatNegativeAmount, getApplyTypeText, getApplyLeaveDaysText,
+                        handleSelect, handleCommand, viewNotice, changePwd, formatNegativeAmount, getApplyTypeText, getApplyLeaveDaysText, getApplyMetricText,
                         openApplyForm, submitApply, openAnomalyForm, submitAnomaly, openFeedbackForm, submitFeedback, openSalaryFeedbackForm, submitSalaryFeedback, printAttendances
                     };
                 }

@@ -22,7 +22,9 @@ public class AttendanceApply {
     private Long deptId;
     private Integer applyType; // 1=补签，2=销假，3=加班申请，4=考勤异议
     private Integer leaveType; // 1=事假，2=病假
+    private Integer signType; // 1=上午补签，2=下午补签，3=全天补签
     private BigDecimal leaveDays; // 申请天数（实际天数）
+    private BigDecimal overtimeHours; // 加班时长（小时）
     private LocalDate applyDate;
     private String reason;
     private String proof;

@@ -37,6 +37,9 @@ public class Position {
     /** 状态：1=启用，0=禁用 */
     private Integer status;
 
+    /** 是否为系统保留的经理岗位：1=是，0=否 */
+    private Integer isManagerPosition;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 

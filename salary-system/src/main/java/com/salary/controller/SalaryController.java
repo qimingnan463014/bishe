@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -82,7 +83,7 @@ public class SalaryController {
             HttpServletRequest request) {
         Integer role = getRole(request);
         Long managerId = role == 2 ? getUserId(request) : null;
-        String excludeEmpNo = role == 2 ? getUsername(request) : null;
+        String excludeEmpNo = null;
         Boolean excludeDraft = role == 1;
         return Result.success(salaryService.page(
                 current, size, yearMonth, empNo, realName, deptId, calcStatus, managerId, excludeEmpNo, excludeDraft));
@@ -227,7 +228,7 @@ public class SalaryController {
                                                     HttpServletRequest request) {
         Integer role = getRole(request);
         String managerNo = role == 2 ? getUsername(request) : null;
-        String excludeEmpNo = role == 2 ? getUsername(request) : null;
+        String excludeEmpNo = null;
         return Result.success(salaryService.getSalaryStructure(yearMonth, managerNo, excludeEmpNo));
     }
 
@@ -365,6 +366,20 @@ public class SalaryController {
         return Result.successMsg("Updated");
     }
 
+    @ApiOperation("删除单条薪资核算记录（仅草稿/已驳回）")
+    @DeleteMapping("/{id:[0-9]+}")
+    public Result<Void> delete(@PathVariable Long id, HttpServletRequest request) {
+        salaryService.deleteSalary(id, getRole(request), getUserId(request));
+        return Result.successMsg("Deleted");
+    }
+
+    @ApiOperation("批量删除薪资核算记录（仅草稿/已驳回）")
+    @PostMapping("/batch-delete")
+    public Result<Void> batchDelete(@RequestBody List<Long> ids, HttpServletRequest request) {
+        salaryService.batchDeleteSalaries(ids, getRole(request), getUserId(request));
+        return Result.successMsg("Batch deleted");
+    }
+
     @ApiOperation("上传薪资发放文件（管理员）")
     @PostMapping("/{id:[0-9]+}/issue-file")
     public Result<String> uploadIssueFile(@PathVariable Long id,
@@ -398,7 +413,7 @@ public class SalaryController {
     private RoleScope resolveRoleScope(HttpServletRequest request) {
         Integer role = getRole(request);
         Long managerId = role == 2 ? getUserId(request) : null;
-        String excludeEmpNo = role == 2 ? getUsername(request) : null;
+        String excludeEmpNo = null;
         Boolean excludeDraft = role == 1;
         return new RoleScope(managerId, excludeEmpNo, excludeDraft);
     }
@@ -500,6 +515,9 @@ public class SalaryController {
         }
         if (status == 4) {
             return "已发放";
+        }
+        if (status == 5) {
+            return "已驳回";
         }
         return "未知";
     }

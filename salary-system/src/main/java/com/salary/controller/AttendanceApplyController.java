@@ -67,7 +67,14 @@ public class AttendanceApplyController {
         if (employee == null) {
             return Result.error("未绑定员工档案，无法提交考勤申请");
         }
-        if (Integer.valueOf(2).equals(apply.getApplyType())) {
+        if (Integer.valueOf(1).equals(apply.getApplyType())) {
+            if (apply.getSignType() == null || apply.getSignType() < 1 || apply.getSignType() > 3) {
+                return Result.error("补签申请必须选择上午、下午或全天补签");
+            }
+            apply.setLeaveType(null);
+            apply.setLeaveDays(null);
+            apply.setOvertimeHours(null);
+        } else if (Integer.valueOf(2).equals(apply.getApplyType())) {
             if (apply.getLeaveType() == null || (apply.getLeaveType() != 1 && apply.getLeaveType() != 2)) {
                 return Result.error("请假申请必须选择事假或病假");
             }
@@ -75,9 +82,21 @@ public class AttendanceApplyController {
             if (leaveDays == null || leaveDays.compareTo(BigDecimal.ZERO) <= 0) {
                 return Result.error("请填写有效的请假天数");
             }
+            apply.setSignType(null);
+            apply.setOvertimeHours(null);
+        } else if (Integer.valueOf(3).equals(apply.getApplyType())) {
+            BigDecimal overtimeHours = apply.getOvertimeHours();
+            if (overtimeHours == null || overtimeHours.compareTo(BigDecimal.ZERO) <= 0) {
+                return Result.error("请填写有效的加班时长");
+            }
+            apply.setLeaveType(null);
+            apply.setLeaveDays(null);
+            apply.setSignType(null);
         } else {
             apply.setLeaveType(null);
             apply.setLeaveDays(null);
+            apply.setSignType(null);
+            apply.setOvertimeHours(null);
         }
         apply.setEmpId(employee.getId());
         apply.setEmpNo(employee.getEmpNo());

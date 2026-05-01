@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -37,8 +38,12 @@ public class AttendanceApplyServiceImpl extends ServiceImpl<AttendanceApplyMappe
         if (empId != null) qw.eq(AttendanceApply::getEmpId, empId);
         if (status != null) qw.eq(AttendanceApply::getStatus, status);
         if (managerId != null) {
-            List<Long> empIds = employeeMapper.selectList(new LambdaQueryWrapper<Employee>().eq(Employee::getManagerId, managerId))
-                    .stream().map(Employee::getId).collect(Collectors.toList());
+            List<Long> empIds = new ArrayList<>(employeeMapper.selectList(new LambdaQueryWrapper<Employee>().eq(Employee::getManagerId, managerId))
+                    .stream().map(Employee::getId).collect(Collectors.toList()));
+            Employee selfEmployee = employeeMapper.selectByUserId(managerId);
+            if (selfEmployee != null && selfEmployee.getId() != null && !empIds.contains(selfEmployee.getId())) {
+                empIds.add(selfEmployee.getId());
+            }
             if (empIds.isEmpty()) return PageResult.of(new Page<>());
             qw.in(AttendanceApply::getEmpId, empIds);
         }
@@ -58,8 +63,15 @@ public class AttendanceApplyServiceImpl extends ServiceImpl<AttendanceApplyMappe
         apply.setReviewUserId(managerId);
         apply.setReviewUserName(reviewerName);
         apply.setReviewTime(LocalDateTime.now());
-        if (Integer.valueOf(1).equals(status) && Integer.valueOf(2).equals(apply.getApplyType())) {
-            AttendanceRecord attendanceRecord = attendanceService.syncApprovedLeaveToAttendance(apply, managerId, reviewerName);
+        if (Integer.valueOf(1).equals(status)) {
+            AttendanceRecord attendanceRecord = null;
+            if (Integer.valueOf(1).equals(apply.getApplyType())) {
+                attendanceRecord = attendanceService.syncApprovedSignToAttendance(apply, managerId, reviewerName);
+            } else if (Integer.valueOf(2).equals(apply.getApplyType())) {
+                attendanceRecord = attendanceService.syncApprovedLeaveToAttendance(apply, managerId, reviewerName);
+            } else if (Integer.valueOf(3).equals(apply.getApplyType())) {
+                attendanceRecord = attendanceService.syncApprovedOvertimeToAttendance(apply, managerId, reviewerName);
+            }
             if (attendanceRecord != null) {
                 apply.setAttendanceId(attendanceRecord.getId());
                 if (apply.getEmpId() != null && apply.getApplyDate() != null) {

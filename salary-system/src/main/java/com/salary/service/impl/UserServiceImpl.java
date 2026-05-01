@@ -144,12 +144,21 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         User user = userMapper.selectByUsernameWithPassword(
                 userMapper.selectById(userId).getUsername());
         if (user == null) throw new RuntimeException("用户不存在");
+        if (oldPassword == null || oldPassword.trim().isEmpty()) {
+            throw new RuntimeException("原密码不能为空");
+        }
+        if (newPassword == null || newPassword.trim().isEmpty()) {
+            throw new RuntimeException("新密码不能为空");
+        }
 
         if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
             throw new RuntimeException("原密码不正确");
         }
         if (newPassword.length() < 6) {
             throw new RuntimeException("新密码长度不能少于6位");
+        }
+        if (oldPassword.equals(newPassword)) {
+            throw new RuntimeException("新密码不能与原密码相同");
         }
 
         User update = new User();

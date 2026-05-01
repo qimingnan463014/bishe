@@ -8,6 +8,7 @@ import com.salary.entity.Employee;
 import com.salary.mapper.DepartmentMapper;
 import com.salary.mapper.EmployeeMapper;
 import com.salary.service.DepartmentService;
+import com.salary.service.PositionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +26,7 @@ public class DepartmentServiceImpl extends ServiceImpl<DepartmentMapper, Departm
 
     private final DepartmentMapper departmentMapper;
     private final EmployeeMapper employeeMapper;
+    private final PositionService positionService;
 
     @Override
     public PageResult<Department> page(int current, int size, String deptName, Integer status) {
@@ -52,6 +54,7 @@ public class DepartmentServiceImpl extends ServiceImpl<DepartmentMapper, Departm
             dept.setPositionSalary(BigDecimal.ZERO);
         }
         save(dept);
+        positionService.ensureManagerPosition(dept.getId());
     }
 
     @Override

@@ -39,9 +39,9 @@ public class DepartmentController {
 
     @ApiOperation("Add new department")
     @PostMapping
-    public Result<Void> add(@RequestBody Department department) {
+    public Result<Department> add(@RequestBody Department department) {
         departmentService.addDepartment(department);
-        return Result.successMsg("Added successfully");
+        return Result.success(department);
     }
 
     @ApiOperation("Update department")

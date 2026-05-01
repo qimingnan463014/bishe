@@ -31,10 +31,12 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletRequest;
 
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -111,15 +113,17 @@ public class EmployeeController {
 
     @ApiOperation("新增员工")
     @PostMapping
-    public Result<Void> add(@RequestBody Employee employee,
+    public Result<Void> add(@RequestBody Map<String, Object> payload,
                             @RequestParam(required = false, defaultValue = "123456") String initialPassword) {
+        Employee employee = buildEmployee(payload);
         employeeService.addEmployee(employee, initialPassword);
         return Result.successMsg("新增成功");
     }
 
     @ApiOperation("修改员工")
     @PutMapping
-    public Result<Void> update(@RequestBody Employee employee) {
+    public Result<Void> update(@RequestBody Map<String, Object> payload) {
+        Employee employee = buildEmployee(payload);
         employeeService.updateEmployee(employee);
         return Result.successMsg("修改成功");
     }
@@ -237,5 +241,116 @@ public class EmployeeController {
         }
         Integer roleValue = employee.getRole() != null ? employee.getRole() : employee.getUserRole();
         return roleValue != null && roleValue == 2;
+    }
+
+    private Employee buildEmployee(Map<String, Object> payload) {
+        Employee employee = new Employee();
+        if (payload == null) {
+            return employee;
+        }
+        employee.setId(asLong(payload.get("id")));
+        employee.setUserId(asLong(payload.get("userId")));
+        employee.setEmpNo(firstText(payload, "empNo"));
+        employee.setRealName(firstText(payload, "realName"));
+        employee.setGender(asInteger(payload.get("gender")));
+        employee.setPhone(firstText(payload, "phone"));
+        employee.setIdCard(firstText(payload, "idCard"));
+        employee.setDeptId(asLong(payload.get("deptId")));
+        employee.setPositionId(asLong(payload.get("positionId")));
+        employee.setManagerId(asLong(payload.get("managerId")));
+        employee.setBankAccount(firstText(payload, "bankAccount", "bankCard"));
+        employee.setBankName(firstText(payload, "bankName"));
+        employee.setBaseSalary(asDecimal(payload.get("baseSalary")));
+        employee.setHireDate(asDate(payload.get("hireDate")));
+        employee.setAvatar(firstText(payload, "avatar"));
+        employee.setStatus(asInteger(payload.get("status")));
+        employee.setRemark(firstText(payload, "remark"));
+        employee.setRole(firstNonNullInteger(payload, "role", "userRole"));
+        employee.setUserRole(firstNonNullInteger(payload, "userRole", "role"));
+        employee.setPositionName(firstText(payload, "positionName", "position"));
+        employee.setInitialPassword(firstText(payload, "initialPassword"));
+        return employee;
+    }
+
+    private Integer firstNonNullInteger(Map<String, Object> payload, String... keys) {
+        if (payload == null || keys == null) {
+            return null;
+        }
+        for (String key : keys) {
+            Integer value = asInteger(payload.get(key));
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private String firstText(Map<String, Object> payload, String... keys) {
+        if (payload == null || keys == null) {
+            return null;
+        }
+        for (String key : keys) {
+            String value = asText(payload.get(key));
+            if (StringUtils.hasText(value)) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private String asText(Object value) {
+        if (value == null) {
+            return null;
+        }
+        String text = String.valueOf(value).trim();
+        return text.isEmpty() ? null : text;
+    }
+
+    private Long asLong(Object value) {
+        String text = asText(value);
+        if (text == null) {
+            return null;
+        }
+        try {
+            return Long.valueOf(text);
+        } catch (NumberFormatException e) {
+            throw new RuntimeException("数字字段格式不正确：" + text);
+        }
+    }
+
+    private Integer asInteger(Object value) {
+        String text = asText(value);
+        if (text == null) {
+            return null;
+        }
+        try {
+            return Integer.valueOf(text);
+        } catch (NumberFormatException e) {
+            throw new RuntimeException("整数格式不正确：" + text);
+        }
+    }
+
+    private BigDecimal asDecimal(Object value) {
+        String text = asText(value);
+        if (text == null) {
+            return null;
+        }
+        try {
+            return new BigDecimal(text);
+        } catch (NumberFormatException e) {
+            throw new RuntimeException("金额格式不正确：" + text);
+        }
+    }
+
+    private LocalDate asDate(Object value) {
+        String text = asText(value);
+        if (text == null) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(text);
+        } catch (Exception e) {
+            throw new RuntimeException("日期格式不正确：" + text);
+        }
     }
 }
